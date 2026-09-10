@@ -1,4 +1,4 @@
-# EquipCare AI — Implementation Plan (rev. 4)
+# EquipCare AI — Implementation Plan (rev. 5)
 
 > AI-Powered Equipment Maintenance Management System — phạm vi P1 theo bộ tài liệu đính kèm (Spec + Document01..07).
 > Monorepo: `apps/api` NestJS + Prisma + Postgres · `apps/web` Next.js 14 (App Router) · `packages/shared` + `packages/backend-core` · Infra Postgres 16 + Redis 7 + MinIO (Docker Compose).
@@ -89,7 +89,7 @@ Một **đơn vị** (single-tenant, RBAC data-scope isolation). 4 vai trò: Adm
 
 | Thành phần | Phiên bản baseline | Ghi chú |
 |---|---|---|
-| Node.js | **22.x** (Active LTS, 2024-10 → 2027-04) | Không dùng Node 20 (đã EOL 2026-04) |
+| Node.js | **22.x LTS** (baseline locked; hỗ trợ đến 2027-04) | Node 24 đã là Latest LTS nên không dùng "Active LTS"; baseline locked là 22 cho toàn đồ án. Không dùng Node 20 (EOL 2026-04) |
 | pnpm | 9.x (9.12+) | Workspaces, lockfile chặt |
 | NestJS | **10.x** (baseline locked) | Tương thích Prisma 5/6, BullMQ, Passport, Swagger |
 | Prisma | **5.x** (baseline locked) | Migration version đáng tin cậy, generated types |
@@ -225,7 +225,7 @@ equipcare-ai/
 | ID | Nội dung | Baseline áp dụng |
 |---|---|---|
 | Q-01 | Hệ quả hủy WO | **WO REPAIR bị hủy**: (a) Nếu còn WO khác đang mở cho Incident → **giữ nguyên trạng thái Incident**. (b) Nếu không còn WO mở: lý do hủy ghi nhận `need_info_from_reporter` → Incident → `AWAITING_INFO`; các lý do khác → `NEW`. **WO MAINTENANCE bị hủy** (xem Q-02). Approval `PENDING/AWAITING_INFO` của WO bị hủy → `CANCELLED`. Lưu `replaced_by_work_order_id`. Không xóa stock_transactions / cost_entries. |
-| Q-02 | Recurrence + SCHEDULED/DUE/OVERDUE/SKIPPED | FIXED. Plan `PAUSED` → kỳ đến hạn/quá hạn → `SKIPPED`, reason `PLAN_PAUSED`. Plan `ACTIVE` → scheduler đánh `DUE` khi đến `due_on`; quá hạn (do scheduler lỗi hoặc không chạy) → `OVERDUE`. Khi scheduler phục hồi, occurrence `OVERDUE` vẫn sinh WO (không chuyển SKIPPED). Resume plan → KHÔNG sinh bù các kỳ đã SKIPPED/OVERDUE. Hủy WO MAINTENANCE: nếu `now < due_on` → occurrence `SCHEDULED`; nếu `due_on <= now < due_on + grace` (trong kỳ đến hạn) → `DUE`; nếu đã quá hạn → `OVERDUE`; cho phép tạo WO thay thế (lưu `replaced_by_work_order_id`). `UNIQUE(plan_id, due_on)`. Per-occurrence WO partial unique. |
+| Q-02 | Recurrence + SCHEDULED/DUE/OVERDUE/SKIPPED | FIXED. Plan `PAUSED` → kỳ đến hạn/quá hạn → `SKIPPED`, reason `PLAN_PAUSED`. Plan `ACTIVE` → scheduler đánh `DUE` khi đến `due_on`; quá hạn (do scheduler lỗi hoặc không chạy, tức `now > due_on + MAINTENANCE_DUE_GRACE_HOURS`) → `OVERDUE`. Khi scheduler phục hồi, occurrence `OVERDUE` vẫn phải có đúng một WO đang mở hoặc được sinh WO mới (không chuyển SKIPPED, không bỏ qua). Resume plan → KHÔNG sinh bù các occurrence `SKIPPED`; occurrence `OVERDUE` không bị bỏ qua — scheduler phải đảm bảo occurrence đó có WO đang mở hoặc WO thay thế hợp lệ. Hủy WO MAINTENANCE: nếu `now < due_on` → occurrence `SCHEDULED`; nếu `due_on <= now < due_on + MAINTENANCE_DUE_GRACE_HOURS` → `DUE`; nếu `now >= due_on + MAINTENANCE_DUE_GRACE_HOURS` → `OVERDUE`; cho phép tạo WO thay thế (lưu `replaced_by_work_order_id`). Threshold `MAINTENANCE_DUE_GRACE_HOURS` lưu trong `thresholds`; nếu không cấu hình, dùng mặc định an toàn 24 giờ. `UNIQUE(plan_id, due_on)`. Per-occurrence WO partial unique. |
 | Q-03 | Mô hình kho + RETURN | Một vị trí, một `on_hand` mỗi part. `part_balances.UNIQUE(spare_part_id)`. `stock_transactions.operation_key UNIQUE`. `original_stock_tx_id` cho RETURN. RETURN kiểm tra qty remaining trên ISSUE gốc. ISSUE/RETURN qua WO route; ADJUST route riêng. CREDIT theo unit_price snapshot. Atomic. |
 | Q-04 | SLA | `event_type` trong `work_order_status_history`: `ASSIGNED|STARTED|PAUSED|RESUMED|WAITING_APPROVAL_ENTER|WAITING_APPROVAL_EXIT|COMPLETED|CANCELLED`. Row PAUSED/RESUMED lưu `paused_at`, `resumed_at`, `pause_reason`. `active_elapsed = total_elapsed − waiting_approval_seconds − authorized_pause_seconds`. `is_overdue = active_elapsed > sla_seconds`. |
 | Q-05 | Department snapshot | `work_orders.department_id_snapshot` — copy tại lúc tạo WO. |
@@ -403,7 +403,7 @@ M6 (Inventory) phụ thuộc M7 (Cost/Approval) vì Issue/RETURN kiểm tra Q-06
 | **M2** | Asset + QR + lifecycle | W3 | `0002_asset`: assets, asset_status_history, asset_types (FK locations/departments; `thresholds` đã có từ M1, KHÔNG tạo lại) | asset | `/asset-types`, `/assets`, `/assets/{id}/lifecycle`, `/assets/{id}/qr` | asset list/detail, qr | TC-ASSET-01..05 | lifecycle_status transitions; RETIRED chặn WO; activity_status dẫn xuất đúng |
 | **M3** | Attachment STAGED→READY + technical documents | W4 | `0003_attachments`: files (STAGED/READY/EXPIRED), attachment_links (CK một parent), technical_documents, document_versions, document_roles | attachment, audit | `POST /files`, `GET /files/{fileId}/download`, `/technical-documents` | attachment modal | TC-DOC-01..05, TC-AUD-01..04 | Magic bytes + MIME + size check; STAGED→READY in tx; cron dọn; audit viewer |
 | **M4** | Incident + AI async (worker) | W5–W6 | `0004_incidents_ai`: incidents, incident_messages, incident_history, ai_requests, ai_suggestions, ai_jobs | incident, ai (provider interface + mock + worker), backend-core domain | `/incidents`, `/incidents/{id}/transition`, `/incidents/{id}/messages`, `/ai/suggest/category`, `/ai/suggest/priority`, `/ai/requests/{id}` | incident list/detail/reporter, AI suggest | TC-INC-01..06, TC-AI-01..06 | State machine đúng enum Doc04; AI 202 + requestId; GET /ai/requests/{id}; fallback |
-| **M5** | Work Order (core + SLA, không chờ duyệt) | W7–W8 | `0005_work_orders`: work_orders (department_id_snapshot, replaced_by_work_order_id), work_order_tasks, work_order_status_history (event_type + pause fields) | work-order, backend-core domain | `/work-orders`, `/work-orders/{id}/assign`, `/work-orders/{id}/transition` (NEW/ASSIGNED/IN_PROGRESS/PAUSED/RESUMED/COMPLETED/CANCELLED), `/work-orders/{id}/complete`, `/work-orders/{id}/cancel` | WO list/detail/assign/complete/cancel | TC-WO-01..04 (core); TC-WO-05..08 (regression ở M6/M7 sau khi integrate) | SLA event_type works (ASSIGNED/STARTED/PAUSED/RESUMED/COMPLETED/CANCELLED); partial unique per incident; Incident → RESOLVED; Cancel side effects Q-01; **M5 chưa có WAITING_APPROVAL/Approval** |
+| **M5** | Work Order (core + SLA, không chờ duyệt) | W7–W8 | `0005_work_orders`: work_orders (department_id_snapshot, replaced_by_work_order_id), work_order_tasks, work_order_status_history (event_type + pause fields) | work-order, backend-core domain | `/work-orders`, `/work-orders/{id}/assign`, `/work-orders/{id}/transition` (NEW/ASSIGNED/IN_PROGRESS/COMPLETED/CANCELLED — **enum status Doc04, không có PAUSED**), `POST /work-orders/{id}/pause`, `POST /work-orders/{id}/resume` (chỉ ghi event PAUSED/RESUMED trong `work_order_status_history`, `work_orders.status` vẫn `IN_PROGRESS`), `/work-orders/{id}/complete`, `/work-orders/{id}/cancel` | WO list/detail/assign/complete/cancel; pause/resume modal | TC-WO-01..04 (core); TC-WO-05..08 (regression ở M6/M7 sau khi integrate) | SLA event_type works (ASSIGNED/STARTED/PAUSED/RESUMED/COMPLETED/CANCELLED); partial unique per incident; Complete WO chỉ chuyển Incident → RESOLVED khi không còn WO khác đang mở cho Incident đó; Cancel side effects Q-01; **M5 chưa có WAITING_APPROVAL/Approval** |
 | **M6** | Cost + Approval + WAITING_APPROVAL hoàn thiện | W9 | `0006_cost_approval`: cost_entries, approval_requests, approval_items, approval_history, approval_revisions | cost, approval, backend-core domain (Q-06 cost) | `/work-orders/{id}/cost-entries`, `/approvals`, `/approvals/{id}/submit`, `/approvals/{id}/decision`, `/approvals/{id}/cancel`, `/approvals/{id}/revisions`, mở rộng `/work-orders/{id}/transition` (ENTER/EXIT WAITING_APPROVAL) | cost form, approval inbox, decision UI | TC-WO-05..08 (full); TC-COST-01..04; TC-APR-01..07 | WAITING_APPROVAL EVENT_ENTER/EXIT + cancel-approval; self-approval FR-APR-09; Q-06 check `net_cost`; revision chain; re-run TC-WO-05..08 |
 | **M7** | Inventory + Q-06 net_issued_quantity hoàn thiện | W10 | `0007_inventory`: spare_parts, part_balances (UNIQUE spare_part_id), stock_transactions (operation_key UNIQUE, original_stock_tx_id), low_stock_alerts | inventory, backend-core domain (issue/return Q-06 full) | `/spare-parts`, `/spare-parts/{id}/adjust`, `/work-orders/{id}/parts/issue`, `/work-orders/{id}/parts/return`, `/low-stock-alerts` | parts list, issue modal, low-stock | TC-PART-01..07; re-run TC-WO-05..08 + TC-APR-01..07 (integration) | Concurrency 50 req đồng thời → on_hand >= 0; RETURN không vượt ISSUE gốc; Q-06 full (`net_issued_quantity` + `net_cost`); low-stock alert; **chạy lại full WO + Approval integration test** |
 | **M8** | Maintenance Plan + Scheduler | W11 | `0008_maintenance`: maintenance_plans, plan_occurrences, plan_generation_log | maintenance, scheduler processor (worker) | `/maintenance-plans`, `/maintenance-plans/{id}/occurrences`, `.../pause`, `.../resume` | plan list/calendar | TC-MNT-01..05 | FIXED recurrence; PAUSED→SKIPPED (PLAN_PAUSED); ACTIVE→OVERDUE (sinh WO khi phục hồi); UNIQUE(plan_id,due_on); resume không sinh bù |
@@ -506,9 +506,11 @@ services:
       timeout: 3s
       retries: 10
 
-  # Apps (build từ Dockerfile của mỗi app)
+  # Apps (build từ Dockerfile của mỗi app — context là root monorepo để lấy lockfile + packages)
   api:
-    build: ./apps/api
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
     environment:
       DATABASE_URL: postgresql://equipcare:equipcare_pwd@postgres:5432/equipcare
       REDIS_URL: redis://redis:6379
@@ -528,7 +530,9 @@ services:
         condition: service_healthy
 
   web:
-    build: ./apps/web
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
     ports: ["3000:3000"]
@@ -536,7 +540,9 @@ services:
       - api
 
   worker:
-    build: ./apps/worker
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
     environment:
       DATABASE_URL: postgresql://equipcare:equipcare_pwd@postgres:5432/equipcare
       REDIS_URL: redis://redis:6379
@@ -550,11 +556,67 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    restart: unless-stopped
+
+  # Chạy Prisma migration 1 lần trước khi api/worker start
+  migrate:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    entrypoint: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://equipcare:equipcare_pwd@postgres:5432/equipcare
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # Seed dữ liệu demo 1 lần sau migrate
+  seed:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    entrypoint: ["node", "dist/prisma/seed.js"]
+    environment:
+      DATABASE_URL: postgresql://equipcare:equipcare_pwd@postgres:5432/equipcare
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # Tạo bucket MinIO 1 lần
+  minio-init:
+    image: minio/mc:RELEASE.2024-09-16T17-43-14Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        until /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done &&
+        /usr/bin/mc mb -p local/equipcare-files || true &&
+        /usr/bin/mc anonymous set download local/equipcare-files-public || true &&
+        echo 'MinIO bucket ready'
+      "
+    restart: "no"
 
 volumes:
   pg_data:
   minio_data:
 ```
+
+> `migrate` chạy `prisma migrate deploy` để áp tất cả migration chưa apply; `seed` chạy sau khi `migrate` xong; `minio-init` tạo bucket `equipcare-files`. Tất cả 3 service dùng `restart: "no"` (one-shot). API và worker chỉ start sau khi `migrate` thành công (`depends_on` service `migrate` condition `service_completed_successfully` — bổ sung nếu API/worker cần chờ seed thì thêm `seed:` vào danh sách `depends_on`).
+
+> Secret nạp từ `.env` ở host hoặc từ secrets manager; docker compose đọc biến môi trường qua `env_file: - .env` ở mỗi service. Không commit `.env` thật vào repo.
+
+### 13.1. API entrypoint — chạy migration tự động (alternative)
+
+Nếu muốn entrypoint API tự chạy migrate trước khi start NestJS (chỉ dev/demo), Dockerfile `apps/api` có thể chứa:
+
+```dockerfile
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node dist/main.js"]
+```
+
+> Cách này gộp vào container API; rủi ro: nếu migration fail thì API cũng fail (acceptable cho demo). Không khuyến nghị dùng cho production — production cần tách bước migration và deploy.
 
 > OpenAI (nếu `AI_PROVIDER=openai`) là provider bên ngoài qua HTTPS, không cần service trong Compose.
 
@@ -585,7 +647,7 @@ volumes:
 
 ## 15. Demo flow
 
-Baseline đi theo hướng **duyệt trước khi issue** (Q-06). Ngưỡng duyệt = `approval_items.quantity` + `approval_items.unit_cost` (Manager cấu hình qua `/thresholds`). Mọi ISSUE vượt ngưỡng phải có approval `APPROVED` trước; nếu không có approval, ISSUE bị từ chối.
+Baseline đi theo hướng **duyệt trước khi issue** (Q-06). `thresholds` (cấu hình bởi Admin/Manager qua `/thresholds`) quyết định giao dịch nào bắt buộc phải phê duyệt. Nếu giao dịch thuộc diện phải duyệt thì chỉ được ISSUE sau khi có approval `APPROVED`. `approval_items` lưu giới hạn số lượng, đơn giá và thành tiền đã duyệt cho đề xuất cụ thể. Nếu `net_issued_quantity` hoặc `net_cost` vượt giới hạn này → hệ thống từ chối ISSUE và yêu cầu tạo `approval_revisions` (Q-06).
 
 ```
 Reporter (reporter.sx01)      → Tạo Incident
@@ -596,6 +658,8 @@ Technician (ktv.sx01)        → ISSUE parts theo approval; RESOLVE; complete WO
 Manager (manager.sx)          → Close Incident → CLOSED
 Reporter / Manager            → Dashboard; xuất CSV; báo cáo
 ```
+
+> Nếu chưa có approval hợp lệ hoặc `net_issued_quantity` / `net_cost` vượt giới hạn đã duyệt → ISSUE bị từ chối (HTTP 422), không rollback DB.
 
 ## 16. Rủi ro còn lại
 

@@ -116,7 +116,7 @@ Sau khi chạy, truy cập:
 | `pnpm infra:down` | Tắt hạ tầng Docker |
 | `pnpm demo:up` | Full stack: API + Web + Worker + hạ tầng trong Docker |
 | `pnpm demo:down` | Tắt full stack Docker |
-| `bash scripts/demo-flow.sh` hoặc `pwsh scripts/demo-flow.ps1` | Demo E2E: Reporter tạo incident → Manager assign → KTV issue parts → Manager approve → KTV complete → Manager close → CSV report |
+| `bash scripts/demo-flow.sh` hoặc `pwsh scripts/demo-flow.ps1` | Demo E2E: Reporter tạo incident → Manager assign → KTV lập đề xuất → Manager approve → KTV issue parts → KTV complete → Manager close → CSV report |
 
 ## Chế độ "demo đầy đủ" so với "development"
 
@@ -138,10 +138,8 @@ equipcare-ai/
 │  ├─ web/                      Next.js frontend
 │  └─ worker/                   BullMQ worker (AI, notification, scheduler)
 ├─ packages/
-│  ├─ shared/                   types, enums, permission constants, OpenAPI client
-│  └─ backend-core/             PrismaService, domain logic (state machine, RBAC policy,
-│                                SLA, inventory) — KHÔNG chứa HTTP; được import bởi
-│                                cả apps/api và apps/worker
+│  ├─ shared/                   types, enums, permission constants, OpenAPI client (không chứa policy)
+│  └─ backend-core/             PrismaService (singleton trong từng process; API và worker là 2 process riêng — mỗi process có 1 instance), RBAC policy, scope check, state machine, SLA, inventory domain (không chứa HTTP)
 ├─ infra/
 │  ├─ docker-compose.infra.yml   postgres, redis, minio (chỉ hạ tầng)
 │  ├─ docker-compose.demo.yml    api, web, worker + infra (full stack)
