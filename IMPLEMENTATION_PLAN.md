@@ -36,7 +36,7 @@ Bản sửa đổi này đối chiếu lại toàn bộ các quyết định ngh
 | 4 | M5 phụ thuộc M6 (WAITING_APPROVAL, cancel approval); M6 phụ thuộc M7 (net_issued_quantity) | M5 = WO core + SLA + complete/cancel cơ bản, **không** WAITING_APPROVAL/cancel-approval. M6 = Cost/Approval + WAITING_APPROVAL + self-approval + phần cost của Q-06. M7 = Inventory + Q-06 net_issued_quantity + chạy lại WO/Approval integration test | review |
 | 5 | Q-01 + Q-02 mô tả chưa xác định | Q-01: cancel WO REPAIR — còn WO mở khác → giữ trạng thái; không còn → lý do thiếu info từ Reporter → AWAITING_INFO, lý do khác → NEW. Q-02: phân biệt SCHEDULED / DUE / OVERDUE theo thời điểm hủy WO (chưa đến hạn / đang trong kỳ / đã quá hạn) | review |
 | 6 | SLA chưa nói khoảng mở + ràng buộc chuyển trạng thái | Bổ sung: `end_at = completed_at ?? cancelled_at ?? now`; `pause_end = resumed_at ?? end_at`; `waiting_end = exited_at ?? end_at`. Ràng buộc: không PAUSED khi đã paused; không RESUMED khi chưa paused; Enter/Exit đôi tương ứng. Trừ thời lượng hợp của pause ∪ waiting | review |
-| 7 (nhỏ) | Demo flow sai thứ tự Q-06; version wording | Demo: KTV lập đề xuất → Manager approve → KTV issue → KTV complete. **Threshold duyệt trước mọi issue**; nếu không vượt approval → ISSUE bị từ chối. Version wording → "baseline locked" | review |
+| 7 (nhỏ) | Demo flow sai thứ tự Q-06; version wording | Demo: KTV lập đề xuất → Manager approve → KTV issue → KTV complete. Nếu giao dịch thuộc diện phải duyệt nhưng chưa có approval APPROVED, hoặc số lượng/chi phí vượt giới hạn đã duyệt, ISSUE bị từ chối. Version wording → "baseline locked" | review |
 
 ## 0. M0 — Đóng băng baseline (trước W1, 28/09/2026)
 
@@ -117,9 +117,15 @@ equipcare-ai/
 │  │  │  ├─ common/           AppError, filters, pipes, decorators, guards
 │  │  │  ├─ infra/            storage, mail (log-only), realtime (WS gateway)
 │  │  │  └─ main.ts
-│  │  ├─ prisma/schema.prisma, migrations/, seed.ts
+│  │  ├─ prisma/schema.prisma, migrations/, seed.ts     # nguồn duy nhất quản lý schema + migration + seed
 │  │  ├─ test/
 │  │  └─ package.json
+├─ packages/
+│  ├─ shared/                  types, enums, permission constants, OpenAPI client (không chứa policy)
+│  └─ backend-core/            khai báo @prisma/client; cung cấp PrismaService (singleton trong từng process).
+│                                API và worker cùng import backend-core; mỗi process có 1 PrismaService instance riêng.
+│                                RBAC policy, scope check, state machine, SLA, inventory domain
+│                                (không chứa HTTP decorators/controllers).
 │  ├─ web/                     Next.js frontend
 │  │  ├─ src/app/
 │  │  ├─ src/features/
@@ -131,7 +137,7 @@ equipcare-ai/
 │     │                         scheduler.processor.ts, outbox.processor.ts
 │     └─ package.json
 ├─ packages/
-│  ├─ shared/                  types, enums, RBAC policy, OpenAPI client
+│  ├─ shared/                  types, enums, permission constants, OpenAPI client (không chứa policy)
 │  └─ backend-core/            PrismaService, domain (state machine, policy, RBAC),
 │                                NOT contains HTTP controllers; imported by both api & worker
 ├─ infra/
@@ -406,7 +412,7 @@ M6 (Inventory) phụ thuộc M7 (Cost/Approval) vì Issue/RETURN kiểm tra Q-06
 | **M5** | Work Order (core + SLA, không chờ duyệt) | W7–W8 | `0005_work_orders`: work_orders (department_id_snapshot, replaced_by_work_order_id), work_order_tasks, work_order_status_history (event_type + pause fields) | work-order, backend-core domain | `/work-orders`, `/work-orders/{id}/assign`, `/work-orders/{id}/transition` (NEW/ASSIGNED/IN_PROGRESS/COMPLETED/CANCELLED — **enum status Doc04, không có PAUSED**), `POST /work-orders/{id}/pause`, `POST /work-orders/{id}/resume` (chỉ ghi event PAUSED/RESUMED trong `work_order_status_history`, `work_orders.status` vẫn `IN_PROGRESS`), `/work-orders/{id}/complete`, `/work-orders/{id}/cancel` | WO list/detail/assign/complete/cancel; pause/resume modal | TC-WO-01..04 (core); TC-WO-05..08 (regression ở M6/M7 sau khi integrate) | SLA event_type works (ASSIGNED/STARTED/PAUSED/RESUMED/COMPLETED/CANCELLED); partial unique per incident; Complete WO chỉ chuyển Incident → RESOLVED khi không còn WO khác đang mở cho Incident đó; Cancel side effects Q-01; **M5 chưa có WAITING_APPROVAL/Approval** |
 | **M6** | Cost + Approval + WAITING_APPROVAL hoàn thiện | W9 | `0006_cost_approval`: cost_entries, approval_requests, approval_items, approval_history, approval_revisions | cost, approval, backend-core domain (Q-06 cost) | `/work-orders/{id}/cost-entries`, `/approvals`, `/approvals/{id}/submit`, `/approvals/{id}/decision`, `/approvals/{id}/cancel`, `/approvals/{id}/revisions`, mở rộng `/work-orders/{id}/transition` (ENTER/EXIT WAITING_APPROVAL) | cost form, approval inbox, decision UI | TC-WO-05..08 (full); TC-COST-01..04; TC-APR-01..07 | WAITING_APPROVAL EVENT_ENTER/EXIT + cancel-approval; self-approval FR-APR-09; Q-06 check `net_cost`; revision chain; re-run TC-WO-05..08 |
 | **M7** | Inventory + Q-06 net_issued_quantity hoàn thiện | W10 | `0007_inventory`: spare_parts, part_balances (UNIQUE spare_part_id), stock_transactions (operation_key UNIQUE, original_stock_tx_id), low_stock_alerts | inventory, backend-core domain (issue/return Q-06 full) | `/spare-parts`, `/spare-parts/{id}/adjust`, `/work-orders/{id}/parts/issue`, `/work-orders/{id}/parts/return`, `/low-stock-alerts` | parts list, issue modal, low-stock | TC-PART-01..07; re-run TC-WO-05..08 + TC-APR-01..07 (integration) | Concurrency 50 req đồng thời → on_hand >= 0; RETURN không vượt ISSUE gốc; Q-06 full (`net_issued_quantity` + `net_cost`); low-stock alert; **chạy lại full WO + Approval integration test** |
-| **M8** | Maintenance Plan + Scheduler | W11 | `0008_maintenance`: maintenance_plans, plan_occurrences, plan_generation_log | maintenance, scheduler processor (worker) | `/maintenance-plans`, `/maintenance-plans/{id}/occurrences`, `.../pause`, `.../resume` | plan list/calendar | TC-MNT-01..05 | FIXED recurrence; PAUSED→SKIPPED (PLAN_PAUSED); ACTIVE→OVERDUE (sinh WO khi phục hồi); UNIQUE(plan_id,due_on); resume không sinh bù |
+| **M8** | Maintenance Plan + Scheduler | W11 | `0008_maintenance`: maintenance_plans, plan_occurrences, plan_generation_log | maintenance, scheduler processor (worker) | `/maintenance-plans`, `/maintenance-plans/{id}/occurrences`, `.../pause`, `.../resume` | plan list/calendar | TC-MNT-01..05 | FIXED recurrence; PAUSED→SKIPPED (PLAN_PAUSED); ACTIVE→OVERDUE; Resume **không sinh bù occurrence SKIPPED**; occurrence **OVERDUE vẫn phải được scheduler đảm bảo có đúng một WO mở hoặc WO thay thế hợp lệ** (xem Q-02); UNIQUE(plan_id,due_on) |
 | **M9** | Notification + Realtime + Dashboard + Report | W12 | `0009_notif_dashboard`: notifications, notification_jobs, outbox_events (optional), v_kpi_* | notification (controller + worker processor), dashboard, report | `/notifications`, `/notifications/{id}/read`, `WS /ws`, `/dashboard/kpis`, `/dashboard/overdue`, `/reports/{type}.csv` | notif list + realtime toast, dashboard, report | TC-NOT-01..06, TC-REP-01..04, TC-DATA-01..05 | 6 nhóm FR-NOT đúng; WS JWT; KPI đúng scope; CSV có permission; overdue = active_elapsed > sla; 5 ca data integrity |
 | **M10** | Tích hợp + hardening + E2E + docs | W13–W14 | (n/a) | cross-cutting | — | UX polish | TC-UX-01..08, TC-OPS-01..03, TC-PERF-01..04 | Toàn bộ test pass; prod build; demo flow; README; 0 TODO/mock ngoài stub; feature freeze; diễn tập |
 
@@ -521,6 +527,7 @@ services:
       AI_PROVIDER: mock
       NODE_ENV: production
     ports: ["3001:3001"]
+    env_file: ../.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -528,13 +535,20 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
 
   web:
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
+    env_file: ../.env
     ports: ["3000:3000"]
     depends_on:
       - api
@@ -549,6 +563,7 @@ services:
       AI_PROVIDER: mock
       AI_REQUEST_TIMEOUT_MS: "45000"
       NODE_ENV: production
+    env_file: ../.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -556,6 +571,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   # Chạy Prisma migration 1 lần trước khi api/worker start
@@ -563,28 +582,30 @@ services:
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
-    entrypoint: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    entrypoint: ["pnpm", "db:migrate:deploy"]
     environment:
       DATABASE_URL: postgresql://equipcare:equipcare_pwd@postgres:5432/equipcare
+    env_file: ../.env
     depends_on:
       postgres:
         condition: service_healthy
     restart: "no"
 
-  # Seed dữ liệu demo 1 lần sau migrate
+  # Seed dữ liệu demo 1 lần sau migrate (idempotent, dùng upsert với UUID cố định)
   seed:
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
-    entrypoint: ["node", "dist/prisma/seed.js"]
+    entrypoint: ["pnpm", "db:seed"]
     environment:
       DATABASE_URL: postgresql://equipcare:equipcare_pwd@postgres:5432/equipcare
+    env_file: ../.env
     depends_on:
       migrate:
         condition: service_completed_successfully
     restart: "no"
 
-  # Tạo bucket MinIO 1 lần
+  # Tạo bucket MinIO 1 lần ở chế độ private
   minio-init:
     image: minio/mc:RELEASE.2024-09-16T17-43-14Z
     depends_on:
@@ -594,8 +615,7 @@ services:
       /bin/sh -c "
         until /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done &&
         /usr/bin/mc mb -p local/equipcare-files || true &&
-        /usr/bin/mc anonymous set download local/equipcare-files-public || true &&
-        echo 'MinIO bucket ready'
+        echo 'MinIO bucket equipcare-files ready (private)'
       "
     restart: "no"
 
@@ -604,7 +624,7 @@ volumes:
   minio_data:
 ```
 
-> `migrate` chạy `prisma migrate deploy` để áp tất cả migration chưa apply; `seed` chạy sau khi `migrate` xong; `minio-init` tạo bucket `equipcare-files`. Tất cả 3 service dùng `restart: "no"` (one-shot). API và worker chỉ start sau khi `migrate` thành công (`depends_on` service `migrate` condition `service_completed_successfully` — bổ sung nếu API/worker cần chờ seed thì thêm `seed:` vào danh sách `depends_on`).
+> **Chuỗi khởi động**: `postgres/redis/minio healthy` → `migrate` → `seed` (phụ thuộc `migrate`) + `minio-init` (phụ thuộc `minio`) → `api` + `worker` (chờ cả `seed` và `minio-init` xong mới start). Bucket `equipcare-files` ở **chế độ private** (không `anonymous download`); quyền tải kiểm tra qua API tại thời điểm request.
 
 > Secret nạp từ `.env` ở host hoặc từ secrets manager; docker compose đọc biến môi trường qua `env_file: - .env` ở mỗi service. Không commit `.env` thật vào repo.
 
@@ -659,7 +679,7 @@ Manager (manager.sx)          → Close Incident → CLOSED
 Reporter / Manager            → Dashboard; xuất CSV; báo cáo
 ```
 
-> Nếu chưa có approval hợp lệ hoặc `net_issued_quantity` / `net_cost` vượt giới hạn đã duyệt → ISSUE bị từ chối (HTTP 422), không rollback DB.
+> Nếu giao dịch thuộc diện bắt buộc phê duyệt nhưng chưa có approval APPROVED, hoặc `net_issued_quantity` / `net_cost` vượt giới hạn đã duyệt, API trả HTTP 422. Không có thay đổi nào được ghi vào `stock_transactions`, `part_balances`, `cost_entries`; nếu transaction đã mở thì phải rollback toàn bộ.
 
 ## 16. Rủi ro còn lại
 
@@ -670,4 +690,4 @@ Reporter / Manager            → Dashboard; xuất CSV; báo cáo
 | R-03 | Worker dùng chung logic | `packages/backend-core` là shared layer; worker + api cùng import |
 | R-04 | Deadline 14 tuần | Phasing §12; defer circuit breaker/materialized view/SMTP nếu thiếu ~1 tuần |
 | R-05 | PowerShell vs bash | Cung cấp cả `.sh` và `.ps1`; PS dùng `Copy-Item`, `Remove-Item` |
-| R-06 | DB UUID seed | Dùng `crypto.randomUUID()` hoặc giá trị seed cố định cho `org_unit.id` trong migration initial |
+| R-06 | DB UUID seed | **Dùng một UUID cố định, không dùng `crypto.randomUUID()`** cho `org_unit.id` trong migration initial + seed. Lý do: seed chạy lại phải idempotent (không tạo conflict trên reset). UUID ổn định đặt trong `prisma/seed/constants.ts` (vd `const ORG_UNIT_ID = '00000000-0000-4000-8000-000000000001'`) và dùng `upsert` thay vì `create`. |
