@@ -117,29 +117,29 @@ equipcare-ai/
 │  │  │  ├─ common/           AppError, filters, pipes, decorators, guards
 │  │  │  ├─ infra/            storage, mail (log-only), realtime (WS gateway)
 │  │  │  └─ main.ts
-│  │  ├─ prisma/schema.prisma, migrations/, seed.ts     # nguồn duy nhất quản lý schema + migration + seed
+│  │  ├─ prisma/
+│  │  │  ├─ schema.prisma      # nguồn duy nhất cho schema DB
+│  │  │  ├─ migrations/        # lịch sử migration
+│  │  │  └─ seed.ts            # seed idempotent (UUID cố định + upsert)
 │  │  ├─ test/
 │  │  └─ package.json
-├─ packages/
-│  ├─ shared/                  types, enums, permission constants, OpenAPI client (không chứa policy)
-│  └─ backend-core/            khai báo @prisma/client; cung cấp PrismaService (singleton trong từng process).
-│                                API và worker cùng import backend-core; mỗi process có 1 PrismaService instance riêng.
-│                                RBAC policy, scope check, state machine, SLA, inventory domain
-│                                (không chứa HTTP decorators/controllers).
 │  ├─ web/                     Next.js frontend
 │  │  ├─ src/app/
 │  │  ├─ src/features/
 │  │  ├─ src/lib/
 │  │  └─ package.json
 │  └─ worker/                  BullMQ worker — chạy RIÊNG với api
-│     ├─ src/
-│     │  └─ processors/        ai.processor.ts, notification.processor.ts,
+│     ├─ src/processors/        ai.processor.ts, notification.processor.ts,
 │     │                         scheduler.processor.ts, outbox.processor.ts
 │     └─ package.json
 ├─ packages/
-│  ├─ shared/                  types, enums, permission constants, OpenAPI client (không chứa policy)
-│  └─ backend-core/            PrismaService, domain (state machine, policy, RBAC),
-│                                NOT contains HTTP controllers; imported by both api & worker
+│  ├─ shared/                  types, enums, permission constants, OpenAPI client
+│  │                            (KHÔNG chứa policy — chỉ data shape)
+│  └─ backend-core/            khai báo @prisma/client; cung cấp PrismaService
+│                                (singleton trong từng process). API và worker cùng
+│                                import backend-core; mỗi process có 1 instance riêng.
+│                                RBAC policy, scope check, state machine, SLA,
+│                                inventory domain (không chứa HTTP).
 ├─ infra/
 │  ├─ docker-compose.infra.yml  postgres, redis, minio (chỉ hạ tầng)
 │  ├─ docker-compose.demo.yml   api, web, worker + infra (full stack)
@@ -150,10 +150,12 @@ equipcare-ai/
 │  └─ freeze-baseline.sh        M0: đánh dấu baseline đã khóa
 ├─ .env.example
 ├─ .nvmrc
-├─ .editorconfig
-├─ .eslintrc.cjs
-├─ .prettierrc
-├─ tsconfig.base.json
+├─ pnpm-workspace.yaml
+├─ package.json
+├─ README.md
+└─ IMPLEMENTATION_PLAN.md
+```
+├─ .nvmrc
 ├─ pnpm-workspace.yaml
 ├─ package.json
 ├─ README.md
@@ -323,7 +325,6 @@ active_elapsed_seconds = total_elapsed_seconds − excluded_seconds
 
 is_overdue = active_elapsed_seconds > sla_seconds
              AND status IN (ASSIGNED, IN_PROGRESS, WAITING_APPROVAL)
-             AND end_at = now()    # WO còn mở
 ```
 
 > Trường hợp WO đang pause hoặc đang chờ duyệt (chưa kết thúc): khoảng chưa đóng lấy `end_at = now()`; khi WO complete/cancel, recalc với `end_at` cố định. Trừ thời lượng hợp (union) để tránh trừ hai lần khi pause và waiting overlap.
@@ -614,7 +615,7 @@ services:
     entrypoint: >
       /bin/sh -c "
         until /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done &&
-        /usr/bin/mc mb -p local/equipcare-files || true &&
+        /usr/bin/mc mb --ignore-existing -p local/equipcare-files &&
         echo 'MinIO bucket equipcare-files ready (private)'
       "
     restart: "no"
@@ -626,17 +627,7 @@ volumes:
 
 > **Chuỗi khởi động**: `postgres/redis/minio healthy` → `migrate` → `seed` (phụ thuộc `migrate`) + `minio-init` (phụ thuộc `minio`) → `api` + `worker` (chờ cả `seed` và `minio-init` xong mới start). Bucket `equipcare-files` ở **chế độ private** (không `anonymous download`); quyền tải kiểm tra qua API tại thời điểm request.
 
-> Secret nạp từ `.env` ở host hoặc từ secrets manager; docker compose đọc biến môi trường qua `env_file: - .env` ở mỗi service. Không commit `.env` thật vào repo.
-
-### 13.1. API entrypoint — chạy migration tự động (alternative)
-
-Nếu muốn entrypoint API tự chạy migrate trước khi start NestJS (chỉ dev/demo), Dockerfile `apps/api` có thể chứa:
-
-```dockerfile
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node dist/main.js"]
-```
-
-> Cách này gộp vào container API; rủi ro: nếu migration fail thì API cũng fail (acceptable cho demo). Không khuyến nghị dùng cho production — production cần tách bước migration và deploy.
+> Secret nạp từ `.env` ở host hoặc từ secrets manager; docker compose đọc biến môi trường qua `env_file: ../.env` ở mỗi service. Không commit `.env` thật vào repo.
 
 > OpenAI (nếu `AI_PROVIDER=openai`) là provider bên ngoài qua HTTPS, không cần service trong Compose.
 
