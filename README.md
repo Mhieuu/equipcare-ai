@@ -8,17 +8,17 @@ AI-Powered Equipment Maintenance Management System — phạm vi P1 theo bộ t�
 
 | Layer | Tech |
 |---|---|
-| Backend | NestJS 10 (current) · Prisma 5 · PostgreSQL 16 · Redis 7 · BullMQ · Socket.IO |
+| Backend | **NestJS 10.x — baseline locked** · **Prisma 5.x — baseline locked** · PostgreSQL 16 · Redis 7 · BullMQ · Socket.IO |
 | Worker | BullMQ — **app riêng** (`apps/worker`), chạy độc lập với API |
-| Frontend | Next.js 14 (App Router) · React 18 · TypeScript strict · Tailwind · shadcn/ui · TanStack Query · RHF + Zod |
+| Frontend | **Next.js 14.x — baseline locked** · **React 18.x — baseline locked** · TypeScript strict · Tailwind · shadcn/ui · TanStack Query · RHF + Zod |
 | Storage | MinIO `RELEASE.2024-09-13T03-26-17Z` (S3-compatible, local) |
 | AI | Provider abstraction · OpenAI Responses API (optional, smoke test only) · deterministic mock (default) |
 | Test | Jest 29 (backend) · Vitest 1.x (frontend) · Supertest · Testcontainers · Playwright |
-| Toolchain | **Node.js 22 LTS** (Active, 2024-10 → 2027-04) · pnpm 9 workspaces |
+| Toolchain | **Node.js 22.x LTS — baseline locked** · pnpm 9 workspaces |
 
 ## Yêu cầu môi trường
 
-- **Node.js**: 22 LTS (Active) — xem `.nvmrc`. **Không dùng Node 20** (đã EOL 2026-04).
+- **Node.js**: 22.x LTS — baseline locked. **Không dùng Node 20** (đã EOL 2026-04).
 - **pnpm**: 9.x — `npm i -g pnpm@9`
 - **Docker Desktop** (Windows/Mac) hoặc Docker Engine + Compose v2
 - **OS**: Windows 10/11 (PowerShell hoặc Git Bash/WSL), macOS 12+, Ubuntu 22.04+
@@ -134,14 +134,18 @@ Bật AI thật: trong `.env` đặt `AI_PROVIDER=openai` và `OPENAI_API_KEY=sk
 ```
 equipcare-ai/
 ├─ apps/
-│  ├─ api/                  NestJS backend (HTTP + Swagger)
-│  ├─ web/                  Next.js frontend
-│  └─ worker/               BullMQ worker (AI, notification, scheduler)
+│  ├─ api/                      NestJS backend (HTTP + Swagger)
+│  ├─ web/                      Next.js frontend
+│  └─ worker/                   BullMQ worker (AI, notification, scheduler)
 ├─ packages/
-│  └─ shared/               types, enums, RBAC policy, OpenAPI client
+│  ├─ shared/                   types, enums, permission constants, OpenAPI client
+│  └─ backend-core/             PrismaService, domain logic (state machine, RBAC policy,
+│                                SLA, inventory) — KHÔNG chứa HTTP; được import bởi
+│                                cả apps/api và apps/worker
 ├─ infra/
-│  ├─ docker-compose.yml     postgres, redis, minio, api, web, worker
-│  └─ minio/                init bucket script
+│  ├─ docker-compose.infra.yml   postgres, redis, minio (chỉ hạ tầng)
+│  ├─ docker-compose.demo.yml    api, web, worker + infra (full stack)
+│  └─ minio/                     init bucket script
 ├─ scripts/
 │  ├─ reset-db.sh / .ps1
 │  └─ demo-flow.sh / .ps1
@@ -157,8 +161,9 @@ equipcare-ai/
 
 - Repo **không** chứa API key, mật khẩu thật, hay secret. Toàn bộ cấu hình qua `.env` (đã `.gitignore`).
 - Mọi kiểm tra quyền (`PolicyGuard` + `ScopeGuard`) được thực hiện tại Backend — UI chỉ ẩn nút để giảm thao tác sai.
+- RBAC policy + scope check nằm trong `packages/backend-core` (shared domain); `packages/shared` chỉ chứa types/enums/permission constants/OpenAPI client.
 - Mật khẩu hash bằng bcrypt (cost ≥ 12).
-- Tệp đính kèm đi qua chu trình STAGED → READY; quyền tải được kiểm tra lại tại thời điểm truy cập.
+- Tệp đính kèm đi qua chu trình STAGED → READY; quyền tải được kiểm tra lại tại thời điểm truy cập; kiểm tra magic bytes (file signature) ngoài MIME/extension.
 
 ## Đóng góp & quy trình
 
