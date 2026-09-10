@@ -20,8 +20,10 @@
     "db:migrate:deploy": "pnpm --filter @equipcare/api prisma:migrate:deploy",
     "db:seed": "pnpm --filter @equipcare/api prisma:seed",
     "db:reset": "pnpm --filter @equipcare/api prisma:reset",
-    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
-    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "infra:up": "docker compose -f infra/docker-compose.infra.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.infra.yml down",
+    "demo:up": "docker compose -f infra/docker-compose.demo.yml up -d",
+    "demo:down": "docker compose -f infra/docker-compose.demo.yml down",
     "demo": "bash scripts/demo-flow.sh"
   }
 }

@@ -1,108 +1,139 @@
-# EquipCare AI — Implementation Plan (rev. 3)
+# EquipCare AI — Implementation Plan (rev. 4)
 
 > AI-Powered Equipment Maintenance Management System — phạm vi P1 theo bộ tài liệu đính kèm (Spec + Document01..07).
-> Monorepo: `apps/api` NestJS + Prisma + Postgres · `apps/web` Next.js 14 (App Router) · `packages/shared` types/enums/RBAC · Infra Postgres 16 + Redis 7 + MinIO (Docker Compose).
+> Monorepo: `apps/api` NestJS + Prisma + Postgres · `apps/web` Next.js 14 (App Router) · `packages/shared` + `packages/backend-core` · Infra Postgres 16 + Redis 7 + MinIO (Docker Compose).
 
-Bản sửa đổi này đối chiếu lại toàn bộ các quyết định nghiệp vụ với Tài liệu 02 (SRS), 03 (UC/RBAC), 04 (ERD), 05 (Kiến trúc/API), 06 (UX), 07 (Kế hoạch kiểm thử), sau hai vòng review.
+Bản sửa đổi này đối chiếu lại toàn bộ các quyết định nghiệp vụ với Tài liệu 02 (SRS), 03 (UC/RBAC), 04 (ERD), 05 (Kiến trúc/API), 06 (UX), 07 (Kế hoạch kiểm thử), sau ba vòng review.
 
-## Tóm tắt thay đổi so với rev. 2
+## Tóm tắt thay đổi so với rev. 3
 
-| # | Vấn đề (rev. 2) | Sửa ở rev. 3 | Bằng chứng |
+| # | Vấn đề (rev. 3) | Sửa ở rev. 4 | Bằng chứng |
 |---|---|---|---|
-| 1 | Mã test sai/sáng tác (AUTH 11, RBAC 20, ASSET 10, INC 12, WO 15, COST 06, APR 10, AI 08, DASH/RPT) | Đổi về đúng Doc07 §4: TC-AUTH-01..05, TC-RBAC-01..06, TC-ORG-01..04, TC-ASSET-01..05, TC-INC-01..06, TC-WO-01..08, TC-MNT-01..05, TC-PART-01..07, TC-APR-01..07, TC-COST-01..04, TC-DOC-01..05, TC-NOT-01..06, TC-REP-01..04, TC-AI-01..06, TC-AUD-01..04, TC-CFG-01..03, TC-SEC-01..08, TC-DATA-01..05, TC-UX-01..08, TC-PERF-01..04, TC-OPS-01..03 | Doc07 §4 |
-| 2 | Q-02 SKIPPED cho mọi kỳ quá hạn | Chỉ SKIPPED khi plan đang PAUSED; kỳ quá hạn khi ACTIVE → OVERDUE. Unique `UNIQUE(plan_id, due_on)` không phụ thuộc status. WO per occurrence dùng partial unique riêng | Doc02 FR-MNT-06..09 |
-| 3 | Hủy WO PM trả occurrence | Nếu `due_on` còn tương lai → `SCHEDULED`; nếu đã đến hạn → `DUE` + cho phép tạo WO thay thế qua `replaced_by_work_order_id`; không scheduler chuyển ngay sang SKIPPED | Q-01 + review |
-| 4 | Migration M1/M2/M3 chồng chéo, M9 thiếu migration | Sắp xếp lại: M1 gồm IAM+ORG nền; M2 Asset; M3 files/attachment; M4 Incident + AI; M9 Notification + AI còn lại | review |
-| 5 | "AI sync" + timeout 8s + circuit breaker nâng cao | AI 100% async; mock provider chạy qua BullMQ trả 202 + requestId ngay từ M4; timeout **30–60s** (Doc07); circuit breaker nâng cao → **optional**, P1 chỉ cần timeout + retry giới hạn + fallback | Doc07 §6.4 |
-| 6 | SLA thiếu định nghĩa | Định nghĩa `active_elapsed`, `is_overdue`, pause/resume lưu ở `work_order_status_history` (start/end); WAITING_APPROVAL loại khỏi SLA và hiển thị riêng; PAUSED cần quyền+lý do+audit; WAITING_PARTS **đã loại khỏi enum WO** (Doc04 dùng NEW/ASSIGNED/IN_PROGRESS/WAITING_APPROVAL/COMPLETED/CANCELLED) → áp dụng theo Doc04 | Doc04 §9 + Doc07 §6.4 |
-| 7 | Asset status bị gộp | Tách `lifecycle_status` (lưu cột) = ACTIVE/PAUSED/RETIRED; `activity_status` (dẫn xuất, view) = NORMAL/UNDER_REPAIR/UNDER_MAINTENANCE; priority: RETIRED > PAUSED > activity | Doc02 FR-ASSET-04..05 |
-| 8 | Thiếu `role_permissions`; lộ `user_role_permission` | Thêm bảng `role_permissions(role_id, permission_id)`; user_roles → roles → role_permissions → permissions | Doc05 §10.4 (chuỗi join) |
-| 9 | Transaction ISSUE chứa "files"; concurrency test mô tả sai; WO completed tự CLOSED; ADJUST đặt lẫn với WO | Bỏ "files"; thêm `part_balances.UNIQUE(spare_part_id)`; `stock_transactions.operation_key UNIQUE`; RETURN tham chiếu ISSUE gốc với qty remaining; route ISSUE/RETURN qua `/work-orders/{id}/parts/{issue\|return}`; ADJUST là route quản lý tồn riêng; concurrency test "50 request/Promise chạy đồng thời"; WO completed → Incident RESOLVED (Manager CLOSED thủ công) | Doc04 §4 + Doc02 |
-| 10 | Coverage P1 chưa rõ | Bổ sung ORG+asset_types+threshold (FR-ORG/CFG), low-stock alert (TC-PART-06), 6 nhóm NOT (TC-NOT-01..06), 5 ca TC-DATA-01..05, exit criteria AC-01..14 + UI-AC-01..08 + 0 S1/S2 mở | Doc07 §1.2 + §5.1 |
-| 11 | Node 20 LTS "hết hỗ trợ", pin version chưa rõ, MinIO tag sai | Đổi Node sang **22 LTS** (đang maintained 2024-10 → 2027-04); pin đúng `pnpm-lock.yaml`; MinIO pin tag `RELEASE.2024-09-13T03-26-17Z`; NestJS 10 không phải "stable LTS" | https://nodejs.org/en/about/previous-releases |
-| 12 | Demo dùng bash + AI_PROVIDER không rõ; Worker process không nói rõ; README thiếu PS | Demo mặc định `AI_PROVIDER=mock`; OpenAI chỉ cho smoke test; Worker là app Nest riêng trong `apps/worker` chạy trong cùng Docker Compose; bổ sung PowerShell script; demo flow đúng chuỗi Reporter → Manager → Technician → Manager approve → RESOLVED | review |
-| 13 | Tuyên bố "Q-01..07 đã chốt" nhưng Doc04 vẫn open | Q-01..07 là **proposed**; trước khi code M2 cần freeze Q-list 1 lần; baseline Doc04/Doc07 phải cập nhật Q và version log | Doc04 §10 + Doc07 |
+| 1 | Baseline cập nhật mâu thuẫn ("sau M10" vs "trước M1") | Chốt: **đóng băng baseline trước M1** — cập nhật Doc02/04/05/07 và đánh dấu "baseline v1.x locked" ở cuối M0. Khi đóng băng, ký tên và ghi ngày. | review |
+| 2 | M9 ghi "no new table" | M9 tạo `notifications`, `notification_jobs`, `outbox_events` (optional) | review |
+| 3 | M6 phụ thuộc M7 (Issue/RETURN kiểm tra Q-06 approval) | Đổi: **M6 = Cost + Approval**; **M7 = Inventory**. Q-06 check chỉ áp dụng khi đã có approval. M6 hoàn thành trước khi M7 bắt đầu. | review |
+| 4 | Docker Compose trùng dịch vụ (Compose + pnpm dev) | Chia Compose: `docker-compose.infra.yml` (hạ tầng) + `docker-compose.demo.yml` (full stack); `pnpm infra:up` chỉ bật hạ tầng; `pnpm demo:up` chạy toàn bộ; `pnpm dev` chỉ chạy apps trên hạ tầng đã có | review |
+| 5 | Q-02 OVERDUE chưa đúng | Bổ sung: occurrence OVERDUE khi plan ACTIVE vẫn phải được xử lý — khi scheduler phục hồi, occurrence OVERDUE sinh WO (không phải SKIPPED); SKIPPED chỉ khi plan PAUSED | review |
+| 6 | Pause SLA bằng IN_PROGRESS thông thường | Cần PAUSE/RESUME event riêng trong `work_order_status_history`: thêm cột `event_type: ASSIGNED\|STARTED\|PAUSED\|RESUMED\|WAITING_APPROVAL_ENTER\|WAITING_APPROVAL_EXIT\|COMPLETED\|CANCELLED`; `paused_at`, `resumed_at`, `pause_reason` lưu ở row PAUSED/RESUMED. Công thức: `active_elapsed = total_elapsed − waiting_approval_seconds − authorized_pause_seconds` | review |
+| 7 | Worker dùng chung mã nghiệp vụ | Tạo `packages/backend-core`: chứa Prisma client, domain logic (state machine, policy), không chứa HTTP/controller. `apps/worker` và `apps/api` cùng import `backend-core`. Không có circular dependency api→worker. | review |
+| 8 | Schema: throttle → thresholds | Đổi `throttle` → `thresholds` (thống nhất với Doc04) | review |
+| 9 | Schema: work_order_attachments → attachment_links | Bỏ `work_order_attachments`; dùng `attachment_links` cho mọi đối tượng (sau M3) | review |
+| 10 | Incident state machine có REOPENED không tồn tại | Bỏ node REOPENED; chuyển trực tiếp RESOLVED về IN_PROGRESS (reopen incident) | Doc04 enum (không có REOPENED) |
+| 11 | SLA công thức chưa chuẩn | Dùng: `active_elapsed = total_elapsed − waiting_approval_seconds − authorized_pause_seconds`; `is_overdue = active_elapsed > sla_seconds` | review |
+| 12 | Single-tenant: ORG_ID=1 + UUID PK | Dùng UUID v4 làm PK; `org_unit` lưu UUID cố định (seed); không mặc định `ORG_ID=1`. | review |
+| 13 | AI gửi chỉ incidentId/workOrderId | Ghi rõ: gửi **ngữ cảnh nghiệp vụ tối thiểu đã làm sạch** (mô tả sự cố, loại thiết bị, triệu chứng, danh mục hợp lệ); không gửi PII hoặc dữ liệu không liên quan | review |
+| 14 | Upload chỉ kiểm MIME/extension | Bổ sung **magic bytes/file signature check** trước khi lưu object | review |
+| 15 | FR-APR: đang ghi 01..06, Doc02 có 01..09 | Đổi thành **FR-APR-01..09**; TC-APR-01..07 (Doc07 chỉ có 7 ca) | Doc02 lines 751–815 |
+| 16 | Stack version wording | Node 22 LTS → **"baseline locked, Node.js 22.x (Active LTS)"**; NestJS 10 → **"baseline locked, NestJS 10.x"**; Prisma 5 → **"baseline locked, Prisma 5.x"** | review |
 
-## 1. Phạm vi MVP (P1) — tổng quan
+## 0. M0 — Đóng băng baseline (trước W1, 28/09/2026)
 
-Một **đơn vị** (single-tenant). 4 vai trò: Admin, Manager, Technician, Reporter. 5 module nghiệp vụ (Asset, Incident, Work Order, Maintenance Plan, Spare Parts) + Cost & Approval + Notification + Dashboard + AI hỗ trợ.
+**Mục tiêu**: đồng bộ tài liệu nguồn, ký xác nhận, không sửa nội dung nghiệp vụ chính thức sau bước này.
+
+### 0.1. Cập nhật tài liệu
+
+| Tài liệu | Thay đổi cần thực hiện |
+|---|---|
+| **Doc02 v1.5** | Bổ sung FR-APR-07..09 (quy tắc từ BR-12 + chuỗi test); ghi chú "WAITING_PARTS không dùng trong hệ thống"; bổ sung thông tin "AI gửi ngữ cảnh nghiệp vụ tối thiểu đã làm sạch" |
+| **Doc04 v1.3** | Cập nhật Q-01..Q-07 thành "đã chốt"; thêm bảng `role_permissions`; bổ sung `part_balances.UNIQUE(spare_part_id)`; `stock_transactions.operation_key UNIQUE`; `work_order_status_history.event_type`; bỏ REOPENED khỏi incident enum; đổi `throttle` → `thresholds` |
+| **Doc05 v1.3** | Bổ sung diagram `apps/worker`; ghi chú `packages/backend-core` là shared logic; bổ sung magic bytes check cho upload |
+| **Doc07 v1.2** | Chuyển test phụ thuộc Q từ Blocked/Deferred → Planned/Ready; thêm TC-DATA-01..05 đầy đủ; bổ sung version log + ngày đóng băng |
+
+### 0.2. Đánh dấu đóng băng
+
+Thêm vào header mỗi tài liệu (Doc02..07):
+```
+Baseline Status : LOCKED v1.x
+Locked Date     : YYYY-MM-DD
+Locked By      : [Tên sinh viên]
+```
+
+Sau khi đóng băng, mọi thay đổi tài liệu phải qua form change request riêng.
+
+## 1. Phạm vi MVP (P1)
+
+Một **đơn vị** (single-tenant, RBAC data-scope isolation). 4 vai trò: Admin, Manager, Technician, Reporter. 5 module nghiệp vụ (Asset, Incident, Work Order, Maintenance Plan, Spare Parts) + Cost & Approval + Notification + Dashboard + AI hỗ trợ.
 
 **Trong phạm vi P1:**
 - Auth (login/logout/refresh/change-password/admin-reset), audit.
 - IAM (user, role, permission, scope, gán vai trò theo scope, deactivate).
-- Tổ chức & danh mục (single tenant): `org_unit` 1 bản ghi, `departments` cây, `locations` cây, `asset_types`, threshold cấu hình (FR-ORG-01..03, FR-CFG-01..02).
-- Asset CRUD + `lifecycle_status` + tài liệu kỹ thuật + attachment.
+- Tổ chức & danh mục (single tenant): `org_unit` 1 bản ghi (UUID seed cố định), `departments` cây, `locations` cây, `asset_types`, thresholds cấu hình (FR-ORG-01..03, FR-CFG-01..02).
+- Asset CRUD + `lifecycle_status` + tài liệu kỹ thuật + attachment (STAGED→READY).
 - Incident lifecycle + chuyển trạng thái + AI suggest category/priority.
 - Work Order lifecycle + assign + issue/return/adjust parts + cost + approval + complete/cancel.
 - Maintenance Plan + recurrence + scheduler.
-- Spare parts + ledger + issue/return/adjust + cảnh báo tồn thấp (TC-PART-06).
-- Cost & Approval (DRAFT/PENDING/AWAITING_INFO/APPROVED/REJECTED/CANCELLED).
+- Spare parts + ledger + issue/return/adjust + cảnh báo tồn thấp.
+- Cost & Approval (DRAFT/PENDING/AWAITING_INFO/APPROVED/REJECTED/CANCELLED, FR-APR-01..09).
 - Notification list + realtime WS + retry-safe job (đủ 6 nhóm FR-NOT-01..06).
-- Dashboard KPI + CSV report.
-- AI provider abstraction (mock + OpenAI optional) — **100% async, 202 + requestId**.
-- Audit log viewer (bất biến, TC-AUD-01..04).
+- Dashboard KPI + CSV report (FR-REP-01..05).
+- AI provider abstraction (mock + OpenAI optional) — 100% async, 202 + requestId.
+- Audit log viewer (bất biến).
 - Data integrity tests (TC-DATA-01..05).
 
 **Ngoài phạm vi P1 (deferred):**
-- Multi-tenant, SSO/AD, phê duyệt nhiều tầng, nhiều kho, serial/lot kho, định giá kế toán, AI tự hành động, mobile app native, email thật (chỉ log), cloud storage production (chỉ MinIO), circuit breaker nâng cao, materialized view, SMTP thật.
+- Multi-tenant, SSO/AD, phê duyệt nhiều tầng, nhiều kho, serial/lot kho, định giá kế toán, AI tự hành động, mobile app native, email thật, cloud storage production, circuit breaker nâng cao, materialized view.
 
 ## 2. Stack & phiên bản đã khóa (pin trong `pnpm-lock.yaml`)
 
-| Thành phần | Phiên bản | Lý do |
+| Thành phần | Phiên bản baseline | Ghi chú |
 |---|---|---|
-| Node.js | **22 LTS** (Active LTS, 2024-10 → 2027-04) | Đang maintained, tương thích NestJS 10/11, Next 14/15. Không dùng Node 20 (đã EOL 2026-04) |
+| Node.js | **22.x** (Active LTS, 2024-10 → 2027-04) | Không dùng Node 20 (đã EOL 2026-04) |
 | pnpm | 9.x (9.12+) | Workspaces, lockfile chặt |
-| NestJS | 10.x (current, không có LTS chính thức — ghi rõ là "current") | Tương thích Prisma 5/6, BullMQ, Passport, Swagger |
-| Prisma | 5.x (latest 5.22) | Migration version đáng tin cậy, generated types |
+| NestJS | **10.x** (baseline locked) | Tương thích Prisma 5/6, BullMQ, Passport, Swagger |
+| Prisma | **5.x** (baseline locked) | Migration version đáng tin cậy, generated types |
 | PostgreSQL | 16 | JSONB, partial unique index, generated columns |
 | Redis | 7 | BullMQ |
-| Next.js | 14.x (App Router, 14.2.x) | Stable, RSC, route handlers |
-| React | 18.x | Tương thích Next 14 |
+| Next.js | **14.x** (baseline locked, App Router) | Stable, RSC, route handlers |
+| React | **18.x** (baseline locked) | Tương thích Next 14 |
 | TypeScript | 5.4+ strict | Bắt buộc |
 | MinIO | `RELEASE.2024-09-13T03-26-17Z` | S3-compatible, local dev |
 | Test backend | Jest 29 + Supertest + Testcontainers | Unit + integration + e2e DB thật |
-| Test frontend | Vitest 1.x + Testing Library + Playwright 1.4x | Unit + E2E critical path |
+| Test frontend | Vitest 1.x + Testing Library + Playwright | Unit + E2E critical path |
 
-> **Quy tắc pin**: tất cả phiên bản chính xác nằm trong `pnpm-lock.yaml`. Không bump major giữa dự án; nếu cần, đóng băng từng migration.
+> **Quy tắc pin**: tất cả phiên bản chính xác nằm trong `pnpm-lock.yaml`. Không bump major sau khi đóng băng baseline.
 
 ## 3. Cấu trúc thư mục
 
 ```
 equipcare-ai/
 ├─ apps/
-│  ├─ api/                 NestJS backend (HTTP + Swagger)
+│  ├─ api/                      NestJS backend (HTTP + Swagger)
 │  │  ├─ src/
-│  │  │  ├─ modules/       auth, iam, org-unit, asset, incident, work-order,
-│  │  │  │                maintenance, inventory, cost, approval,
-│  │  │  │                notification, dashboard, ai, attachment, audit, report, health
-│  │  │  ├─ common/        AppError, filters, pipes, decorators, guards (PolicyGuard, ScopeGuard)
-│  │  │  ├─ infra/         prisma, redis, storage, mail (log-only), realtime (WS gateway)
+│  │  │  ├─ modules/           auth, iam, org-unit, asset, incident, work-order,
+│  │  │  │                   maintenance, inventory, cost, approval,
+│  │  │  │                   notification, dashboard, ai, attachment, audit, report, health
+│  │  │  ├─ common/           AppError, filters, pipes, decorators, guards
+│  │  │  ├─ infra/            storage, mail (log-only), realtime (WS gateway)
 │  │  │  └─ main.ts
-│  │  ├─ prisma/           schema.prisma, migrations/, seed.ts, seed-helpers/
-│  │  ├─ test/             e2e
+│  │  ├─ prisma/schema.prisma, migrations/, seed.ts
+│  │  ├─ test/
 │  │  └─ package.json
-│  ├─ web/                 Next.js frontend
-│  │  ├─ src/app/          App Router pages (SCR-*)
-│  │  ├─ src/features/     feature-based, mỗi feature có api/ + ui/
-│  │  ├─ src/lib/          auth, rbac-check, ws-client
+│  ├─ web/                     Next.js frontend
+│  │  ├─ src/app/
+│  │  ├─ src/features/
+│  │  ├─ src/lib/
 │  │  └─ package.json
-│  └─ worker/              BullMQ worker app — chạy RIÊNG với api
-│     ├─ src/processors/   ai.processor.ts, notification.processor.ts, scheduler.processor.ts
+│  └─ worker/                  BullMQ worker — chạy RIÊNG với api
+│     ├─ src/
+│     │  └─ processors/        ai.processor.ts, notification.processor.ts,
+│     │                         scheduler.processor.ts, outbox.processor.ts
 │     └─ package.json
 ├─ packages/
-│  └─ shared/              types, enums, RBAC policy, OpenAPI client
+│  ├─ shared/                  types, enums, RBAC policy, OpenAPI client
+│  └─ backend-core/            PrismaService, domain (state machine, policy, RBAC),
+│                                NOT contains HTTP controllers; imported by both api & worker
 ├─ infra/
-│  ├─ docker-compose.yml   postgres, redis, minio, api, web, worker
-│  └─ minio/               init bucket script
+│  ├─ docker-compose.infra.yml  postgres, redis, minio (chỉ hạ tầng)
+│  ├─ docker-compose.demo.yml   api, web, worker + infra (full stack)
+│  └─ minio/                   init bucket script
 ├─ scripts/
-│  ├─ reset-db.sh
-│  ├─ reset-db.ps1
-│  ├─ demo-flow.sh
-│  └─ demo-flow.ps1
+│  ├─ reset-db.sh / .ps1
+│  ├─ demo-flow.sh / .ps1
+│  └─ freeze-baseline.sh        M0: đánh dấu baseline đã khóa
 ├─ .env.example
-├─ .nvmrc                  22
+├─ .nvmrc
 ├─ .editorconfig
-├─ .eslintrc.cjs (root)
+├─ .eslintrc.cjs
 ├─ .prettierrc
 ├─ tsconfig.base.json
 ├─ pnpm-workspace.yaml
@@ -111,11 +142,21 @@ equipcare-ai/
 └─ IMPLEMENTATION_PLAN.md
 ```
 
-> **Worker là app riêng** (`apps/worker`), không nhúng vào API. Lý do: scaling độc lập, không block HTTP khi job nặng; tránh giữ DB transaction ngầm.
+### 3.1. Worker — shared domain
 
-## 4. Bảng truy vết yêu cầu (đã đối chiếu Doc02/Doc07)
+`packages/backend-core` chứa:
+- `prisma.service.ts` — PrismaService singleton
+- `domain/incident.state-machine.ts`
+- `domain/work-order.state-machine.ts`
+- `domain/approval.state-machine.ts`
+- `domain/policy/` — RBAC policy, scope check, self-approval check
+- `domain/sla.ts`
+- `domain/inventory.ts` — issue/return/check Q-06 logic
+- KHÔNG chứa HTTP decorators, controllers, guards
 
-Mã yêu cầu lấy đúng từ Doc02; mã test lấy đúng từ Doc07.
+`apps/worker` và `apps/api` cùng import `backend-core`. Không có circular dependency `api → worker`.
+
+## 4. Bảng truy vết yêu cầu (đã đối chiếu Doc02/Doc07 sau khi đóng băng)
 
 ### 4.1. Tổng hợp
 
@@ -124,25 +165,23 @@ Mã yêu cầu lấy đúng từ Doc02; mã test lấy đúng từ Doc07.
 | Auth | FR-AUTH-01..07 | `/auth/login`, `/auth/logout`, `/auth/refresh`, `/auth/change-password`, `/admin/users/{id}/reset-password` | users, sessions, login_attempts | SCR-AUTH-01..05 | TC-AUTH-01..05 |
 | IAM (RBAC) | FR-AUTH-03/05; AC-01/14 | `/admin/users`, `/admin/roles`, `/admin/permissions`, `/admin/users/{id}/roles/{userRoleId}`, `/admin/users/{id}/roles/{userRoleId}/scopes` | users, roles, permissions, role_permissions, user_roles, user_role_scopes | SCR-IAM-01..06 | TC-RBAC-01..06 |
 | Tổ chức & danh mục | FR-ORG-01..03; FR-CFG-01..02 | `/departments`, `/locations`, `/asset-types`, `/config` | org_unit, departments, locations, asset_types, thresholds | SCR-ORG-01..03 | TC-ORG-01..04 |
-| Asset | FR-ASSET-01..09; AC-02 | `/assets`, `/assets/{id}`, `/assets/{id}/lifecycle`, `/assets/{id}/qr`, `/assets/{id}/documents`, `/technical-documents` | assets, asset_status_history, technical_documents, document_versions, document_roles | SCR-ASSET-01..05 | TC-ASSET-01..05 |
-| Incident | FR-INC-01..09; AC-03 | `/incidents`, `/incidents/{id}`, `/incidents/{id}/transition`, `/incidents/{id}/ai/suggest/category`, `.../priority` | incidents, incident_messages, incident_history | SCR-INC-01..06 | TC-INC-01..06 |
-| Work Order | FR-WO-01..09; AC-04/13 | `/work-orders`, `/work-orders/{id}`, `/work-orders/{id}/assign`, `/work-orders/{id}/transition`, `/work-orders/{id}/complete`, `/work-orders/{id}/cancel` | work_orders, work_order_tasks, work_order_status_history, work_order_attachments | SCR-WO-01..07 | TC-WO-01..08 |
+| Asset | FR-ASSET-01..09; AC-02 | `/assets`, `/assets/{id}`, `/assets/{id}/lifecycle`, `/assets/{id}/qr`, `/technical-documents` | assets, asset_status_history, technical_documents, document_versions, document_roles | SCR-ASSET-01..05 | TC-ASSET-01..05 |
+| Incident | FR-INC-01..09; AC-03 | `/incidents`, `/incidents/{id}`, `/incidents/{id}/transition`, `/incidents/{id}/messages` | incidents, incident_messages, incident_history | SCR-INC-01..06 | TC-INC-01..06 |
+| Work Order | FR-WO-01..09; AC-04/13 | `/work-orders`, `/work-orders/{id}`, `/work-orders/{id}/assign`, `/work-orders/{id}/transition`, `/work-orders/{id}/complete`, `/work-orders/{id}/cancel` | work_orders, work_order_tasks, work_order_status_history | SCR-WO-01..07 | TC-WO-01..08 |
 | Maintenance | FR-MNT-01..09; AC-05 | `/maintenance-plans`, `/maintenance-plans/{id}`, `/maintenance-plans/{id}/occurrences`, `.../pause`, `.../resume` | maintenance_plans, plan_occurrences, plan_generation_log | SCR-MNT-01..04 | TC-MNT-01..05 |
 | Inventory | FR-PART-01..08; AC-06 | `/spare-parts`, `/spare-parts/{id}/adjust`, `/stock-transactions`, `/work-orders/{id}/parts/issue`, `/work-orders/{id}/parts/return`, `/low-stock-alerts` | spare_parts, part_balances, stock_transactions | SCR-PART-01..03 | TC-PART-01..07 |
 | Cost | FR-COST-01..04; AC-08 | `/work-orders/{id}/cost-entries` | cost_entries | SCR-COST-01..03 | TC-COST-01..04 |
-| Approval | FR-APR-01..06; AC-07/14 | `/approvals`, `/approvals/{id}/submit`, `/approvals/{id}/decision`, `/approvals/{id}/cancel` | approval_requests, approval_items, approval_history, approval_revisions | SCR-APR-01..04 | TC-APR-01..07 |
-| Notification | FR-NOT-01..06; AC-09 | `/notifications`, `/notifications/{id}/read`, `WS /ws` | notifications, notification_jobs | SCR-NOT-01..03 | TC-NOT-01..06 |
+| Approval | **FR-APR-01..09**; AC-07/14 | `/approvals`, `/approvals/{id}/submit`, `/approvals/{id}/decision`, `/approvals/{id}/cancel` | approval_requests, approval_items, approval_history, approval_revisions | SCR-APR-01..04 | TC-APR-01..07 |
+| Notification | FR-NOT-01..06; AC-09 | `/notifications`, `/notifications/{id}/read`, `WS /ws` | notifications, notification_jobs, outbox_events | SCR-NOT-01..03 | TC-NOT-01..06 |
 | Dashboard/Report | FR-REP-01..05; AC-11 | `/dashboard/kpis`, `/dashboard/overdue`, `/reports/{type}.csv` | view v_kpi_* | SCR-DASH-01..02 | TC-REP-01..04 |
 | AI | FR-AI-01..06; NFR-AI-01..05; AC-10 | `POST /ai/suggest/*` (202 + requestId), `GET /ai/requests/{id}` | ai_requests, ai_suggestions, ai_jobs | SCR-AI-01..02 | TC-AI-01..06 |
-| Attachment | FR-DOC-01..04 | `POST /files`, `GET /files/{fileId}/download` | files (STAGED/READY), attachment_links | n/a (modal) | TC-DOC-01..05 |
-| Audit | FR-AUD-01..03; AC-12 | `/audit-logs`, `/audit-logs/{id}` | audit_logs | SCR-AUD-01 | TC-AUD-01..04 |
-| Config | FR-CFG-01..02; AC-12 | `/config`, `/config/{key}` | config | SCR-CFG-01..02 | TC-CFG-01..03 |
+| Attachment | FR-DOC-01..04 | `POST /files`, `GET /files/{fileId}/download` | files (STAGED/READY/EXPIRED), attachment_links | n/a | TC-DOC-01..05 |
+| Audit | FR-AUD-01..03; AC-12 | `/audit-logs` | audit_logs | SCR-AUD-01 | TC-AUD-01..04 |
+| Config | FR-CFG-01..02; AC-12 | `/config`, `/config/{key}` | thresholds, config | SCR-CFG-01..02 | TC-CFG-01..03 |
 | Bảo mật & toàn vẹn | NFR-SEC-01..06; DR-* | (across modules) | (across modules) | n/a | TC-SEC-01..08; TC-DATA-01..05 |
 | UX | UI-*; NFR-USAB-*; UI-AC-* | — | — | SCR-* | TC-UX-01..08 |
 | Hiệu năng | NFR-PERF-* | — | — | — | TC-PERF-01..04 |
 | Vận hành | NFR-MNT-03 | — | (migration) | — | TC-OPS-01..03 |
-
-> Không dùng TC-RT-* và TC-AI-FAIL-* — Doc07 chưa định nghĩa. WS và AI fail test được cover trong TC-NOT-* và TC-AI-* + TC-SEC-*.
 
 ### 4.2. FR/NFR coverage
 
@@ -157,295 +196,257 @@ Mã yêu cầu lấy đúng từ Doc02; mã test lấy đúng từ Doc07.
 | FR-MNT-*; AC-05 | TC-MNT-01..05 |
 | FR-PART-*; AC-06 | TC-PART-01..07 |
 | FR-COST-*; AC-08 | TC-COST-01..04 |
-| FR-APR-*; AC-07/14 | TC-APR-01..07 |
+| **FR-APR-01..09**; AC-07/14 | TC-APR-01..07 |
 | FR-NOT-*; AC-09 | TC-NOT-01..06 |
 | FR-DOC-* | TC-DOC-01..05 |
 | FR-REP-*; AC-11 | TC-REP-01..04 |
 | FR-AI-*; AC-10 | TC-AI-01..06 |
 | FR-AUD-*; AC-12 | TC-AUD-01..04 |
 | NFR-SEC-01..06 | TC-SEC-01..08 |
-| DR-* (data integrity) | TC-DATA-01..05 |
+| DR-* | TC-DATA-01..05 |
 | NFR-PERF-* | TC-PERF-01..04 |
 | NFR-USAB-*; UI-AC-* | TC-UX-01..08 |
 | NFR-MNT-03; ops | TC-OPS-01..03 |
 
-### 4.3. Q-items trong Doc04 §10 — baseline đã chốt (sẽ cập nhật lại Doc04 ở vòng sau)
+## 5. Q-items — quyết định đã chốt (baseline M0)
 
 | ID | Nội dung | Baseline áp dụng |
 |---|---|---|
-| Q-01 | Hệ quả hủy WO với Incident/Occurrence/Approval | (1) WO REPAIR hủy: Incident về `NEW` hoặc `AWAITING_INFO` tùy lý do; nếu Incident không còn WO đang mở khác. (2) WO MAINTENANCE hủy: nếu `due_on` còn tương lai → occurrence về `SCHEDULED`; nếu đã đến hạn → occurrence về `DUE`, cho phép tạo WO thay thế. (3) Approval `PENDING/AWAITING_INFO` liên quan WO bị hủy → `CANCELLED`. Lưu `replaces_work_order_id` / `replaced_by_work_order_id` để truy vết. (4) Không tự xóa stock_transactions / cost_entries; giữ audit. |
-| Q-02 | Recurrence FIXED/AFTER_COMPLETION + SKIPPED/OVERDUE | (1) Recurrence **FIXED**. (2) Plan `PAUSED` → kỳ quá hạn chuyển `SKIPPED` với reason `PLAN_PAUSED`. (3) Plan `ACTIVE` → kỳ quá hạn chuyển `OVERDUE`. (4) Khi resume plan: KHÔNG sinh bù các kỳ đã SKIPPED; tiếp tục từ kỳ tương lai gần nhất. (5) `UNIQUE(plan_id, due_on)` (không phụ thuộc status). (6) Per-occurrence WO: partial unique riêng `UNIQUE(source_occurrence_id) WHERE status IN (active set)`. |
-| Q-03 | Mô hình kho + RETURN | (1) Một vị trí lưu duy nhất, một `on_hand` mỗi part; `part_balances.UNIQUE(spare_part_id)`. (2) `stock_transactions.operation_key UNIQUE` (idempotency). (3) `stock_transactions.original_stock_tx_id` cho RETURN; RETURN tham chiếu ISSUE gốc và kiểm tra qty remaining trên chính ISSUE đó. (4) ISSUE/RETURN đi qua `/work-orders/{id}/parts/{issue\|return}`; ADJUST là route quản lý tồn riêng. (5) CREDIT theo unit_price snapshot. (6) Tất cả trong cùng transaction. |
-| Q-04 | SLA khi chờ duyệt | (1) SLA bắt đầu ở `work_order_status_history`: row đầu tiên với `status IN (ASSIGNED, IN_PROGRESS)`. (2) pause/resume lưu cùng bảng `work_order_status_history` (`started_at`, `ended_at`, `pause_reason`). (3) `WAITING_APPROVAL` không tính SLA; hiển thị riêng `waiting_approval_time`. (4) `PAUSED` cần quyền + lý do + audit; hiện `PAUSED` chưa có trong enum WO Doc04 (`NEW/ASSIGNED/IN_PROGRESS/WAITING_APPROVAL/COMPLETED/CANCELLED`) → **dùng đúng enum Doc04**, không thêm PAUSED ở WO. Trạng thái "ngưng" thể hiện bằng `IN_PROGRESS` + audit log + lý do. (5) `WAITING_PARTS` không có trong enum Doc04 → không dùng; nếu chờ linh kiện → giữ `IN_PROGRESS` + flag trong approval request. |
-| Q-05 | Department snapshot WO | `work_orders.department_id_snapshot` (FK departments) — copy tại lúc tạo WO, không đổi khi asset chuyển phòng ban sau. |
-| Q-06 | Vượt phương án duyệt | (1) Kiểm tra `net_issued_quantity` và `net_cost` (sum DEBIT − sum CREDIT) so với approval `APPROVED`. (2) Vượt → từ chối issue/cost-entry; gợi ý tạo `approval_revisions` (FK `original_approval_id`); chỉ tiếp tục sau khi APPROVED. (3) `approval_items.quantity` chính là ngưỡng. |
-| Q-07 | LOCATION scope cha-con | Scope `user_role_scopes(location_id, department_id, asset_id)` — khi check, **cha bao gồm con**: nếu user_role_scope có location_id=X, tất cả location có ancestor chứa X đều nằm trong scope. |
+| Q-01 | Hệ quả hủy WO | WO REPAIR hủy: Incident → `NEW` hoặc `AWAITING_INFO` (tùy lý do); nếu không còn WO mở → về `NEW`. WO MAINTENANCE hủy: `due_on > now` → `SCHEDULED`; `due_on <= now` → `DUE` + cho tạo WO thay thế. Approval `PENDING/AWAITING_INFO` → `CANCELLED`. Lưu `replaced_by_work_order_id`. Không xóa stock_transactions / cost_entries. |
+| Q-02 | Recurrence + SKIPPED/OVERDUE | FIXED. Plan `PAUSED` → kỳ quá hạn → `SKIPPED`, reason `PLAN_PAUSED`. Plan `ACTIVE` → kỳ quá hạn → `OVERDUE`; khi scheduler phục hồi, occurrence `OVERDUE` vẫn sinh WO (không phải SKIPPED). Resume → KHÔNG sinh bù. `UNIQUE(plan_id, due_on)`. Per-occurrence WO partial unique. |
+| Q-03 | Mô hình kho + RETURN | Một vị trí, một `on_hand` mỗi part. `part_balances.UNIQUE(spare_part_id)`. `stock_transactions.operation_key UNIQUE`. `original_stock_tx_id` cho RETURN. RETURN kiểm tra qty remaining trên ISSUE gốc. ISSUE/RETURN qua WO route; ADJUST route riêng. CREDIT theo unit_price snapshot. Atomic. |
+| Q-04 | SLA | `event_type` trong `work_order_status_history`: `ASSIGNED|STARTED|PAUSED|RESUMED|WAITING_APPROVAL_ENTER|WAITING_APPROVAL_EXIT|COMPLETED|CANCELLED`. Row PAUSED/RESUMED lưu `paused_at`, `resumed_at`, `pause_reason`. `active_elapsed = total_elapsed − waiting_approval_seconds − authorized_pause_seconds`. `is_overdue = active_elapsed > sla_seconds`. |
+| Q-05 | Department snapshot | `work_orders.department_id_snapshot` — copy tại lúc tạo WO. |
+| Q-06 | Vượt phương án duyệt | Check `net_issued_quantity` và `net_cost` so với approval APPROVED. Vượt → từ chối + gợi ý `approval_revisions`. Chỉ tiếp tục sau khi APPROVED mới. |
+| Q-07 | LOCATION scope cha-con | `user_role_scopes` — cha bao gồm con. |
 
-### 4.4. Trạng thái tham chiếu (theo Doc04)
+## 6. Trạng thái tham chiếu
 
-- **Incident** enum: `NEW | ASSIGNED | AWAITING_INFO | IN_PROGRESS | RESOLVED | CLOSED | CANCELLED` (Doc04)
-- **Work Order** enum: `NEW | ASSIGNED | IN_PROGRESS | WAITING_APPROVAL | COMPLETED | CANCELLED` (Doc04 — không có PAUSED, WAITING_PARTS)
-- **Approval** enum: `DRAFT | PENDING | AWAITING_INFO | APPROVED | REJECTED | CANCELLED`
+- **Incident**: `NEW | ASSIGNED | AWAITING_INFO | IN_PROGRESS | RESOLVED | CLOSED | CANCELLED` (Doc04, không REOPENED)
+- **Work Order**: `NEW | ASSIGNED | IN_PROGRESS | WAITING_APPROVAL | COMPLETED | CANCELLED` (Doc04, không PAUSED/WAITING_PARTS)
+- **Approval**: `DRAFT | PENDING | AWAITING_INFO | APPROVED | REJECTED | CANCELLED`
 - **Asset.lifecycle_status** (lưu cột): `ACTIVE | PAUSED | RETIRED`
-- **Asset.activity_status** (dẫn xuất, view): `NORMAL | UNDER_REPAIR | UNDER_MAINTENANCE`
+- **Asset.activity_status** (dẫn xuất): `NORMAL | UNDER_REPAIR | UNDER_MAINTENANCE`
+- **Plan**: `ACTIVE | PAUSED | ARCHIVED`
+- **Occurrence**: `SCHEDULED | DUE | OVERDUE | SKIPPED | COMPLETED | CANCELLED`
 
-> UI hiển thị: `RETIRED > PAUSED > activity_status > NORMAL`.
+## 7. State machine
 
-## 5. State machine
-
-### 5.1. Incident (Doc04 enum)
+### 7.1. Incident (không REOPENED)
 
 ```
 NEW ──assign──> ASSIGNED ──start──> IN_PROGRESS ──need info──> AWAITING_INFO ──resend──> IN_PROGRESS
- │                  │                    │                          │
+ │                  │                    │
  │                  │                    ├──> RESOLVED ──close──> CLOSED
- │                  │                    ├──> CANCELLED (Manager) ─┘
- │                  │                    └──(back to IN_PROGRESS)
+ │                  │                    ├──> CANCELLED (Manager)
  │                  └──> CANCELLED (Manager)
  └──> CANCELLED (Manager)
-                                                                REOPENED ──> IN_PROGRESS
 ```
 
-Quy tắc chuyển:
-- Cancel Incident: chỉ Manager trong scope; nếu còn WO đang mở → từ chối (BR-12).
-- Close Incident: chỉ Manager; sau khi mọi WO liên quan đã `COMPLETED` (xem §10.5).
-
-### 5.2. Work Order (Doc04 enum — 6 trạng thái)
+### 7.2. Work Order
 
 ```
 NEW ──assign──> ASSIGNED ──start──> IN_PROGRESS ──need approval──> WAITING_APPROVAL
-   │                  │                  │                                │
-   │                  │                  ├──> COMPLETED (BR-12)            ├──approve──> IN_PROGRESS
-   │                  │                  ├──> CANCELLED (Manager, BR-13)   ├──reject──> IN_PROGRESS
-   │                  │                  │                                ├──cancel──> CANCELLED
-   │                  │                  └──(loop until all gates pass)
+   │                  │                  │                            │
+   │                  │                  ├──> COMPLETED              ├──approve──> IN_PROGRESS
+   │                  │                  ├──> CANCELLED (Manager)    ├──reject──> IN_PROGRESS
+   │                  │                  └──(loop)                   └──cancel──> CANCELLED
    │                  └──> CANCELLED
    └──> CANCELLED
 ```
 
-Quy tắc (Doc02 + Doc04):
-- Complete WO: bắt buộc result, performer, end_at, các checklist bắt buộc, **không còn approval `PENDING/AWAITING_INFO`**, không còn stock_tx `PENDING`.
-- Cancel WO: chỉ Manager trong scope; lý do bắt buộc; **không** tự hoàn tồn / xóa cost_entries / xóa stock_transactions; **hệ quả** theo Q-01 + §3.
-- Trạng thái "ngưng tạm" trong nghiệp vụ (vd thiếu linh kiện): giữ `IN_PROGRESS` + ghi `pause_reason` ở `work_order_status_history` + audit + có thể kèm approval request `PENDING` chờ duyệt phương án mua linh kiện.
+"Paused" nghiệp vụ (chờ linh kiện): giữ `IN_PROGRESS` + ghi `pause_reason` ở `work_order_status_history` row type `PAUSED` + approval request pending.
 
-### 5.3. Approval (Doc02 + Doc04)
+### 7.3. Approval
 
 ```
 DRAFT ──submit──> PENDING ──approve──> APPROVED
                    │            │
                    ├──> AWAITING_INFO ──resubmit──> PENDING
-                   ├──> REJECTED (Manager, người duyệt ≠ người tạo)
-                   └──> CANCELLED (KTV hoặc WO cancel; chưa có quyết định cuối)
+                   ├──> REJECTED (Manager, người duyệt ≠ người tạo — FR-APR-09)
+                   └──> CANCELLED
 ```
 
-### 5.4. Asset (Doc02 — tách 2 lớp)
+## 8. SLA (Q-04)
 
-- `lifecycle_status` (cột lưu, 3 giá trị): `ACTIVE | PAUSED | RETIRED`. Manager đổi qua API; lý do bắt buộc.
-- `activity_status` (view dẫn xuất, 3 giá trị):
-  - Có WO REPAIR `IN_PROGRESS` cho asset → `UNDER_REPAIR`.
-  - Có WO MAINTENANCE `IN_PROGRESS` cho asset → `UNDER_MAINTENANCE`.
-  - Ngược lại → `NORMAL`.
-- **Hiển thị UI** (priority, không lưu): `RETIRED > PAUSED > activity_status > NORMAL`.
-- Chặn tạo WO mới cho asset `lifecycle_status = RETIRED` (BR-04).
+**work_order_status_history** schema:
 
-### 5.5. Maintenance Plan + Occurrence
+| event_type | sla_started_at | paused_at | resumed_at | pause_reason |
+|---|---|---|---|---|
+| ASSIGNED | ✓ (sla_started_at) | null | null | null |
+| STARTED | null | null | null | null |
+| PAUSED | null | ✓ | null | ✓ |
+| RESUMED | null | null | ✓ | null |
+| WAITING_APPROVAL_ENTER | null | null | null | null |
+| WAITING_APPROVAL_EXIT | null | null | null | null |
+| COMPLETED | null | null | null | null |
+| CANCELLED | null | null | null | null |
 
-- Plan: `ACTIVE | PAUSED | ARCHIVED`.
-- Occurrence: `SCHEDULED | DUE | OVERDUE | SKIPPED | COMPLETED | CANCELLED`.
+**Công thức:**
 
-Quy tắc scheduler (Doc02 FR-MNT-04..09 + Q-02):
-- Plan `ACTIVE`, đến `due_on`, chưa có WO đang mở → chuyển `DUE` → sinh WO (idempotent).
-- Plan `ACTIVE`, đến `due_on`, chưa có WO đang mở nhưng KHÔNG sinh được WO (vd asset RETIRED) → giữ `DUE` + flag `WO_BLOCKED`.
-- Plan `PAUSED`, kỳ đến/quá hạn → `SKIPPED`, reason `PLAN_PAUSED`.
-- Plan `ACTIVE`, kỳ đã quá hạn (do scheduler không chạy hoặc lỗi) → `OVERDUE`.
-- Resume plan → KHÔNG sinh bù các kỳ SKIPPED/OVERDUE; tiếp tục từ kỳ tương lai gần nhất.
-- Hủy WO MAINTENANCE: nếu `due_on > now()` → occurrence `SCHEDULED`; nếu `due_on <= now()` → occurrence `DUE` + cho phép tạo WO thay thế (lưu `replaced_by_work_order_id`).
-- `UNIQUE(plan_id, due_on)` (không phụ thuộc status) — chống duplicate.
-- Per-occurrence WO: partial unique riêng `UNIQUE(source_occurrence_id) WHERE status IN active_set`.
+```
+total_elapsed_seconds   = min(now, completed_at, cancelled_at) − sla_started_at
+authorized_pause_seconds = Σ(resumed_at − paused_at)  [từ các row PAUSED→RESUMED]
+waiting_approval_seconds = Σ(WAITING_APPROVAL_EXIT.at − WAITING_APPROVAL_ENTER.at)
+active_elapsed_seconds   = total_elapsed_seconds − waiting_approval_seconds − authorized_pause_seconds
+is_overdue              = active_elapsed_seconds > sla_seconds  AND  status NOT IN (COMPLETED, CANCELLED)
+```
 
-## 6. SLA — định nghĩa rõ (Q-04)
+WAITING_APPROVAL không tính vào SLA; hiển thị thành chỉ số riêng `waiting_approval_seconds`.
 
-- **sla_started_at**: thời điểm WO vào `ASSIGNED` (row đầu trong `work_order_status_history` với status thuộc active set).
-- **active_elapsed**: `min(now, completed_at or cancelled_at) − sla_started_at − Σ(pause_duration)`. `pause_duration` cộng dồn từ các khoảng trong `work_order_status_history` có `pause_reason IS NOT NULL` (hiện Doc04 chưa có status PAUSED → các khoảng này ứng với `IN_PROGRESS` có ghi `pause_reason`).
-- **waiting_approval_time**: `Σ(end − start)` của các khoảng `WAITING_APPROVAL`. Hiển thị riêng trong UI/report.
-- **is_overdue** (dẫn xuất): `now() > sla_due_at AND status IN (NEW, ASSIGNED, IN_PROGRESS, WAITING_APPROVAL) AND active_elapsed > sla_minutes × 60`. KHÔNG lưu cột.
-- **sla_due_at**: `sla_started_at + sla_minutes × 60` (cấu hình theo priority).
-- **PAUSED**: hiện Doc04 enum WO không có → không dùng trạng thái PAUSED. Việc "ngưng" thể hiện qua `IN_PROGRESS` + `pause_reason` + audit.
-
-## 7. Single-tenant
-
-- Bảng `org_unit` lưu **1 bản ghi** (`id = ORG_ID = 1`): tên/địa chỉ/logo/múi giờ/threshold cấu hình.
-- **Không** có `organization_id` ở bất kỳ bảng nào. Mọi truy vấn trong phạm vi đơn vị là mặc định.
-- Seed: 1 `org_unit`, 5 departments, 8 locations, 4 asset_types, 12 assets, 8 users (4 vai trò), 20 spare parts, 3 maintenance plans, 5 incidents, 10 WOs, 4 approval requests, ~50 audit logs.
-
-## 8. RBAC chain (Doc05 §10.4)
+## 9. RBAC chain — gắn trên `userRoleId` (Doc05 §10.4)
 
 ```
 Request → Authenticated
        → resolve active user_roles (valid_from <= now < valid_to AND status='ACTIVE')
        → chọn 1 userRoleId thỏa đồng thời:
-            (a) roles → role_permissions → permissions: có permission.action = required
-            (b) user_role_scopes(UserRoleId): scope chứa target (location/department/asset)
+            (a) user_roles → roles → role_permissions → permissions: có permission.action = required
+            (b) user_role_scopes(UserRoleId): scope chứa target
        → 200 OK
-       → Nếu 0 userRoleId thỏa → 403 forbidden (KHÔNG ghép quyền A với scope B)
+       → Nếu 0 userRoleId thỏa → 403 (KHÔNG ghép quyền A với scope B)
 ```
 
-Schema IAM:
-- `users(id, username, email, password_hash, full_name, status, ...)`
-- `roles(id, code, name, ...)`
-- `permissions(id, code, action, resource)` — vd `INCIDENT_UPDATE`, `WO_CANCEL`, `INVENTORY_ISSUE`
-- `role_permissions(role_id, permission_id)` — bảng nối trung gian
-- `user_roles(id, user_id, role_id, granted_by, granted_at, valid_from, valid_to, status)`
-- `user_role_scopes(user_role_id, scope_type: LOCATION|DEPARTMENT|ASSET, scope_id)`
-
-> Lưu ý: KHÔNG có bảng `user_role_permission` (không có trong tài liệu). Permission chain đi qua `user_roles → roles → role_permissions → permissions`.
-
-## 9. Attachment STAGED → READY (Doc05 §8, §13)
+## 10. Attachment STAGED → READY
 
 ```
-POST /files (multipart) → lưu object private + files(fileId, STAGED, owner_id, mime, size)
-                         → trả { fileId, expiresAt }
-                                        │
-                                        ▼
-POST /incidents (DTO có attachmentFileIds)
-  → kiểm tra ownership/scope + parent tồn tại + quyền hiện tại
-  → transaction:
-        INSERT attachment_links
-        UPDATE files.status='READY'
-                                        │
-                                        ▼
-GET /files/{fileId}/download
-  → check READY + quyền trên TẤT CẢ attachment_links.parent (Doc05 §13)
-  → trả presigned URL (TTL ≤ 300s)
-                                        │
-                                        ▼
-Cron mỗi giờ: files.status='STAGED' AND created_at < now()-ATTACHMENT_STAGED_TTL_HOURS
-              → xóa object trên MinIO + UPDATE files.status='EXPIRED'
+POST /files → lưu object + files(STAGED)
+                        │
+                        ▼
+           Magic bytes check (file signature)
+                        │ fail → 415 Unsupported Media Type
+                        ▼ pass
+           MIME allowlist + extension blocklist
+                        │ fail → 400
+                        ▼ pass
+           size check (≤ 25 MB)
+                        │ fail → 400
+                        ▼ pass
+           trả { fileId, expiresAt }
 ```
 
-- MIME allowlist: `image/png|jpeg|webp|gif`, `application/pdf`, `text/plain`, `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`.
-- Dung lượng tối đa: 25 MB/file (`S3_MAX_UPLOAD_BYTES`).
-- Không thực thi file trên app server (chỉ stream từ MinIO qua presigned).
-- Extension blocklist: `.exe .bat .sh .cmd .com .msi .scr .vbs .js .jar .php`.
+- **Magic bytes** (file signature): kiểm tra header bytes thực tế của file, không chỉ extension/MIME. Ví dụ: PNG → `89 50 4E 47`, PDF → `25 50 44 46`, JPEG → `FF D8 FF`, XLSX → `50 4B 03 04`.
+- MIME allowlist + extension blocklist + size check → xong.
+- Link vào nghiệp vụ: kiểm tra ownership/scope → transaction: INSERT attachment_links + UPDATE files → READY.
+- Download: check READY + quyền trên TẤT CẢ attachment_links.parent.
+- Cron: dọn STAGED hết hạn (EXPIRED).
 
-## 10. AI — 100% async (Doc05 §6.4, Doc07 §6.4)
+## 11. AI — 100% async
 
 ```
-POST /ai/suggest/category  body { incidentId }  → 202 { requestId }
-POST /ai/suggest/priority  body { incidentId }
-POST /ai/suggest/solution  body { workOrderId }
-POST /ai/propose-plan      body { incidentId }
+POST /ai/suggest/category  body { incidentId, incidentDescription, assetType, symptoms, validCategories[] }
+  → 202 { requestId }
+POST /ai/suggest/priority  body { incidentId, incidentDescription, assetType, symptoms, validPriorities[] }
+  → 202 { requestId }
+POST /ai/suggest/solution  body { workOrderId, assetType, problem, history }
+  → 202 { requestId }
+POST /ai/propose-plan      body { incidentId, assetId }
 
 GET /ai/requests/{id} → { status: QUEUED|RUNNING|SUCCEEDED|FAILED, suggestions[], error? }
 ```
 
-- Provider được gọi trong `apps/worker` (BullMQ), ngoài HTTP request, không giữ DB transaction ngầm.
-- **Timeout: 30–60 giây** (Doc07 §6.4 — cấu hình `AI_REQUEST_TIMEOUT_MS=45000`).
-- Retry giới hạn 2 lần với exponential backoff (200ms, 800ms).
-- **Circuit breaker nâng cao → optional** (deferred nếu chậm). P1 chỉ cần timeout + retry + fallback.
-- Structured Output (Zod JSON schema) + server-side validate; allowlist category/priority từ `incident_categories` + `priorities`.
-- Trusted instructions tách khỏi user content; attachment chỉ truyền vào phần "context" (không phải system).
-- Không gửi PII không cần thiết (chỉ ID, không mô tả dài).
-- Failure: trả suggestion rỗng + status `FAILED` + workflow tiếp tục thủ công. Test bằng mock provider (`AI_PROVIDER=mock`).
+- Worker gọi provider ngoài HTTP; không giữ transaction ngầm.
+- **Gửi ngữ cảnh nghiệp vụ tối thiểu đã làm sạch**: mô tả sự cố, loại thiết bị, triệu chứng, danh mục hợp lệ. Không gửi PII, mô tả dài không cần thiết.
+- Timeout: **30–60s** (`AI_REQUEST_TIMEOUT_MS=45000`).
+- Retry: 2 lần exponential backoff.
+- Circuit breaker nâng cao → optional deferred.
+- Failure → suggestion rỗng + FAILED; workflow tiếp tục thủ công.
 
-## 11. Transaction boundary & concurrency
+## 12. Milestone plan (M0 + 14 tuần)
 
-| Nghiệp vụ | Boundary | Rủi ro | Cơ chế |
-|---|---|---|---|
-| Issue parts | `stock_transactions` (operation_key UNIQUE) + `part_balances` + `cost_entries` + `audit_logs` | Race trừ kho → âm | `SELECT ... FOR UPDATE` trên `part_balances` + check `on_hand >= qty` + check Q-06 net issued + net cost |
-| Return parts | RETURN stock_tx (`original_stock_tx_id` FK) + CREDIT cost_entry + UPDATE part_balances | RETURN vượt ISSUE gốc | Trong tx: `SELECT ... FOR UPDATE` row ISSUE gốc → check `Σ(issue_to_issue) − Σ(return_from_issue) >= qty_return`; snapshot unit_price từ ISSUE gốc |
-| Adjust stock | ADJUST stock_tx + UPDATE balance + audit | Cần lý do + role | Role ADMIN/MANAGER + `reason` bắt buộc |
-| Complete WO | Update WO + sum cost + Incident → RESOLVED (không tự CLOSED) + nullify pause + WS notif + audit | Update trùng → mất cost | Optimistic version + Idempotency-Key + check no `PENDING/AWAITING_INFO` approval |
-| Cancel WO | Update WO + status_history + Q-01 side effects + cancel pending approvals | Race với complete | Optimistic version + check status IN active list + lock approval rows |
-| Approval decision | Update approval + cost_entries status + audit | Self-approval (BR-12) | Reject nếu `requester_user_id == approver_user_id`; BR enforced ở policy |
-| PM occurrence generation | Insert occurrence + scheduler log | Scheduler chạy 2 lần → sinh trùng | `UNIQUE(plan_id, due_on)` + scheduler log + idempotency key theo ngày |
-| PM WO generation per occurrence | Insert WO + occurrence update | Sinh 2 WO cho 1 occurrence | Partial unique `UNIQUE(source_occurrence_id) WHERE status IN active_set` |
-| Login | Update login_attempts + sessions + audit | Brute force | Rate limit 10/IP/60s + lockout 15p sau 5 fail/user |
-| File STAGED → READY | UPDATE files + INSERT attachment_links | Race dùng file chưa thuộc quyền | SELECT FOR UPDATE files + check owner + scope |
-| Asset lifecycle change | UPDATE assets + INSERT asset_status_history | Race với WO complete | Optimistic version |
-| AI request | INSERT ai_requests (QUEUED) → worker INSERT ai_jobs | HTTP timeout | 202 ngay; worker xử lý |
+> M0 = đóng băng baseline (trước W1).
+> W1–W12: triển khai. Feature freeze 20/12/2026.
+> W13–W14: tích hợp, sửa lỗi, báo cáo, diễn tập.
 
-> Concurrency test bằng **50 request/Promise chạy đồng thời** trong test (Node `Promise.allSettled` hoặc Supertest parallel) cho issue parts trên cùng part — assertion: `on_hand >= 0` và tổng issue đúng bằng số thực tế.
+### 12.1. Đổi thứ tự M6/M7
 
-## 12. Milestone plan (vertical slice, 14 tuần)
+M6 (Inventory) phụ thuộc M7 (Cost/Approval) vì Issue/RETURN kiểm tra Q-06 (net_issued_quantity, net_cost). Đổi:
 
-> Mỗi milestone = migration mới cho đúng module + backend (domain → service → controller) + API client regen + UI feature + test phù hợp + self-review §14.
-> 14 tuần = 12 tuần triển khai + 2 tuần cuối tích hợp, sửa lỗi, hoàn thiện báo cáo, diễn tập bảo vệ.
-> Feature freeze cuối W12 (20/12/2026). W13–W14 chỉ sửa lỗi.
+- **M6 = Cost + Approval** (W9)
+- **M7 = Inventory** (W10)
 
-| # | Tên | Tuần | Migration (Prisma) | Backend modules | API mới | UI mới | Test tối thiểu | Tiêu chí hoàn thành |
+### 12.2. Bảng milestone
+
+| # | Tên | Tuần | Migration (Prisma) | Backend | API | UI | Test | Tiêu chí hoàn thành |
 |---|---|---|---|---|---|---|---|---|
-| **M1** | Foundation + Auth + IAM + Org nền | W1–W2 | `0001_init`: org_unit, departments, locations, users, roles, permissions, role_permissions, user_roles, user_role_scopes, sessions, login_attempts, audit_logs, config | common, infra (prisma/redis/storage stub), auth, iam, org-unit, health | `/healthz`, `/auth/login`, `/auth/logout`, `/auth/refresh`, `/auth/change-password`, `/admin/users`, `/admin/roles`, `/admin/permissions`, `/admin/users/{id}/roles/{userRoleId}`, `/admin/users/{id}/roles/{userRoleId}/scopes`, `/admin/users/{id}/reset-password`, `/departments`, `/locations`, `/config` | login, user mgmt, role mgmt, scope mgmt, dept tree, config | TC-AUTH-01..05, TC-RBAC-01..06, TC-ORG-01..04, TC-CFG-01..03, TC-SEC-01..04 | Lint/typecheck/test pass; healthcheck 200; login 4 vai trò OK; Admin gán role + scope thành công; userRoleId binding test pass; audit ghi đủ |
-| **M2** | Asset + QR + lifecycle_status | W3 | `0002_asset`: assets, asset_status_history, asset_types, throttle (FK locations/departments; KHÔNG FK attachment — để M3) | org-unit (asset_types), asset | `/asset-types`, `/assets`, `/assets/{id}`, `/assets/{id}/lifecycle`, `/assets/{id}/qr`, `/assets/{id}/status-history` | asset list/detail, qr scan stub | TC-ASSET-01..05 | LOCATION scope cha bao gồm con pass; lifecycle_status transitions + RETIRED chặn tạo WO; QR trả token hợp lệ; activity_status view đúng |
-| **M3** | Attachment STAGED→READY + Audit viewer | W4 | `0003_attachments`: files (STAGED/READY/EXPIRED), attachment_links (CK một parent); document_versions, document_roles | attachment, audit | `POST /files`, `GET /files/{fileId}/download`, `/audit-logs` | attachment modal, audit viewer | TC-DOC-01..05, TC-AUD-01..04 | Upload STAGED; link trong transaction → READY; download có quyền mới được; cron dọn STAGED; audit log viewer (bất biến) |
-| **M4** | Incident + AI async (mock provider qua worker) | W5–W6 | `0004_incidents_ai`: incidents, incident_messages, incident_history, ai_requests, ai_suggestions, ai_jobs | incident, ai (provider interface + mock + worker adapter), realtime gateway (skeleton) | `/incidents`, `/incidents/{id}`, `/incidents/{id}/transition`, `/incidents/{id}/messages`, `/ai/suggest/category`, `/ai/suggest/priority`, `/ai/requests/{id}` | incident list/detail/reporter, AI suggest UI | TC-INC-01..06, TC-AI-01..06 | State machine đúng Doc04 enum; AI 202 + requestId; mock provider qua worker; GET /ai/requests/{id} chuyển trạng thái; fallback khi provider down |
-| **M5** | Work Order (CRUD + state machine + complete/cancel) | W7–W8 | `0005_work_orders`: work_orders (department_id_snapshot, source_occurrence_id, replaced_by_work_order_id), work_order_tasks, work_order_status_history, work_order_attachments | work-order, realtime (notify on transition) | `/work-orders`, `/work-orders/{id}`, `/work-orders/{id}/assign`, `/work-orders/{id}/transition`, `/work-orders/{id}/complete`, `/work-orders/{id}/cancel`, `/work-orders/{id}/status-history` | WO list/detail/assign/complete/cancel | TC-WO-01..08 | Complete check BR-12 (no PENDING/AWAITING_INFO); Cancel side effects Q-01; Incident → RESOLVED (không tự CLOSED); partial unique WO per incident enforced |
-| **M6** | Spare parts + Issue/Return/Adjust + concurrency | W9 | `0006_inventory`: spare_parts, part_balances (UNIQUE spare_part_id), stock_transactions (operation_key UNIQUE, original_stock_tx_id), low_stock_alerts | inventory, realtime | `/spare-parts`, `/spare-parts/{id}/adjust`, `/stock-transactions`, `/work-orders/{id}/parts/issue`, `/work-orders/{id}/parts/return`, `/low-stock-alerts` | parts list/detail/issue modal, low-stock page | TC-PART-01..07 | Concurrency test 50 request/Promise đồng thời → `on_hand >= 0`; RETURN không vượt qty remaining của ISSUE gốc; ADJUST cần reason; low-stock alert đúng threshold |
-| **M7** | Cost + Approval + Q-06 (vượt duyệt) | W10 | `0007_cost_approval`: cost_entries, approval_requests, approval_items, approval_history, approval_revisions | cost, approval, realtime | `/work-orders/{id}/cost-entries`, `/approvals`, `/approvals/{id}/submit`, `/approvals/{id}/decision`, `/approvals/{id}/cancel`, `/approvals/{id}/revisions` | cost entry form, approval inbox, decision UI | TC-COST-01..04, TC-APR-01..07 | Self-approval test pass; Q-06 check `net_issued_quantity` + `net_cost`; APPROVED → chỉ cho issue theo phiên; revision chain đúng |
-| **M8** | Maintenance Plan + Scheduler (BullMQ) | W11 | `0008_maintenance`: maintenance_plans, plan_occurrences, plan_generation_log | maintenance, worker (scheduler processor) | `/maintenance-plans`, `/maintenance-plans/{id}`, `/maintenance-plans/{id}/occurrences`, `.../pause`, `.../resume` | plan list/calendar | TC-MNT-01..05 | Recurrence FIXED pass; plan PAUSED → SKIPPED với reason; plan ACTIVE → OVERDUE; UNIQUE(plan_id, due_on); resume không sinh bù; partial unique per-occurrence WO |
-| **M9** | Notification + Realtime WS + Dashboard + Report | W12 | (no new table cho notif — dùng notification, notification_jobs đã có từ M4/M5; nếu chưa có thì migration `0009_notif_dashboard`) | notification (controller + worker processor), dashboard, report | `/notifications`, `/notifications/{id}/read`, `WS /ws`, `/dashboard/kpis`, `/dashboard/overdue`, `/reports/{type}.csv` | notification list + realtime toast, dashboard, report | TC-NOT-01..06, TC-REP-01..04, TC-DATA-01..05 | WS auth JWT; notification 6 nhóm đúng FR-NOT; KPI tính đúng scope; CSV có permission filter; overdue công thức Q-04; 5 ca data integrity pass |
-| **M10** | Tích hợp + hardening + E2E + docs | W13–W14 | (n/a) | cross-cutting, all | — | polish UX (TC-UX-01..08), accessibility | TC-UX-01..08, TC-OPS-01..03, TC-PERF-01..04 | Toàn bộ test pass; prod build; demo script E2E chạy từ env sạch; README đầy đủ; 0 TODO/mock ngoài stub đã phê duyệt; feature freeze; diễn tập bảo vệ |
+| **M0** | Đóng băng baseline | Trước W1 | (n/a) | — | — | — | — | Doc02..07 cập nhật Q; đánh dấu LOCKED v1.x; ký tên |
+| **M1** | Foundation + Auth + IAM + Org | W1–W2 | `0001_init`: org_unit (UUID seed), departments, locations, users, roles, permissions, role_permissions, user_roles, user_role_scopes, sessions, login_attempts, audit_logs, thresholds | common, infra (prisma/backend-core), auth, iam, org-unit, health | `/healthz`, `/auth/*`, `/admin/*`, `/departments`, `/locations`, `/config` | login, user/role/scope mgmt, dept tree | TC-AUTH-01..05, TC-RBAC-01..06, TC-ORG-01..04, TC-CFG-01..03, TC-SEC-01..04 | Lint/typecheck/test pass; login 4 vai trò; Admin gán role+scope; audit ghi |
+| **M2** | Asset + QR + lifecycle | W3 | `0002_asset`: assets, asset_status_history, asset_types, thresholds | asset | `/asset-types`, `/assets`, `/assets/{id}/lifecycle`, `/assets/{id}/qr` | asset list/detail, qr | TC-ASSET-01..05 | lifecycle_status transitions; RETIRED chặn WO; activity_status dẫn xuất đúng |
+| **M3** | Attachment STAGED→READY + technical documents | W4 | `0003_attachments`: files (STAGED/READY/EXPIRED), attachment_links (CK một parent), technical_documents, document_versions, document_roles | attachment, audit | `POST /files`, `GET /files/{fileId}/download`, `/technical-documents` | attachment modal | TC-DOC-01..05, TC-AUD-01..04 | Magic bytes + MIME + size check; STAGED→READY in tx; cron dọn; audit viewer |
+| **M4** | Incident + AI async (worker) | W5–W6 | `0004_incidents_ai`: incidents, incident_messages, incident_history, ai_requests, ai_suggestions, ai_jobs | incident, ai (provider interface + mock + worker), backend-core domain | `/incidents`, `/incidents/{id}/transition`, `/incidents/{id}/messages`, `/ai/suggest/category`, `/ai/suggest/priority`, `/ai/requests/{id}` | incident list/detail/reporter, AI suggest | TC-INC-01..06, TC-AI-01..06 | State machine đúng enum Doc04; AI 202 + requestId; GET /ai/requests/{id}; fallback |
+| **M5** | Work Order | W7–W8 | `0005_work_orders`: work_orders (department_id_snapshot, replaced_by_work_order_id), work_order_tasks, work_order_status_history (event_type + pause fields) | work-order, backend-core domain | `/work-orders`, `/work-orders/{id}/assign`, `/work-orders/{id}/transition`, `/work-orders/{id}/complete`, `/work-orders/{id}/cancel` | WO list/detail/assign/complete/cancel | TC-WO-01..08 | Partial unique per incident; Incident → RESOLVED (not CLOSED); Cancel side effects Q-01; SLA event_type works |
+| **M6** | Cost + Approval | W9 | `0006_cost_approval`: cost_entries, approval_requests, approval_items, approval_history, approval_revisions | cost, approval, backend-core domain (Q-06) | `/work-orders/{id}/cost-entries`, `/approvals`, `/approvals/{id}/submit`, `/approvals/{id}/decision`, `/approvals/{id}/cancel`, `/approvals/{id}/revisions` | cost form, approval inbox | TC-COST-01..04, TC-APR-01..07 | Self-approval BR-12 (FR-APR-09); Q-06 net issued + net cost check; revision chain |
+| **M7** | Spare Parts + Issue/Return/Adjust | W10 | `0007_inventory`: spare_parts, part_balances (UNIQUE spare_part_id), stock_transactions (operation_key UNIQUE, original_stock_tx_id), low_stock_alerts | inventory, backend-core domain (issue/return Q-06) | `/spare-parts`, `/spare-parts/{id}/adjust`, `/work-orders/{id}/parts/issue`, `/work-orders/{id}/parts/return`, `/low-stock-alerts` | parts list, issue modal, low-stock | TC-PART-01..07 | Concurrency 50 req đồng thời → on_hand >= 0; RETURN không vượt ISSUE gốc; Q-06 check; low-stock alert |
+| **M8** | Maintenance Plan + Scheduler | W11 | `0008_maintenance`: maintenance_plans, plan_occurrences, plan_generation_log | maintenance, scheduler processor (worker) | `/maintenance-plans`, `/maintenance-plans/{id}/occurrences`, `.../pause`, `.../resume` | plan list/calendar | TC-MNT-01..05 | FIXED recurrence; PAUSED→SKIPPED (PLAN_PAUSED); ACTIVE→OVERDUE (sinh WO khi phục hồi); UNIQUE(plan_id,due_on); resume không sinh bù |
+| **M9** | Notification + Realtime + Dashboard + Report | W12 | `0009_notif_dashboard`: notifications, notification_jobs, outbox_events (optional), v_kpi_* | notification (controller + worker processor), dashboard, report | `/notifications`, `/notifications/{id}/read`, `WS /ws`, `/dashboard/kpis`, `/dashboard/overdue`, `/reports/{type}.csv` | notif list + realtime toast, dashboard, report | TC-NOT-01..06, TC-REP-01..04, TC-DATA-01..05 | 6 nhóm FR-NOT đúng; WS JWT; KPI đúng scope; CSV có permission; overdue = active_elapsed > sla; 5 ca data integrity |
+| **M10** | Tích hợp + hardening + E2E + docs | W13–W14 | (n/a) | cross-cutting | — | UX polish | TC-UX-01..08, TC-OPS-01..03, TC-PERF-01..04 | Toàn bộ test pass; prod build; demo flow; README; 0 TODO/mock ngoài stub; feature freeze; diễn tập |
 
-### 12.1. Phân bổ coverage P1
+## 13. Docker Compose — tách infra và demo
 
-- P1 Critical (Doc07): AUTH, RBAC, WO, PART, APR, SEC/DATA.
-- Phủ AC-01..AC-14, UI-AC-01..UI-AC-08 trong exit criteria M10.
-- 6 nhóm FR-NOT-* đầy đủ ở M9.
-- FR-ORG-01..03 + FR-CFG-01..02 phủ ở M1 + M2.
-- 5 ca TC-DATA-01..05 ở M9 (kết hợp các module đã xong).
+### docker-compose.infra.yml (hạ tầng, dùng với pnpm dev)
 
-### 12.2. Deferred / optional
+```yaml
+services:
+  postgres:  { image: postgres:16, port: 5432, env/credentials }
+  redis:     { image: redis:7-alpine, port: 6379 }
+  minio:     { image: minio/minio:RELEASE.2024-09-13T03-26-17Z, ports: [9000,9001] }
+```
 
-- Circuit breaker nâng cao, email thật, materialized view, storage cloud → **optional**; ưu tiên core.
-- "AI suggestion stats" (số liệu thống kê) → nếu còn thời gian ở M9, dùng view `v_ai_stats` (mock).
-- SMTP thật, OIDC/SSO → ngoài P1.
+### docker-compose.demo.yml (full stack, dùng với pnpm demo:up)
 
-## 13. Baseline tài liệu — cần đồng bộ
+```yaml
+services:
+  postgres:  { extends: infra }
+  redis:     { extends: infra }
+  minio:     { extends: infra }
+  api:       { build: apps/api, ports: [3001], depends_on: [postgres,redis,minio] }
+  web:       { build: apps/web, ports: [3000], depends_on: [api] }
+  worker:    { build: apps/worker, depends_on: [postgres,redis,ai] }
+```
 
-Trước khi đóng băng baseline (cuối M0), cần cập nhật:
+### Scripts
 
-1. **Doc04 v1.3**: cập nhật Q-01..Q-07 thành "đã chốt" theo §4.3; thêm `role_permissions`; bổ sung `part_balances.UNIQUE(spare_part_id)` và `stock_transactions.operation_key UNIQUE`; Incident enum đổi `AWAITING_INFO` (đã có); WO enum không thêm PAUSED/WAITING_PARTS.
-2. **Doc07 v1.2**: chuyển test phụ thuộc Q-01..Q-07 từ `Blocked/Deferred` → `Planned/Ready`; thêm TC-DATA-01..05 đầy đủ nội dung 5 ca; bổ sung version log.
-3. **Doc05**: bổ sung diagram Worker riêng.
-4. **Doc02**: thêm ghi chú `WAITING_PARTS` không dùng (chờ linh kiện → giữ `IN_PROGRESS` + approval pending).
+| Lệnh | Hành động |
+|---|---|
+| `pnpm infra:up` | `docker compose -f infra/docker-compose.infra.yml up -d` |
+| `pnpm infra:down` | `docker compose -f infra/docker-compose.infra.yml down` |
+| `pnpm demo:up` | `docker compose -f infra/docker-compose.demo.yml up -d` |
+| `pnpm demo:down` | `docker compose -f infra/docker-compose.demo.yml down` |
+| `pnpm dev` | Chạy apps trên hạ tầng đã có (`pnpm infra:up` trước) |
 
-> Tôi sẽ không tự sửa Doc02/04/05/07 — đây là tài liệu nguồn của bạn. Sau khi M10 pass, bạn cập nhật Doc* theo §13 và phát hành v1.x mới.
+> Không bao giờ chạy `pnpm dev` khi đã có `pnpm demo:up` — tránh trùng cổng và worker.
 
 ## 14. Quy trình tự kiểm tra sau mỗi milestone
 
 1. Đối chiếu code với acceptance criteria trong §12.
-2. `pnpm lint && pnpm typecheck && pnpm test && pnpm build` ở cả 2 apps + worker.
+2. `pnpm lint && pnpm typecheck && pnpm test && pnpm build` ở cả apps + worker.
 3. `pnpm db:migrate:deploy` từ DB sạch + `pnpm db:seed` → idempotent.
-4. `pnpm infra:up` rồi chạy `bash scripts/demo-flow.sh` (hoặc `pwsh scripts/demo-flow.ps1` trên Windows).
-5. Kiểm RBAC chain (4 vai trò) + tenant isolation.
-6. Kiểm UI state loading/empty/error/denied cho từng feature mới.
-7. Quét `TODO|FIXME|XXX|@ts-ignore|console.log` trong scope milestone — phải giải trình hoặc xóa.
-8. Quét secret — `git diff --staged | grep -E "(secret|password|token|key=)"` không được có giá trị thật (placeholder OK).
-9. So sánh coverage test vs §4 — ghi nhận test nào còn thiếu.
-10. Commit + push + cập nhật `IMPLEMENTATION_PLAN.md` (đánh dấu milestone done).
+4. `pnpm infra:up` rồi `pnpm dev` rồi chạy demo flow.
+5. Kiểm RBAC chain (4 vai trò).
+6. Kiểm UI state loading/empty/error/denied.
+7. Quét `TODO|FIXME|XXX|@ts-ignore|console.log` trong scope.
+8. Quét secret — không có giá trị thật.
+9. So sánh coverage test vs §4 — ghi nhận thiếu.
+10. Commit + push + cập nhật plan (đánh dấu milestone done).
 
-## 15. Demo flow end-to-end
-
-Tham khảo §11/§12 của README. Chuỗi thao tác:
+## 15. Demo flow
 
 ```
-Reporter (reporter.sx01)      → Tạo Incident "Máy CNC-01 báo lỗi spindle"
-Manager (manager.sx)          → Tiếp nhận; tạo WO REPAIR; phân công KTV
-Technician (ktv.sx01)         → Cập nhật WO IN_PROGRESS; issue parts; tạo approval PENDING
-Manager (manager.sx)          → Approve approval; WO về IN_PROGRESS
-Technician (ktv.sx01)         → Resolve; nhập kết quả; complete WO → Incident RESOLVED
+Reporter (reporter.sx01)      → Tạo Incident
+Manager (manager.sx)          → Tiếp nhận; tạo WO; phân công KTV
+Technician (ktv.sx01)        → IN_PROGRESS; issue parts; tạo approval PENDING
+Manager (manager.sx)         → Approve → WO về IN_PROGRESS
+Technician (ktv.sx01)        → Resolve; complete WO → Incident RESOLVED
 Manager (manager.sx)          → Close Incident → CLOSED
-Reporter / Manager            → Xem dashboard; xuất CSV work-orders.csv; kiểm tra báo cáo
+Reporter / Manager            → Dashboard; xuất CSV; báo cáo
 ```
 
 ## 16. Rủi ro còn lại
 
 | # | Mục | Giảm thiểu |
 |---|---|---|
-| R-01 | OpenAI rate limit / timeout | Mock provider mặc định; OpenAI optional + smoke test riêng; timeout 30–60s |
-| R-02 | Realtime qua proxy / firewall | Fallback polling 10s |
-| R-03 | Storage prod | MinIO local đủ demo; S3 impl deferred |
-| R-04 | Single-tenant nếu sau này mở rộng | `org_unit.id` đã có sẵn |
-| R-05 | Worker BullMQ cần Redis | Docker Compose có Redis; healthcheck kiểm tra trước khi start worker |
-| R-06 | Deadline 14 tuần | Phasing trong §12; defer circuit breaker/SMTP/materialized view nếu thiếu ~1 tuần |
-| R-07 | PowerShell vs bash trên Windows | Cung cấp cả 2 script (`.sh` và `.ps1`); PowerShell dùng `Copy-Item`, `Remove-Item`, `Select-String` thay `cp`, `rm`, `grep` |
+| R-01 | OpenAI timeout | Mock mặc định; OpenAI optional + smoke test; timeout 30–60s |
+| R-02 | Realtime qua proxy | Fallback polling 10s |
+| R-03 | Worker dùng chung logic | `packages/backend-core` là shared layer; worker + api cùng import |
+| R-04 | Deadline 14 tuần | Phasing §12; defer circuit breaker/materialized view/SMTP nếu thiếu ~1 tuần |
+| R-05 | PowerShell vs bash | Cung cấp cả `.sh` và `.ps1`; PS dùng `Copy-Item`, `Remove-Item` |
+| R-06 | DB UUID seed | Dùng `crypto.randomUUID()` hoặc giá trị seed cố định cho `org_unit.id` trong migration initial |

@@ -2,7 +2,7 @@
 
 AI-Powered Equipment Maintenance Management System — phạm vi P1 theo bộ tài liệu đính kèm (Spec + Document01..07).
 
-> **Trạng thái**: đang triển khai theo [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md). Bản kế hoạch đã qua hai vòng review.
+> **Trạng thái**: đang chuẩn bị M0 (đóng băng baseline). Bắt đầu triển khai W1 (28/09/2026) sau khi đóng băng tài liệu theo [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) §0.
 
 ## Stack đã khóa
 
@@ -39,14 +39,14 @@ pnpm install
 # 2. Sao chép biến môi trường (KHÔNG commit .env)
 Copy-Item .env.example .env
 
-# 3. Khởi động hạ tầng
-docker compose -f infra/docker-compose.yml up -d
+# 3. Khởi động hạ tầng (infra)
+pnpm infra:up
 
-# 4. Tạo schema + seed demo (idempotent)
+# 4. Tạo schema + seed demo
 pnpm --filter @equipcare/api db:migrate:deploy
 pnpm --filter @equipcare/api db:seed
 
-# 5. Chạy dev: API + Web + Worker
+# 5. Chạy dev: API + Web + Worker (trên hạ tầng đã có)
 pnpm dev
 ```
 
@@ -57,11 +57,23 @@ git clone https://github.com/Mhieuu/equipcare-ai.git
 cd equipcare-ai
 pnpm install
 cp .env.example .env
-docker compose -f infra/docker-compose.yml up -d
+pnpm infra:up
 pnpm --filter @equipcare/api db:migrate:deploy
 pnpm --filter @equipcare/api db:seed
 pnpm dev
 ```
+
+### Chạy full stack bằng Docker (demo)
+
+```bash
+# Chạy toàn bộ hệ thống (API + Web + Worker + hạ tầng) trong Docker
+pnpm demo:up
+
+# Dừng
+pnpm demo:down
+```
+
+> **Phân biệt `pnpm dev` vs `pnpm demo:up`**: `pnpm dev` chạy apps trên máy host, kết nối hạ tầng qua Docker. `pnpm demo:up` đóng gói toàn bộ (API + Web + Worker + infra) vào Docker containers. Không dùng cả hai cùng lúc — tránh trùng cổng và trùng worker.
 
 > **Worker là app NestJS riêng** (`apps/worker`), chạy cùng lúc với API trong `pnpm dev`. Worker xử lý AI request (BullMQ), notification job, và PM scheduler. Không nhúng vào API để tránh block HTTP khi job nặng.
 
@@ -100,8 +112,10 @@ Sau khi chạy, truy cập:
 | `pnpm db:migrate:deploy` | Áp migration (production / CI) |
 | `pnpm db:seed` | Seed dữ liệu demo (idempotent) |
 | `pnpm db:reset` | Xóa + tạo lại DB + seed (cẩn thận, mất dữ liệu local) |
-| `pnpm infra:up` | Docker Compose: postgres + redis + minio + api + web + worker |
-| `pnpm infra:down` | Docker Compose down |
+| `pnpm infra:up` | Chỉ bật hạ tầng: Postgres + Redis + MinIO |
+| `pnpm infra:down` | Tắt hạ tầng Docker |
+| `pnpm demo:up` | Full stack: API + Web + Worker + hạ tầng trong Docker |
+| `pnpm demo:down` | Tắt full stack Docker |
 | `bash scripts/demo-flow.sh` hoặc `pwsh scripts/demo-flow.ps1` | Demo E2E: Reporter tạo incident → Manager assign → KTV issue parts → Manager approve → KTV complete → Manager close → CSV report |
 
 ## Chế độ "demo đầy đủ" so với "development"
