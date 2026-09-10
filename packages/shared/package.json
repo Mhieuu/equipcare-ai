@@ -13,10 +13,13 @@
     }
   },
   "scripts": {
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
     "test": "echo \"no tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "@equipcare/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.5.4"

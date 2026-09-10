@@ -11,7 +11,7 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "lint": "pnpm -r --parallel lint",
-    "typecheck": "pnpm -r --parallel typecheck",
+    "typecheck": "pnpm build && pnpm -r --parallel typecheck",
     "build": "pnpm -r --filter=@equipcare/shared --filter=@equipcare/backend-core --filter=@equipcare/api --filter=@equipcare/web --filter=@equipcare/worker build",
     "test": "pnpm -r --parallel test",
     "infra:up": "docker compose -f infra/docker-compose.infra.yml --env-file .env up -d",
@@ -31,7 +31,7 @@
     "reset:db": "bash scripts/reset-db.sh",
     "reset:db:ps": "pwsh scripts/reset-db.ps1",
     "freeze:baseline": "bash scripts/freeze-baseline.sh",
-    "preflight": "pnpm install && pnpm lint && pnpm typecheck && pnpm build"
+    "preflight": "pnpm install && pnpm lint && pnpm build && pnpm typecheck"
   },
   "devDependencies": {
     "typescript": "5.5.4",

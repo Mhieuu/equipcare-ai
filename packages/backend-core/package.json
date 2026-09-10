@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
     "test": "echo \"no tests yet\" && exit 0"

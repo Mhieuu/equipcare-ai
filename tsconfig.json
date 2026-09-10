@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true
+  },
+  "include": ["packages/shared/src/**/*", "packages/backend-core/src/**/*", "apps/*/src/**/*", "apps/*/prisma/**/*", "scripts/**/*"]
+}

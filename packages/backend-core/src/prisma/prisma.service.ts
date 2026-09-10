@@ -10,7 +10,6 @@ import { PrismaClient } from '@prisma/client';
  * KHÔNG cache singleton xuyên process — không có chia sẻ state.
  */
 declare global {
-  // eslint-disable-next-line no-var
   var __equipcarePrisma: PrismaClient | undefined;
 }
 

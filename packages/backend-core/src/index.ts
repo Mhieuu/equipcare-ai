@@ -8,8 +8,8 @@
  *
  * API và worker cùng import package này; mỗi process có 1 PrismaService instance.
  */
-export * from './prisma/prisma.service.js';
-export * from './errors/app-error.js';
-export * from './rbac/policy.js';
-export * from './state-machine/work-order.machine.js';
-export * from './sla/sla.engine.js';
+export * from './prisma/prisma.service';
+export * from './errors/app-error';
+export * from './rbac/policy';
+export * from './state-machine/work-order.machine';
+export * from './sla/sla.engine';

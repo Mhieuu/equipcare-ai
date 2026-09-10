@@ -1,2 +1,2 @@
-export * from './api-error.type.js';
-export * from './audit.type.js';
+export * from './api-error.type';
+export * from './audit.type';

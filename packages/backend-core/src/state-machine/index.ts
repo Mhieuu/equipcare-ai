@@ -1,1 +1,1 @@
-export * from './work-order.machine.js';
+export * from './work-order.machine';

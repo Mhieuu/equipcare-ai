@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "next lint || echo \"no .eslintrc yet\"",
+    "lint": "eslint src --no-warn-ignored || echo \"web has no .ts to lint\"",
     "typecheck": "tsc --noEmit",
     "build": "next build",
     "start": "next start",

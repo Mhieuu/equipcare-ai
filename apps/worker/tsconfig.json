@@ -3,8 +3,15 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "module": "ESNext",
-    "moduleResolution": "Bundler"
+    "declaration": true,
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "baseUrl": "../../",
+    "paths": {
+      "@equipcare/shared": ["packages/shared/dist/index"],
+      "@equipcare/backend-core": ["packages/backend-core/dist/index"]
+    }
   },
   "include": ["src/**/*"]
 }
