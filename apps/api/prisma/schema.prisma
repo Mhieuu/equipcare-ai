@@ -1,0 +1,19 @@
+// =============================================================================
+// EquipCare AI — Prisma schema (M0 stub)
+// Source of truth: apps/api/prisma/schema.prisma
+// Sẽ đầy đủ ở M1 với migration 0001_init theo Doc04 v1.3 (LOCKED).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TODO(M1): định nghĩa đầy đủ theo Doc04 v1.3 (LOCKED)
+// org_unit (UUID seed cố định), departments, locations, users, roles,
+// permissions, role_permissions, user_roles, user_role_scopes,
+// sessions, login_attempts, audit_logs, thresholds

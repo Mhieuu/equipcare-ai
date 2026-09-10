@@ -2,7 +2,7 @@
 
 AI-Powered Equipment Maintenance Management System — phạm vi P1 theo bộ tài liệu đính kèm (Spec + Document01..07).
 
-> **Trạng thái**: đang chuẩn bị M0 (đóng băng baseline). Bắt đầu triển khai W1 (28/09/2026) sau khi đóng băng tài liệu theo [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) §0.
+> **Trạng thái**: M0 đã chốt scaffold (monorepo, compose, Dockerfiles, CI, scripts). Đang chờ user khóa Doc02..07 theo [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) §0 rồi chạy preflight + viết migration `0001_init` (M1).
 
 ## Stack đã khóa
 
