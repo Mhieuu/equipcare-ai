@@ -2,30 +2,33 @@
 
 AI-Powered Equipment Maintenance Management System — phạm vi P1 theo bộ tài liệu đính kèm (Spec + Document01..07).
 
-> **Trạng thái**: đang triển khai theo [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md). Bản kế hoạch đã được rà soát lại sau vòng review và đối chiếu trực tiếp với Doc02–07.
+> **Trạng thái**: đang triển khai theo [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md). Bản kế hoạch đã qua hai vòng review.
 
 ## Stack đã khóa
 
 | Layer | Tech |
 |---|---|
-| Backend | NestJS 10 · Prisma 5 · PostgreSQL 16 · Redis 7 · BullMQ · Socket.IO |
+| Backend | NestJS 10 (current) · Prisma 5 · PostgreSQL 16 · Redis 7 · BullMQ · Socket.IO |
+| Worker | BullMQ — **app riêng** (`apps/worker`), chạy độc lập với API |
 | Frontend | Next.js 14 (App Router) · React 18 · TypeScript strict · Tailwind · shadcn/ui · TanStack Query · RHF + Zod |
-| Storage | MinIO (S3-compatible, local) |
-| AI | Provider abstraction · OpenAI Responses API (optional) · deterministic mock |
-| Test | Jest (backend) · Vitest (frontend) · Supertest · Testcontainers · Playwright |
-| Toolchain | Node.js 20 LTS · pnpm 9 workspaces |
+| Storage | MinIO `RELEASE.2024-09-13T03-26-17Z` (S3-compatible, local) |
+| AI | Provider abstraction · OpenAI Responses API (optional, smoke test only) · deterministic mock (default) |
+| Test | Jest 29 (backend) · Vitest 1.x (frontend) · Supertest · Testcontainers · Playwright |
+| Toolchain | **Node.js 22 LTS** (Active, 2024-10 → 2027-04) · pnpm 9 workspaces |
 
 ## Yêu cầu môi trường
 
-- **Node.js**: 20.x LTS (≥ 20.10) — xem `.nvmrc`
+- **Node.js**: 22 LTS (Active) — xem `.nvmrc`. **Không dùng Node 20** (đã EOL 2026-04).
 - **pnpm**: 9.x — `npm i -g pnpm@9`
 - **Docker Desktop** (Windows/Mac) hoặc Docker Engine + Compose v2
-- **OS**: Windows 10/11, macOS 12+, Ubuntu 22.04+
+- **OS**: Windows 10/11 (PowerShell hoặc Git Bash/WSL), macOS 12+, Ubuntu 22.04+
 - Ổ đĩa trống tối thiểu 5 GB cho Postgres + MinIO data
 
 ## Chạy nhanh (dev)
 
-```bash
+### Windows (PowerShell)
+
+```powershell
 # 0. Lấy source
 git clone https://github.com/Mhieuu/equipcare-ai.git
 cd equipcare-ai
@@ -33,30 +36,45 @@ cd equipcare-ai
 # 1. Cài dependencies
 pnpm install
 
-# 2. Sao chép biến môi trường (KHÔNG commit file .env)
-cp .env.example .env
+# 2. Sao chép biến môi trường (KHÔNG commit .env)
+Copy-Item .env.example .env
 
-# 3. Khởi động Postgres + Redis + MinIO
+# 3. Khởi động hạ tầng
 docker compose -f infra/docker-compose.yml up -d
 
 # 4. Tạo schema + seed demo (idempotent)
 pnpm --filter @equipcare/api db:migrate:deploy
 pnpm --filter @equipcare/api db:seed
 
-# 5. Chạy dev (API + Web + Worker)
+# 5. Chạy dev: API + Web + Worker
 pnpm dev
 ```
+
+### Linux / macOS / Git Bash / WSL
+
+```bash
+git clone https://github.com/Mhieuu/equipcare-ai.git
+cd equipcare-ai
+pnpm install
+cp .env.example .env
+docker compose -f infra/docker-compose.yml up -d
+pnpm --filter @equipcare/api db:migrate:deploy
+pnpm --filter @equipcare/api db:seed
+pnpm dev
+```
+
+> **Worker là app NestJS riêng** (`apps/worker`), chạy cùng lúc với API trong `pnpm dev`. Worker xử lý AI request (BullMQ), notification job, và PM scheduler. Không nhúng vào API để tránh block HTTP khi job nặng.
 
 Sau khi chạy, truy cập:
 
 | Dịch vụ | URL |
 |---|---|
-| Web | http://localhost:3000 |
-| API | http://localhost:3001 |
+| Web (Next.js) | http://localhost:3000 |
+| API (NestJS) | http://localhost:3001 |
 | Swagger UI | http://localhost:3001/docs |
 | MinIO Console | http://localhost:9001 (`minioadmin` / `minioadmin`) |
 
-## Tài khoản demo
+## Tài khoản demo (seed)
 
 | Vai trò | Username | Password |
 |---|---|---|
@@ -82,17 +100,18 @@ Sau khi chạy, truy cập:
 | `pnpm db:migrate:deploy` | Áp migration (production / CI) |
 | `pnpm db:seed` | Seed dữ liệu demo (idempotent) |
 | `pnpm db:reset` | Xóa + tạo lại DB + seed (cẩn thận, mất dữ liệu local) |
-| `bash scripts/demo-flow.sh` | Chạy kịch bản demo end-to-end (login → incident → WO → parts → complete → CSV) |
+| `pnpm infra:up` | Docker Compose: postgres + redis + minio + api + web + worker |
+| `pnpm infra:down` | Docker Compose down |
+| `bash scripts/demo-flow.sh` hoặc `pwsh scripts/demo-flow.ps1` | Demo E2E: Reporter tạo incident → Manager assign → KTV issue parts → Manager approve → KTV complete → Manager close → CSV report |
 
 ## Chế độ "demo đầy đủ" so với "development"
 
 | Tính năng | Dev (mặc định) | Demo đầy đủ |
 |---|---|---|
-| AI provider | `mock` (deterministic) | `openai` (cần `OPENAI_API_KEY`) |
+| AI provider | `mock` (deterministic) | `openai` (smoke test tùy chọn — cần `OPENAI_API_KEY`) |
 | Email gửi | log-only stub | log-only stub (chưa gửi thật) |
 | Storage | MinIO local | MinIO local |
-| Realtime | Socket.IO (cùng host) | Socket.IO (cùng host) |
-| Audit retention | vô hạn | vô hạn |
+| Realtime | Socket.IO (cùng host) | Socket.IO (cùng host); fallback polling 10s |
 
 Bật AI thật: trong `.env` đặt `AI_PROVIDER=openai` và `OPENAI_API_KEY=sk-...`.
 
@@ -101,15 +120,17 @@ Bật AI thật: trong `.env` đặt `AI_PROVIDER=openai` và `OPENAI_API_KEY=sk
 ```
 equipcare-ai/
 ├─ apps/
-│  ├─ api/                  NestJS backend
-│  └─ web/                  Next.js frontend
+│  ├─ api/                  NestJS backend (HTTP + Swagger)
+│  ├─ web/                  Next.js frontend
+│  └─ worker/               BullMQ worker (AI, notification, scheduler)
 ├─ packages/
 │  └─ shared/               types, enums, RBAC policy, OpenAPI client
 ├─ infra/
-│  └─ docker-compose.yml    postgres, redis, minio (dev)
+│  ├─ docker-compose.yml     postgres, redis, minio, api, web, worker
+│  └─ minio/                init bucket script
 ├─ scripts/
-│  ├─ reset-db.sh
-│  └─ demo-flow.sh
+│  ├─ reset-db.sh / .ps1
+│  └─ demo-flow.sh / .ps1
 ├─ .env.example
 ├─ .nvmrc
 ├─ pnpm-workspace.yaml
@@ -131,9 +152,9 @@ equipcare-ai/
 2. Commit theo conventional commits: `feat(scope):`, `fix(scope):`, `docs:`, `test:`, `chore:`
 3. Trước khi push: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` phải pass.
 4. Push lên branch, mở PR nếu muốn review.
-5. Mỗi milestone kết thúc có self-review theo `IMPLEMENTATION_PLAN.md §13`.
+5. Mỗi milestone kết thúc có self-review theo `IMPLEMENTATION_PLAN.md §14`.
 
 ## Tham chiếu tài liệu
 
-- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — kiến trúc, truy vết yêu cầu, state machine, transaction, Q-items, kế hoạch milestone 14 tuần
+- [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) — kiến trúc, truy vết yêu cầu, state machine, transaction, Q-items, kế hoạch milestone 14 tuần
 - Document01..07 (đính kèm từ folder DATN gốc)
