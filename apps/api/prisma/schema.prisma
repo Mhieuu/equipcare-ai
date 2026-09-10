@@ -1,11 +1,32 @@
 // =============================================================================
-// EquipCare AI — Prisma schema (M0 stub)
+// EquipCare AI — Prisma schema
 // Source of truth: apps/api/prisma/schema.prisma
-// Sẽ đầy đủ ở M1 với migration 0001_init theo Doc04 v1.3 (LOCKED).
+// Migrate: pnpm db:migrate:dev (interactive) | pnpm db:migrate:deploy (CI/prod)
+//
+// M1 scope (this migration 0001_init):
+//   - Tenant (single-tenant: id = 'default')
+//   - Org structure: OrgUnit, Department, Location
+//   - Auth: User, Session, LoginAttempt
+//   - IAM: Role, Permission, RolePermission, UserRole, UserRoleScope
+//   - Audit log
+//   - Threshold config (defaults; per-action thresholds come in M6)
+//
+// M2+ scope (later migrations):
+//   - Asset, AssetCategory, AssetDocument
+//   - Incident, IncidentComment
+//   - WorkOrder, WorkOrderTask, WorkOrderStatusHistory
+//   - MaintenancePlan, MaintenanceOccurrence
+//   - Part, StockLocation, StockBalance, StockTransaction, StockMovement
+//   - Approval, ApprovalItem
+//   - Attachment
+//   - Notification
+//
+// Reference: Doc04_CSDL_ERD_v1_3_Clean_Locked.docx (LOCKED)
 // =============================================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -13,7 +34,267 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// TODO(M1): định nghĩa đầy đủ theo Doc04 v1.3 (LOCKED)
-// org_unit (UUID seed cố định), departments, locations, users, roles,
-// permissions, role_permissions, user_roles, user_role_scopes,
-// sessions, login_attempts, audit_logs, thresholds
+// ----- Tenant -----
+model Tenant {
+  id        String   @id @default(uuid())
+  code      String   @unique // 'default' (single-tenant M0; multi-tenant future)
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  orgUnits     OrgUnit[]
+  departments  Department[]
+  locations    Location[]
+  roles        Role[]
+  permissions  Permission[]
+  thresholds   Threshold[]
+
+  @@map("tenants")
+}
+
+// ----- Org structure -----
+model OrgUnit {
+  id          String       @id @default(uuid())
+  tenantId    String       @map("tenant_id")
+  name        String
+  code        String
+  description String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  departments Department[]
+  locations   Location[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("org_units")
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  orgUnitId String   @map("org_unit_id")
+  name      String
+  code      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orgUnit   OrgUnit  @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+  users     User[]
+
+  @@unique([tenantId, code])
+  @@index([orgUnitId])
+  @@map("departments")
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  orgUnitId String   @map("org_unit_id")
+  name      String
+  code      String
+  address   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orgUnit   OrgUnit  @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([orgUnitId])
+  @@map("locations")
+}
+
+// ----- Users & Auth -----
+enum UserStatus {
+  ACTIVE
+  LOCKED
+  DISABLED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  tenantId     String     @map("tenant_id")
+  departmentId String?    @map("department_id")
+  email        String
+  fullName     String     @map("full_name")
+  passwordHash String     @map("password_hash")
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?  @map("last_login_at")
+  failedAttempts Int      @default(0) @map("failed_attempts")
+  lockedUntil  DateTime?  @map("locked_until")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  sessions     Session[]
+  roles        UserRole[]
+  scopes       UserRoleScope[]
+  loginAttempts LoginAttempt[]
+  auditLogs    AuditLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  refreshTokenHash String @map("refresh_token_hash") @db.VarChar(255)
+  userAgent    String?  @map("user_agent")
+  ip           String?
+  expiresAt    DateTime @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  email     String
+  success   Boolean
+  ip        String?
+  userAgent String?  @map("user_agent")
+  reason    String?  // 'INVALID_PASSWORD', 'USER_LOCKED', 'USER_DISABLED', 'NOT_FOUND'
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([createdAt])
+  @@map("login_attempts")
+}
+
+// ----- IAM (RBAC) -----
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  code        String   // 'ADMIN', 'MANAGER', 'TECHNICIAN', 'REPORTER', 'VIEWER'
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  code        String   // 'asset:read', 'work-order:create', etc.
+  module      String   // 'asset', 'work-order', ...
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles       RolePermission[]
+
+  @@unique([tenantId, code])
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+  grantedAt    DateTime @default(now()) @map("granted_at")
+  role         Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  roleId    String   @map("role_id")
+  grantedAt DateTime @default(now()) @map("granted_at")
+  grantedBy String?  @map("granted_by")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  scopes    UserRoleScope[]
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@map("user_roles")
+}
+
+// User scope: department/location/asset nào user có thể truy cập (rỗng = admin)
+// UserRoleScope áp dụng cho 1 userRole (1 user có thể có nhiều role, mỗi role có scope riêng).
+enum ScopeType {
+  DEPARTMENT
+  LOCATION
+}
+
+model UserRoleScope {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  userRoleId  String    @map("user_role_id")
+  scopeType   ScopeType @map("scope_type")
+  scopeValue  String    @map("scope_value") // departmentId / locationId
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userRole    UserRole  @relation(fields: [userRoleId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userRoleId])
+  @@map("user_role_scopes")
+}
+
+// ----- Audit -----
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  userId    String?  @map("user_id")
+  userEmail String?  @map("user_email")
+  action    String   // 'USER_CREATE', 'ROLE_ASSIGN', 'LOGIN_SUCCESS', ...
+  entity    String   // 'user', 'role', ...
+  entityId  String?  @map("entity_id")
+  before    Json?    @map("before")
+  after     Json?    @map("after")
+  ip        String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+// ----- Threshold config (M1: defaults; M6: per-action override) -----
+enum ThresholdDomain {
+  COST
+  WORK_ORDER
+  INVENTORY
+  APPROVAL
+}
+
+model Threshold {
+  id        String         @id @default(uuid())
+  tenantId  String         @map("tenant_id")
+  domain    ThresholdDomain
+  key       String         // 'cost_request_default', 'cost_spare_part_default', etc.
+  value     Decimal        @db.Decimal(18, 4)
+  unit      String         @default("VND")
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, domain, key])
+  @@index([tenantId])
+  @@map("thresholds")
+}
