@@ -1,13 +1,53 @@
+# =============================================================================
+# EquipCare AI — gitignore
+# Monorepo: apps/api (NestJS) + apps/web (Next.js) + apps/worker (BullMQ)
+# =============================================================================
+
+# ---- Node / pnpm ----
 node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+.yarn/
+
+# ---- Build artifacts ----
 dist/
+build/
 .next/
-.turbo/
+out/
 coverage/
+*.tsbuildinfo
+
+# ---- Env / secrets ----
 .env
 .env.local
-*.log
-.DS_Store
-.idea/
+.env.*.local
+!.env.example
+
+# ---- Editor ----
 .vscode/
+!.vscode/settings.json
 !.vscode/extensions.json
-pnpm-lock.yaml.bak
+.idea/
+*.swp
+*.swo
+
+# ---- OS ----
+Thumbs.db
+.DS_Store
+
+# ---- Prisma ----
+apps/api/prisma/migrations/dev.db*
+
+# ---- Test ----
+junit.xml
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ---- Docker volumes (host paths) ----
+.pg_data/
+.minio_data/
