@@ -58,6 +58,14 @@ export const Permission = {
   // Attachment
   ATTACHMENT_UPLOAD: 'attachment:upload',
   ATTACHMENT_READ: 'attachment:read',
+
+  // Figma v1.1 (plan rev. 6.1 §10.1)
+  WORK_ORDER_DISPATCH_READ: 'work-order:dispatch:read',
+  INCIDENT_QUEUE_READ: 'incident:queue:read',
+  APPROVAL_QUEUE_READ: 'approval:queue:read',
+  AUDIT_READ_ALL: 'audit:read:all',
+  SYSTEM_CONFIG_UPDATE: 'system-config:update',
+  DOCUMENT_READ: 'document:read',
 } as const;
 
 export type PermissionCode = (typeof Permission)[keyof typeof Permission];

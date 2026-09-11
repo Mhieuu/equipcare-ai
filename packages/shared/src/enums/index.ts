@@ -5,3 +5,4 @@ export * from './inventory.enum';
 export * from './maintenance.enum';
 export * from './attachment.enum';
 export * from './user.enum';
+export * from './labels';

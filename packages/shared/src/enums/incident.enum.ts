@@ -1,13 +1,13 @@
 /**
- * Trạng thái Incident (Doc04).
+ * Trạng thái Incident (Doc04 §3.2: NEW | AWAITING_INFO | IN_PROGRESS | RESOLVED | CLOSED | CANCELLED — không REOPENED).
  */
 export const IncidentStatus = {
-  OPEN: 'OPEN',
-  TRIAGED: 'TRIAGED',
+  NEW: 'NEW',
+  AWAITING_INFO: 'AWAITING_INFO',
   IN_PROGRESS: 'IN_PROGRESS',
   RESOLVED: 'RESOLVED',
   CLOSED: 'CLOSED',
-  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
 } as const;
 export type IncidentStatus = (typeof IncidentStatus)[keyof typeof IncidentStatus];
 

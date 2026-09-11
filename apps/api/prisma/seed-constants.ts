@@ -1,0 +1,13 @@
+/**
+ * UUID cố định cho seed idempotent (R-06 trong plan rev. 6.1).
+ * Seed chạy lại phải idempotent — upsert theo khóa tự nhiên, không create.
+ */
+
+export const BOOTSTRAP_ADMIN_ID = '00000000-0000-4000-8000-000000000001';
+export const BOOTSTRAP_DEPARTMENT_ID = '00000000-0000-4000-8000-000000000010';
+export const BOOTSTRAP_LOCATION_ID = '00000000-0000-4000-8000-000000000020';
+
+export const ROLE_ADMIN_ID = '00000000-0000-4000-8000-000000000101';
+export const ROLE_MANAGER_ID = '00000000-0000-4000-8000-000000000102';
+export const ROLE_TECHNICIAN_ID = '00000000-0000-4000-8000-000000000103';
+export const ROLE_USER_ID = '00000000-0000-4000-8000-000000000104';

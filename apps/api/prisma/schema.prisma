@@ -1,32 +1,9 @@
-// =============================================================================
-// EquipCare AI — Prisma schema
-// Source of truth: apps/api/prisma/schema.prisma
-// Migrate: pnpm db:migrate:dev (interactive) | pnpm db:migrate:deploy (CI/prod)
-//
-// M1 scope (this migration 0001_init):
-//   - Tenant (single-tenant: id = 'default')
-//   - Org structure: OrgUnit, Department, Location
-//   - Auth: User, Session, LoginAttempt
-//   - IAM: Role, Permission, RolePermission, UserRole, UserRoleScope
-//   - Audit log
-//   - Threshold config (defaults; per-action thresholds come in M6)
-//
-// M2+ scope (later migrations):
-//   - Asset, AssetCategory, AssetDocument
-//   - Incident, IncidentComment
-//   - WorkOrder, WorkOrderTask, WorkOrderStatusHistory
-//   - MaintenancePlan, MaintenanceOccurrence
-//   - Part, StockLocation, StockBalance, StockTransaction, StockMovement
-//   - Approval, ApprovalItem
-//   - Attachment
-//   - Notification
-//
-// Reference: Doc04_CSDL_ERD_v1_3_Clean_Locked.docx (LOCKED)
-// =============================================================================
+// EquipCare AI — Prisma schema (plan rev. 6.1)
+// Nguồn: docs/db_schema.md (33 bảng Doc04 + 2 bảng phụ trợ IAM).
+// Tất cả constraint (UNIQUE, CHECK, FK ghép) khớp Doc04 v1.2.
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -34,267 +11,779 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ----- Tenant -----
-model Tenant {
-  id        String   @id @default(uuid())
-  code      String   @unique // 'default' (single-tenant M0; multi-tenant future)
-  name      String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+// =================================================================
+// NHÓM A — Tổ chức, tài khoản, phạm vi dữ liệu (9 bảng)
+// =================================================================
 
-  users        User[]
-  orgUnits     OrgUnit[]
-  departments  Department[]
-  locations    Location[]
-  roles        Role[]
-  permissions  Permission[]
-  thresholds   Threshold[]
+model departments {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(30)
+  name        String   @db.VarChar(150)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  row_version Int      @default(1)
 
-  @@map("tenants")
+  users         users[]         @relation("user_department")
+  assets        assets[]
+  parts         parts[]
+  work_orders   work_orders[]
+  access_scopes access_scopes[]
+  incidents     incidents[]
 }
 
-// ----- Org structure -----
-model OrgUnit {
-  id          String       @id @default(uuid())
-  tenantId    String       @map("tenant_id")
-  name        String
-  code        String
+model locations {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(40)
+  name        String   @db.VarChar(150)
+  parent_id   String?  @db.Uuid
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  row_version Int      @default(1)
+
+  parent        locations?      @relation("location_tree", fields: [parent_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  children      locations[]     @relation("location_tree")
+  assets        assets[]
+  parts         parts[]
+  access_scopes access_scopes[]
+
+  @@index([parent_id])
+}
+
+model users {
+  id                   String   @id @default(uuid()) @db.Uuid
+  login_name           String   @unique @db.VarChar(100)
+  full_name            String   @db.VarChar(150)
+  email                String?  @db.VarChar(254)
+  department_id        String?  @db.Uuid
+  password_hash        String
+  is_locked            Boolean  @default(false)
+  must_change_password Boolean  @default(false)
+  auth_version         Int      @default(1)
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @db.Timestamptz(6)
+  row_version          Int      @default(1)
+
+  department               departments?          @relation("user_department", fields: [department_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sessions                 sessions[]
+  user_roles               user_roles[]          @relation("user_role_user")
+  user_roles_granted       user_roles[]          @relation("user_role_granted_by")
+  access_scopes_granted    access_scopes[]
+  incidents_reported       incidents[]           @relation("incident_reporter")
+  incidents_closed         incidents[]           @relation("incident_closed_by")
+  incidents_cancelled      incidents[]           @relation("incident_cancelled_by")
+  work_orders_assigned     work_orders[]         @relation("wo_assignee")
+  work_orders_created      work_orders[]         @relation("wo_creator")
+  work_orders_cancelled    work_orders[]         @relation("wo_cancelled_by")
+  work_order_notes         work_order_notes[]
+  incident_messages        incident_messages[]
+  approvals                approvals[]           @relation("approval_proposer")
+  approval_events          approval_events[]
+  assets_created           assets[]
+  parts_created_by         maintenance_plans[]   @relation("plan_creator")
+  files_uploaded           files[]
+  technical_documents      technical_documents[]
+  document_versions        document_versions[]
+  attachment_links         attachment_links[]
+  audit_logs               audit_logs[]
+  notifications            notifications[]
+  cost_entries             cost_entries[]
+  stock_transactions       stock_transactions[]
+  ai_requests              ai_requests[]
+  system_settings          system_settings[]
+  documents_roles_granted  document_roles[]      @relation("doc_role_granted_by")
+  role_permissions_granted role_permissions[]    @relation("rp_granted_by")
+
+  @@index([department_id])
+}
+
+model roles {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(30)
+  name        String   @db.VarChar(100)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  row_version Int      @default(1)
+
+  user_roles       user_roles[]
+  role_permissions role_permissions[]
+  document_roles   document_roles[]
+}
+
+model user_roles {
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String    @db.Uuid
+  role_id     String    @db.Uuid
+  is_active   Boolean   @default(true)
+  granted_by  String?   @db.Uuid
+  revoked_at  DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+  row_version Int       @default(1)
+
+  user            users           @relation("user_role_user", fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  role            roles           @relation(fields: [role_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  granted_by_user users?          @relation("user_role_granted_by", fields: [granted_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  access_scopes   access_scopes[]
+
+  @@unique([user_id, role_id])
+  @@index([role_id])
+}
+
+model access_scopes {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_role_id  String   @db.Uuid
+  scope_type    String   @db.VarChar(20)
+  department_id String?  @db.Uuid
+  location_id   String?  @db.Uuid
+  asset_id      String?  @db.Uuid
+  incident_id   String?  @db.Uuid
+  is_active     Boolean  @default(true)
+  granted_by    String   @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  row_version   Int      @default(1)
+
+  user_role       user_roles   @relation(fields: [user_role_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  department      departments? @relation(fields: [department_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  location        locations?   @relation(fields: [location_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset           assets?      @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  incident        incidents?   @relation(fields: [incident_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  granted_by_user users        @relation(fields: [granted_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+}
+
+model sessions {
+  id           String    @id @default(uuid()) @db.Uuid
+  user_id      String    @db.Uuid
+  token_hash   String    @unique
+  expires_at   DateTime  @db.Timestamptz(6)
+  revoked_at   DateTime? @db.Timestamptz(6)
+  auth_version Int
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([user_id])
+  @@index([expires_at])
+}
+
+// Bảng phụ trợ IAM (plan tự đặt — Doc04 §2 TK-06)
+model permissions {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(80)
+  description String
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  row_version Int      @default(1)
+
+  role_permissions role_permissions[]
+}
+
+model role_permissions {
+  role_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  granted_by    String   @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  role            roles       @relation(fields: [role_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  permission      permissions @relation(fields: [permission_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  granted_by_user users       @relation("rp_granted_by", fields: [granted_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([role_id, permission_id])
+  @@index([permission_id])
+}
+
+// =================================================================
+// NHÓM B — Thiết bị, sự cố, công việc, bảo trì (8 bảng)
+// =================================================================
+
+model asset_types {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(40)
+  name        String   @db.VarChar(150)
   description String?
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  departments Department[]
-  locations   Location[]
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  row_version Int      @default(1)
 
-  @@unique([tenantId, code])
-  @@index([tenantId])
-  @@map("org_units")
+  assets              assets[]
+  part_asset_types    part_asset_types[]
+  technical_documents technical_documents[]
 }
 
-model Department {
-  id        String   @id @default(uuid())
-  tenantId  String   @map("tenant_id")
-  orgUnitId String   @map("org_unit_id")
-  name      String
-  code      String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  orgUnit   OrgUnit  @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
-  users     User[]
+model assets {
+  id              String    @id @default(uuid()) @db.Uuid
+  code            String    @unique @db.VarChar(50)
+  name            String    @db.VarChar(200)
+  asset_type_id   String    @db.Uuid
+  department_id   String    @db.Uuid
+  location_id     String    @db.Uuid
+  serial_number   String?   @db.VarChar(100)
+  supplier_name   String?   @db.VarChar(200)
+  purchased_on    DateTime? @db.Date
+  commissioned_on DateTime? @db.Date
+  warranty_until  DateTime? @db.Date
+  specifications  Json      @default("{}")
+  qr_key          String    @unique @db.Uuid
+  manual_state    String    @default("NORMAL") @db.VarChar(20)
+  state_reason    String?
+  created_by      String    @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  row_version     Int       @default(1)
 
-  @@unique([tenantId, code])
-  @@index([orgUnitId])
-  @@map("departments")
+  asset_type              asset_types               @relation(fields: [asset_type_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  department              departments               @relation(fields: [department_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  location                locations                 @relation(fields: [location_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  created_by_user         users                     @relation(fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  incidents               incidents[]
+  work_orders             work_orders[]
+  maintenance_plans       maintenance_plans[]
+  maintenance_occurrences maintenance_occurrences[]
+  access_scopes           access_scopes[]
+  technical_documents     technical_documents[]
+  attachment_links        attachment_links[]
+  ai_requests             ai_requests[]
+
+  @@unique([id, asset_type_id])
+  @@index([department_id, location_id])
+  @@index([asset_type_id])
 }
 
-model Location {
-  id        String   @id @default(uuid())
-  tenantId  String   @map("tenant_id")
-  orgUnitId String   @map("org_unit_id")
-  name      String
-  code      String
-  address   String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  orgUnit   OrgUnit  @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+model maintenance_plans {
+  id             String    @id @default(uuid()) @db.Uuid
+  asset_id       String    @db.Uuid
+  name           String    @db.VarChar(200)
+  interval_unit  String    @db.VarChar(10)
+  interval_value Int
+  start_on       DateTime  @db.Date
+  schedule_basis String    @default("FIXED") @db.VarChar(24)
+  next_due_on    DateTime? @db.Date
+  checklist      Json      @default("[]")
+  is_active      Boolean   @default(true)
+  created_by     String    @db.Uuid
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+  row_version    Int       @default(1)
 
-  @@unique([tenantId, code])
-  @@index([orgUnitId])
-  @@map("locations")
+  asset           assets                    @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  created_by_user users                     @relation("plan_creator", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  occurrences     maintenance_occurrences[]
+
+  @@unique([id, asset_id])
+  @@index([is_active, next_due_on])
 }
 
-// ----- Users & Auth -----
-enum UserStatus {
-  ACTIVE
-  LOCKED
-  DISABLED
+model maintenance_occurrences {
+  id            String   @id @default(uuid()) @db.Uuid
+  plan_id       String   @db.Uuid
+  asset_id      String   @db.Uuid
+  due_on        DateTime @db.Date
+  status        String   @db.VarChar(20)
+  plan_version  Int
+  plan_snapshot Json
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  plan        maintenance_plans @relation(fields: [plan_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset       assets            @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  work_orders work_orders[]
+
+  @@unique([plan_id, due_on])
+  @@index([asset_id])
 }
 
-model User {
-  id           String     @id @default(uuid())
-  tenantId     String     @map("tenant_id")
-  departmentId String?    @map("department_id")
-  email        String
-  fullName     String     @map("full_name")
-  passwordHash String     @map("password_hash")
-  status       UserStatus @default(ACTIVE)
-  lastLoginAt  DateTime?  @map("last_login_at")
-  failedAttempts Int      @default(0) @map("failed_attempts")
-  lockedUntil  DateTime?  @map("locked_until")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  sessions     Session[]
-  roles        UserRole[]
-  scopes       UserRoleScope[]
-  loginAttempts LoginAttempt[]
-  auditLogs    AuditLog[]
+model incidents {
+  id                 String    @id @default(uuid()) @db.Uuid
+  code               String    @unique @db.VarChar(50)
+  asset_id           String    @db.Uuid
+  reporter_id        String    @db.Uuid
+  description        String
+  impact_description String
+  occurred_at        DateTime? @db.Timestamptz(6)
+  priority_code      String?   @db.VarChar(20)
+  confirmed_category String?   @db.VarChar(100)
+  status             String    @default("NEW") @db.VarChar(24)
+  resolved_at        DateTime? @db.Timestamptz(6)
+  closed_at          DateTime? @db.Timestamptz(6)
+  closed_by          String?   @db.Uuid
+  cancelled_at       DateTime? @db.Timestamptz(6)
+  cancelled_by       String?   @db.Uuid
+  cancel_reason      String?
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+  row_version        Int       @default(1)
 
-  @@unique([tenantId, email])
-  @@index([tenantId])
-  @@index([email])
-  @@map("users")
+  asset             assets              @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reporter          users               @relation("incident_reporter", fields: [reporter_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  closed_by_user    users?              @relation("incident_closed_by", fields: [closed_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  cancelled_by_user users?              @relation("incident_cancelled_by", fields: [cancelled_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  department        departments?        @relation(fields: [department_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  department_id     String?             @db.Uuid
+  messages          incident_messages[]
+  work_orders       work_orders[]
+  attachment_links  attachment_links[]
+  access_scopes     access_scopes[]
+  ai_requests       ai_requests[]
+
+  @@unique([id, asset_id])
+  @@index([reporter_id, created_at])
+  @@index([asset_id, status])
 }
 
-model Session {
-  id           String   @id @default(uuid())
-  userId       String   @map("user_id")
-  refreshTokenHash String @map("refresh_token_hash") @db.VarChar(255)
-  userAgent    String?  @map("user_agent")
-  ip           String?
-  expiresAt    DateTime @map("expires_at")
-  revokedAt    DateTime? @map("revoked_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model incident_messages {
+  id           String   @id @default(uuid()) @db.Uuid
+  incident_id  String   @db.Uuid
+  author_id    String   @db.Uuid
+  message_type String   @db.VarChar(20)
+  body         String
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
 
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("sessions")
+  incident         incidents          @relation(fields: [incident_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  author           users              @relation(fields: [author_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  attachment_links attachment_links[]
 }
 
-model LoginAttempt {
-  id        String   @id @default(uuid())
-  userId    String?  @map("user_id")
-  email     String
-  success   Boolean
-  ip        String?
-  userAgent String?  @map("user_agent")
-  reason    String?  // 'INVALID_PASSWORD', 'USER_LOCKED', 'USER_DISABLED', 'NOT_FOUND'
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+model work_orders {
+  id                     String    @id @default(uuid()) @db.Uuid
+  code                   String    @unique @db.VarChar(50)
+  asset_id               String    @db.Uuid
+  kind                   String    @db.VarChar(20)
+  incident_id            String?   @db.Uuid
+  occurrence_id          String?   @db.Uuid
+  assignee_id            String?   @db.Uuid
+  created_by             String?   @db.Uuid
+  creation_mode          String    @db.VarChar(20)
+  description            String
+  priority_code          String    @db.VarChar(20)
+  due_at                 DateTime  @db.Timestamptz(6)
+  status                 String    @default("NEW") @db.VarChar(24)
+  started_at             DateTime? @db.Timestamptz(6)
+  completed_at           DateTime? @db.Timestamptz(6)
+  confirmed_cause        String?
+  action_taken           String?
+  result_summary         String?
+  checklist_snapshot     Json      @default("[]")
+  checklist_results      Json      @default("[]")
+  downtime_start         DateTime? @db.Timestamptz(6)
+  downtime_end           DateTime? @db.Timestamptz(6)
+  department_id_snapshot String    @db.Uuid
+  cancelled_at           DateTime? @db.Timestamptz(6)
+  cancelled_by           String?   @db.Uuid
+  cancel_reason          String?
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @default(now()) @db.Timestamptz(6)
+  row_version            Int       @default(1)
 
-  @@index([email])
-  @@index([createdAt])
-  @@map("login_attempts")
+  asset               assets                   @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  department_snapshot departments              @relation(fields: [department_id_snapshot], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  incident            incidents?               @relation(fields: [incident_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  occurrence          maintenance_occurrences? @relation(fields: [occurrence_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assignee            users?                   @relation("wo_assignee", fields: [assignee_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  created_by_user     users?                   @relation("wo_creator", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  cancelled_by_user   users?                   @relation("wo_cancelled_by", fields: [cancelled_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  notes               work_order_notes[]
+  parts_planned       work_order_parts[]
+  approvals           approvals[]
+  stock_transactions  stock_transactions[]
+  cost_entries        cost_entries[]
+  attachment_links    attachment_links[]
+  ai_requests         ai_requests[]
+
+  @@index([occurrence_id])
+  @@index([assignee_id, status, due_at])
+  @@index([asset_id, status])
+  @@index([incident_id])
+  @@index([department_id_snapshot])
 }
 
-// ----- IAM (RBAC) -----
-model Role {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  code        String   // 'ADMIN', 'MANAGER', 'TECHNICIAN', 'REPORTER', 'VIEWER'
-  name        String
-  description String?
-  isSystem    Boolean  @default(false) @map("is_system")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  permissions RolePermission[]
-  users       UserRole[]
+model work_order_notes {
+  id            String   @id @default(uuid()) @db.Uuid
+  work_order_id String   @db.Uuid
+  author_id     String   @db.Uuid
+  note_type     String   @db.VarChar(30)
+  note          String
+  pause_reason  String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
 
-  @@unique([tenantId, code])
-  @@index([tenantId])
-  @@map("roles")
+  work_order work_orders @relation(fields: [work_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  author     users       @relation(fields: [author_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([work_order_id, created_at])
 }
 
-model Permission {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  code        String   // 'asset:read', 'work-order:create', etc.
-  module      String   // 'asset', 'work-order', ...
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  roles       RolePermission[]
+// =================================================================
+// NHÓM C — Đề xuất & lịch sử phê duyệt (4 bảng)
+// =================================================================
 
-  @@unique([tenantId, code])
-  @@index([module])
-  @@map("permissions")
+model approvals {
+  id            String   @id @default(uuid()) @db.Uuid
+  code          String   @unique @db.VarChar(50)
+  work_order_id String   @db.Uuid
+  proposer_id   String   @db.Uuid
+  status        String   @default("DRAFT") @db.VarChar(24)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  row_version   Int      @default(1)
+
+  work_order       work_orders          @relation(fields: [work_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  proposer         users                @relation("approval_proposer", fields: [proposer_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revisions        approval_revisions[]
+  events           approval_events[]
+  attachment_links attachment_links[]
+
+  @@index([work_order_id, status])
 }
 
-model RolePermission {
-  roleId       String @map("role_id")
-  permissionId String @map("permission_id")
-  grantedAt    DateTime @default(now()) @map("granted_at")
-  role         Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+model approval_revisions {
+  id                   String    @id @default(uuid()) @db.Uuid
+  approval_id          String    @db.Uuid
+  revision_no          Int
+  reason               String
+  action_plan          String
+  other_estimated_cost Decimal   @default(0) @db.Decimal(18, 2)
+  policy_snapshot      Json
+  submitted_at         DateTime? @db.Timestamptz(6)
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @default(now()) @db.Timestamptz(6)
+  row_version          Int       @default(1)
 
-  @@id([roleId, permissionId])
-  @@map("role_permissions")
+  approval           approvals                 @relation(fields: [approval_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  parts              approval_revision_parts[]
+  events             approval_events[]
+  stock_transactions stock_transactions[]
+  cost_entries       cost_entries[]
+  attachment_links   attachment_links[]
+
+  @@unique([approval_id, revision_no])
+  @@index([approval_id])
 }
 
-model UserRole {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  roleId    String   @map("role_id")
-  grantedAt DateTime @default(now()) @map("granted_at")
-  grantedBy String?  @map("granted_by")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  scopes    UserRoleScope[]
+model approval_revision_parts {
+  id                         String   @id @default(uuid()) @db.Uuid
+  revision_id                String   @db.Uuid
+  part_id                    String   @db.Uuid
+  quantity                   Decimal  @db.Decimal(18, 3)
+  unit_price                 Decimal  @db.Decimal(18, 2)
+  part_name_snapshot         String   @db.VarChar(200)
+  requires_approval_snapshot Boolean
+  created_at                 DateTime @default(now()) @db.Timestamptz(6)
 
-  @@unique([userId, roleId])
-  @@index([userId])
-  @@map("user_roles")
+  revision approval_revisions @relation(fields: [revision_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  part     parts              @relation(fields: [part_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([revision_id, part_id])
 }
 
-// User scope: department/location/asset nào user có thể truy cập (rỗng = admin)
-// UserRoleScope áp dụng cho 1 userRole (1 user có thể có nhiều role, mỗi role có scope riêng).
-enum ScopeType {
-  DEPARTMENT
-  LOCATION
+model approval_events {
+  id          String   @id @default(uuid()) @db.Uuid
+  approval_id String   @db.Uuid
+  revision_id String   @db.Uuid
+  actor_id    String   @db.Uuid
+  event_type  String   @db.VarChar(24)
+  note        String
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  approval approvals          @relation(fields: [approval_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revision approval_revisions @relation(fields: [revision_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actor    users              @relation(fields: [actor_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([approval_id, created_at])
 }
 
-model UserRoleScope {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  userRoleId  String    @map("user_role_id")
-  scopeType   ScopeType @map("scope_type")
-  scopeValue  String    @map("scope_value") // departmentId / locationId
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userRole    UserRole  @relation(fields: [userRoleId], references: [id], onDelete: Cascade)
+// =================================================================
+// NHÓM D — Linh kiện, giao dịch tồn kho, chi phí (5 bảng)
+// =================================================================
 
-  @@index([userId])
-  @@index([userRoleId])
-  @@map("user_role_scopes")
+model parts {
+  id                String   @id @default(uuid()) @db.Uuid
+  code              String   @unique @db.VarChar(50)
+  name              String   @db.VarChar(200)
+  unit              String   @db.VarChar(30)
+  department_id     String   @db.Uuid
+  location_id       String   @db.Uuid
+  on_hand           Decimal  @default(0) @db.Decimal(18, 3)
+  minimum_stock     Decimal  @default(0) @db.Decimal(18, 3)
+  reference_price   Decimal  @default(0) @db.Decimal(18, 2)
+  supplier_name     String?  @db.VarChar(200)
+  requires_approval Boolean  @default(false)
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+  row_version       Int      @default(1)
+
+  department              departments               @relation(fields: [department_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  location                locations                 @relation(fields: [location_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  part_asset_types        part_asset_types[]
+  work_order_parts        work_order_parts[]
+  approval_revision_parts approval_revision_parts[]
+  stock_transactions      stock_transactions[]
+
+  @@index([department_id])
 }
 
-// ----- Audit -----
-model AuditLog {
-  id        String   @id @default(uuid())
-  tenantId  String   @map("tenant_id")
-  userId    String?  @map("user_id")
-  userEmail String?  @map("user_email")
-  action    String   // 'USER_CREATE', 'ROLE_ASSIGN', 'LOGIN_SUCCESS', ...
-  entity    String   // 'user', 'role', ...
-  entityId  String?  @map("entity_id")
-  before    Json?    @map("before")
-  after     Json?    @map("after")
-  ip        String?
-  userAgent String?  @map("user_agent")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+model part_asset_types {
+  part_id       String   @db.Uuid
+  asset_type_id String   @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
 
-  @@index([tenantId, createdAt])
-  @@index([userId])
-  @@index([entity, entityId])
-  @@map("audit_logs")
+  part       parts       @relation(fields: [part_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset_type asset_types @relation(fields: [asset_type_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([part_id, asset_type_id])
 }
 
-// ----- Threshold config (M1: defaults; M6: per-action override) -----
-enum ThresholdDomain {
-  COST
-  WORK_ORDER
-  INVENTORY
-  APPROVAL
+model work_order_parts {
+  id               String   @id @default(uuid()) @db.Uuid
+  work_order_id    String   @db.Uuid
+  part_id          String   @db.Uuid
+  planned_quantity Decimal  @db.Decimal(18, 3)
+  note             String?
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  row_version      Int      @default(1)
+
+  work_order work_orders @relation(fields: [work_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  part       parts       @relation(fields: [part_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([work_order_id, part_id])
 }
 
-model Threshold {
-  id        String         @id @default(uuid())
-  tenantId  String         @map("tenant_id")
-  domain    ThresholdDomain
-  key       String         // 'cost_request_default', 'cost_spare_part_default', etc.
-  value     Decimal        @db.Decimal(18, 4)
-  unit      String         @default("VND")
-  active    Boolean        @default(true)
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime       @updatedAt @map("updated_at")
-  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+model stock_transactions {
+  id                   String   @id @default(uuid()) @db.Uuid
+  part_id              String   @db.Uuid
+  movement_type        String   @db.VarChar(20)
+  quantity             Decimal  @db.Decimal(18, 3)
+  work_order_id        String?  @db.Uuid
+  approval_revision_id String?  @db.Uuid
+  unit_price_snapshot  Decimal? @db.Decimal(18, 2)
+  original_stock_tx_id String?  @db.Uuid
+  actor_id             String   @db.Uuid
+  reason               String?
+  source_note          String?
+  occurred_at          DateTime @db.Timestamptz(6)
+  operation_key        String   @unique @db.Uuid
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
 
-  @@unique([tenantId, domain, key])
-  @@index([tenantId])
-  @@map("thresholds")
+  part              parts                @relation(fields: [part_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  work_order        work_orders?         @relation(fields: [work_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approval_revision approval_revisions?  @relation(fields: [approval_revision_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  original_tx       stock_transactions?  @relation("stock_tx_return", fields: [original_stock_tx_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  returns           stock_transactions[] @relation("stock_tx_return")
+  actor             users                @relation(fields: [actor_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  cost_entries      cost_entries?
+
+  @@index([part_id, occurred_at])
+  @@index([work_order_id])
+}
+
+model cost_entries {
+  id                   String   @id @default(uuid()) @db.Uuid
+  work_order_id        String   @db.Uuid
+  category             String   @db.VarChar(10)
+  direction            String   @db.VarChar(10)
+  quantity             Decimal  @db.Decimal(18, 3)
+  unit_price           Decimal  @db.Decimal(18, 2)
+  stock_tx_id          String?  @unique @db.Uuid
+  approval_revision_id String?  @db.Uuid
+  reverses_entry_id    String?  @db.Uuid
+  description          String
+  recorded_by          String   @db.Uuid
+  occurred_at          DateTime @db.Timestamptz(6)
+  operation_key        String   @unique @db.Uuid
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+
+  work_order        work_orders         @relation(fields: [work_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  stock_tx          stock_transactions? @relation(fields: [stock_tx_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approval_revision approval_revisions? @relation(fields: [approval_revision_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reverses_entry    cost_entries?       @relation("cost_entry_reversal", fields: [reverses_entry_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reversed_by       cost_entries[]      @relation("cost_entry_reversal")
+  recorded_by_user  users               @relation(fields: [recorded_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([work_order_id, occurred_at])
+  @@index([approval_revision_id])
+}
+
+// =================================================================
+// NHÓM E — Tệp đính kèm, tài liệu kỹ thuật (5 bảng)
+// =================================================================
+
+model files {
+  id            String   @id @default(uuid()) @db.Uuid
+  object_key    String   @unique @db.VarChar(500)
+  original_name String   @db.VarChar(255)
+  mime_type     String   @db.VarChar(100)
+  size_bytes    BigInt
+  sha256        String   @db.Char(64)
+  uploaded_by   String   @db.Uuid
+  storage_state String   @default("STAGED") @db.VarChar(20)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  row_version   Int      @default(1)
+
+  uploaded_by_user  users               @relation(fields: [uploaded_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  document_versions document_versions[]
+  attachment_links  attachment_links[]
+}
+
+model technical_documents {
+  id            String   @id @default(uuid()) @db.Uuid
+  title         String   @db.VarChar(200)
+  document_type String   @db.VarChar(50)
+  description   String?
+  asset_id      String?  @db.Uuid
+  asset_type_id String?  @db.Uuid
+  is_active     Boolean  @default(true)
+  created_by    String   @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  row_version   Int      @default(1)
+
+  asset           assets?             @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset_type      asset_types?        @relation(fields: [asset_type_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  created_by_user users               @relation(fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  versions        document_versions[]
+  roles           document_roles[]
+}
+
+model document_versions {
+  id          String   @id @default(uuid()) @db.Uuid
+  document_id String   @db.Uuid
+  version_no  Int
+  file_id     String   @db.Uuid
+  uploaded_by String   @db.Uuid
+  change_note String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  document         technical_documents @relation(fields: [document_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  file             files               @relation(fields: [file_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  uploaded_by_user users               @relation(fields: [uploaded_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([document_id, version_no])
+}
+
+model document_roles {
+  id          String   @id @default(uuid()) @db.Uuid
+  document_id String   @db.Uuid
+  role_id     String   @db.Uuid
+  is_active   Boolean  @default(true)
+  granted_by  String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  row_version Int      @default(1)
+
+  document        technical_documents @relation(fields: [document_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  role            roles               @relation(fields: [role_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  granted_by_user users               @relation("doc_role_granted_by", fields: [granted_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([document_id, role_id])
+}
+
+model attachment_links {
+  id                   String   @id @default(uuid()) @db.Uuid
+  file_id              String   @db.Uuid
+  asset_id             String?  @db.Uuid
+  incident_id          String?  @db.Uuid
+  incident_message_id  String?  @db.Uuid
+  work_order_id        String?  @db.Uuid
+  approval_revision_id String?  @db.Uuid
+  linked_by            String   @db.Uuid
+  is_active            Boolean  @default(true)
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @db.Timestamptz(6)
+  row_version          Int      @default(1)
+
+  file              files               @relation(fields: [file_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset             assets?             @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  incident          incidents?          @relation(fields: [incident_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  incident_message  incident_messages?  @relation(fields: [incident_message_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  work_order        work_orders?        @relation(fields: [work_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approval_revision approval_revisions? @relation(fields: [approval_revision_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  linked_by_user    users               @relation(fields: [linked_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approvals         approvals?          @relation(fields: [approvalsId], references: [id])
+  approvalsId       String?             @db.Uuid
+}
+
+// =================================================================
+// NHÓM F — Nhật ký, thông báo, AI, cấu hình (4 bảng)
+// =================================================================
+
+model audit_logs {
+  id              String   @id @default(uuid()) @db.Uuid
+  actor_id        String?  @db.Uuid
+  actor_type      String   @db.VarChar(10)
+  action          String   @db.VarChar(80)
+  object_type     String   @db.VarChar(50)
+  object_key      String   @db.VarChar(100)
+  old_value       Json?
+  new_value       Json?
+  note            String?
+  correlation_key String   @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  actor users? @relation(fields: [actor_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([object_type, object_key, created_at])
+  @@index([actor_id, created_at])
+}
+
+model notifications {
+  id           String    @id @default(uuid()) @db.Uuid
+  recipient_id String    @db.Uuid
+  event_key    String    @db.VarChar(180)
+  event_type   String    @db.VarChar(60)
+  title        String    @db.VarChar(200)
+  object_type  String    @db.VarChar(50)
+  object_key   String    @db.VarChar(100)
+  read_at      DateTime? @db.Timestamptz(6)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
+  row_version  Int       @default(1)
+
+  recipient users @relation(fields: [recipient_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([recipient_id, event_key])
+  @@index([recipient_id, created_at])
+}
+
+model ai_requests {
+  id             String    @id @default(uuid()) @db.Uuid
+  requested_by   String    @db.Uuid
+  asset_id       String    @db.Uuid
+  incident_id    String?   @db.Uuid
+  work_order_id  String?   @db.Uuid
+  task_type      String    @db.VarChar(30)
+  provider       String    @db.VarChar(50)
+  model_name     String    @db.VarChar(100)
+  prompt_version String    @db.VarChar(40)
+  input_snapshot Json
+  output_payload Json?
+  status         String    @default("QUEUED") @db.VarChar(20)
+  error_code     String?   @db.VarChar(60)
+  finished_at    DateTime? @db.Timestamptz(6)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+  row_version    Int       @default(1)
+
+  requested_by_user users        @relation(fields: [requested_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset             assets       @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  incident          incidents?   @relation(fields: [incident_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  work_order        work_orders? @relation(fields: [work_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([requested_by, created_at])
+  @@index([asset_id, created_at])
+}
+
+model system_settings {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique @db.VarChar(100)
+  value       Json
+  description String
+  updated_by  String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  row_version Int      @default(1)
+
+  updated_by_user users @relation(fields: [updated_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
 }
