@@ -417,6 +417,17 @@ Lý do đổi M6/M7 (so với Doc02 thứ tự gốc): M7 phụ thuộc M6 vì `
 |---|---|---|---|---|---|---|---|---|
 | **M0** | Đóng băng baseline | Trước W1 | (n/a) | — | — | — | — | Doc02..07 cập nhật Q; đánh dấu LOCKED v1.x; ký tên |
 | **M1** | Foundation + Auth + IAM + Org | W1–W2 | `0001_init`: `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `access_scopes`, `sessions`, `departments`, `locations`, `asset_types`, `system_settings`, `audit_logs` | common, infra (prisma/backend-core), auth, iam, organization, health | `/healthz`, `/auth/*`, `/admin/*`, `/departments`, `/locations`, `/system-settings` | login, user/role/scope mgmt, dept tree, settings, **SCR-IAM-04 (Role/Scope Assignment)**, **SCR-ORG-01b (Loại thiết bị & danh mục)**, **SCR-ORG-02b (Cơ cấu tổ chức & vị trí)**, **SCR-CFG-03 (Ngưỡng & cấu hình)** | TC-AUTH-01..05, TC-RBAC-01..06, TC-ORG-01..04, TC-CFG-01..03, TC-SEC-01..04 | Lint/typecheck/test pass; login 4 vai trò; Admin gán role+scope (Figma SCR-IAM-04: mỗi assignment giữ role + scope trên cùng `user_role_id`); audit ghi |
+
+> **Trạng thái M1 (12/09/2026)**: ✅ HOÀN THÀNH API layer.
+> - Backend: `auth`, `iam`, `organization`, `config` (system-settings), `health`, `audit-logs` (endpoint đọc).
+> - PermissionGuard global; `@Public()` cho login/refresh/healthz; `@Permissions('xxx:yyy:zzz')` cho write/read.
+> - Audit tự động cho mọi write quan trọng (`writeAudit` best-effort từ `@equipcare/backend-core`).
+> - E2E: **5 suites / 24 tests PASS** (5 TC-AUTH + 6 TC-RBAC + 4 TC-ORG + 3 TC-CFG + 6 TC-AUD/SEC). Skip khi DB không có.
+> - Lint 0 warning, typecheck 5/5, build PASS.
+> - **Hoãn M1**: UI Next.js (login + dashboard + dept tree + settings UI) — sẽ làm ở milestone UI riêng sau M10.
+> - **Hoãn M1**: `/admin/*` alias (plan đề cập, nhưng `/iam/*` đã cover chức năng — alias không bắt buộc).
+> - Xem `apps/api/README.md` để biết cấu trúc module + quy tắc chung.
+
 | **M2** | Asset + QR + lifecycle | W3 | `0002_asset`: `assets` (`manual_state` enum, `qr_key`), `asset_types` đã có FK locations/departments | asset | `/asset-types`, `/assets`, `/assets/{id}/lifecycle`, `/assets/{id}/qr` | asset list/detail, qr, **SCR-ASSET-05b (Hồ sơ thiết bị — tabs Tổng quan/Sự cố/Công việc/Tài liệu)** | TC-ASSET-01..05 | `manual_state` transitions; RETIRED chặn WO mới (Doc02 FR-ASSET-07); activity_status (derived view `v_asset_state`) đúng; **Q-08: nhãn tiếng Việt hiển thị trên UI (`packages/shared/labels.ts`)** |
 | **M3** | Attachment STAGED→READY + technical documents | W4 | `0003_attachments`: `files` (STAGED/READY/REJECTED), `attachment_links` (CHECK một parent), `technical_documents`, `document_versions`, `document_roles` | attachment, audit | `POST /files`, `GET /files/{fileId}/download`, `/technical-documents` | attachment modal, **SCR-DOC-01..05 (Quản lý tài liệu kỹ thuật — metadata, phiên bản, quyền đọc)** | TC-DOC-01..05, TC-AUD-01..04 | Magic bytes + MIME + size check; STAGED→READY in tx; cron dọn STAGED; audit viewer |
 | **M4** | Incident + AI async (worker) | W5–W6 | `0004_incidents_ai`: `incidents`, `incident_messages`, `audit_logs` (incident events), `ai_requests` | incident, ai (provider interface + mock + worker), backend-core domain | `/incidents`, `/incidents/{id}/transition`, `/incidents/{id}/messages`, `POST /ai/incidents/{id}/analyze`, `GET /ai/requests/{id}` | incident list/detail/reporter, AI suggest, **SCR-INC-02a (Hộp thư Sự cố — queue với filter tabs)** | TC-INC-01..06, TC-AI-01..06 | State machine đúng enum Doc04; AI 202 + requestId; GET `/ai/requests/{id}`; fallback |
