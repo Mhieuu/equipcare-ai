@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { Public } from '../../common/decorators/public.decorator.js';
 
 /**
  * Health endpoints — M1 Foundation.
@@ -16,6 +17,7 @@ export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get('live')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Liveness — process còn chạy' })
   live(): { status: 'ok'; ts: string } {
@@ -23,6 +25,7 @@ export class HealthController {
   }
 
   @Get('ready')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Readiness — DB có kết nối' })
   @ApiResponse({ status: 200, description: 'DB ready' })
@@ -47,6 +50,7 @@ export class HealthController {
   }
 
   @Get()
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Backward-compat — alias /healthz/ready' })
   check(): Promise<{ status: 'ok' | 'degraded'; db: boolean; ts: string }> {
