@@ -1,0 +1,23 @@
+name: equipcare-test-m1
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: equipcare-pg-m1
+    environment:
+      POSTGRES_DB: equipcare
+      POSTGRES_USER: equipcare
+      POSTGRES_PASSWORD: equipcare_pwd
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data_m1:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U equipcare -d equipcare"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  pg_data_m1:

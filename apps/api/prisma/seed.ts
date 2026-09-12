@@ -8,6 +8,38 @@
  *   (P1 production: thay bằng argon2id — đã ghi trong db_schema.md §2.3.)
  */
 
+// Load .env manually (tsx không auto-load, dotenv chưa có trong deps).
+// Tìm ở 3 vị trí: cwd, apps/api/, root repo.
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const envCandidates = [
+  resolve(process.cwd(), '.env'),
+  resolve(__dirname, '../../.env'),
+  resolve(__dirname, '../../../.env'),
+];
+for (const p of envCandidates) {
+  if (existsSync(p)) {
+    const content = readFileSync(p, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq < 0) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let val = trimmed.slice(eq + 1).trim();
+      // Strip quotes
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (process.env[key] === undefined) process.env[key] = val;
+    }
+    break;
+  }
+}
+
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import {
