@@ -31,6 +31,7 @@ src/
 │   ├── iam/                 Users CRUD + roles grant/revoke + audit-logs reader
 │   ├── organization/        Departments / locations (tree) / asset-types
 │   ├── config/              system-settings (ngưỡng nghiệp vụ)
+│   ├── asset/               Assets CRUD + lifecycle (manual_state) + QR (FR-ASSET-01..09)
 │   └── health/              /healthz, /healthz/live, /healthz/ready
 └── test/                    E2E specs (jest + supertest, skip khi DB không có)
 ```
@@ -42,6 +43,7 @@ src/
 3. **[IAM](src/modules/iam)** — pattern CRUD + permission guard.
 4. **[Organization](src/modules/organization)** — pattern tree (locations).
 5. **[Config](src/modules/config)** — pattern key-value store + audit.
+6. **[Asset](src/modules/asset)** — CRUD + state machine + QR PNG.
 
 ## Chạy dev
 
@@ -69,7 +71,7 @@ Mặc định chạy port 3001 (đổi qua `API_PORT`). Swagger UI ở `/docs`.
 | Refresh cookie HttpOnly + SameSite=Lax | secure khi prod |
 | Transaction cho mọi multi-write | `prisma.$transaction(...)` (auth.change-password, iam.reset-password, ...) |
 
-## Endpoints (M1)
+## Endpoints (M1 + M2)
 
 Xem Swagger UI `/docs` để có spec đầy đủ. Tóm tắt:
 
@@ -80,6 +82,7 @@ Xem Swagger UI `/docs` để có spec đầy đủ. Tóm tắt:
 | `/iam/*` | `iam:user:read` hoặc `iam:user:manage` hoặc `iam:role:manage` | Users + roles + audit |
 | `/departments`, `/locations`, `/asset-types` | `iam:user:read` / `iam:user:manage` | Tổ chức & danh mục |
 | `/system-settings` | public read, `system-config:update` write | Ngưỡng nghiệp vụ |
+| `/assets`, `/assets/:id`, `/assets/:id/lifecycle`, `/assets/:id/qr` | `asset:read` / `asset:create` / `asset:update` | Thiết bị + QR |
 
 ## Permission codes
 

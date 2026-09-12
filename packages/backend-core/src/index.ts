@@ -12,5 +12,6 @@ export * from './prisma/prisma.service';
 export * from './errors/app-error';
 export * from './rbac/policy';
 export * from './state-machine/work-order.machine';
+export * from './state-machine/asset.machine';
 export * from './sla/sla.engine';
 export * from './audit';

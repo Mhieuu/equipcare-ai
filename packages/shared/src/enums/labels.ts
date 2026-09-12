@@ -6,7 +6,10 @@
  * - Mapping lưu tập trung ở đây để cả web và api dùng chung.
  * - Backend response trả `activity_status` (enum) + `activity_status_label` (tiếng Việt).
  */
-import { AssetActivityStatus } from './user.enum';
+import {
+  ActivityStatus,
+  AssetManualState,
+} from './asset.enum';
 import {
   WorkOrderStatus,
   WorkOrderType,
@@ -19,12 +22,35 @@ import {
   ApprovalStatus,
 } from './approval.enum';
 
-export const AssetActivityStatusLabel: Record<AssetActivityStatus, string> = {
-  [AssetActivityStatus.OPERATIONAL]: 'Đang hoạt động',
-  [AssetActivityStatus.MAINTENANCE]: 'Đang bảo trì',
-  [AssetActivityStatus.REPAIR]: 'Đang sửa chữa',
-  [AssetActivityStatus.SUSPENDED]: 'Tạm ngừng',
-  [AssetActivityStatus.RETIRED]: 'Ngừng sử dụng',
+/**
+ * Q-08 (plan §9): nhãn tiếng Việt cho `assets.activity_status` (Doc04 §7.2).
+ *
+ * - OPERATIONAL  → "Đang hoạt động"
+ * - MAINTENANCE  → "Đang bảo trì"      (có WO MAINTENANCE đang mở)
+ * - REPAIR       → "Đang sửa chữa"     (có WO REPAIR đang mở)
+ * - SUSPENDED    → "Tạm ngừng"
+ * - RETIRED      → "Ngừng sử dụng"
+ *
+ * View `v_asset_state` (migration 0002_asset) tính từ `assets.manual_state` +
+ * `work_orders` đang mở (filter `status IN ('NEW','ASSIGNED','IN_PROGRESS','WAITING_APPROVAL')`
+ * và `type ∈ ('MAINTENANCE','REPAIR')`).
+ */
+export const ActivityStatusLabel: Record<ActivityStatus, string> = {
+  [ActivityStatus.OPERATIONAL]: 'Đang hoạt động',
+  [ActivityStatus.MAINTENANCE]: 'Đang bảo trì',
+  [ActivityStatus.REPAIR]: 'Đang sửa chữa',
+  [ActivityStatus.SUSPENDED]: 'Tạm ngừng',
+  [ActivityStatus.RETIRED]: 'Ngừng sử dụng',
+};
+
+/**
+ * Nhãn tiếng Việt cho `assets.manual_state` (Doc04 §5.3).
+ * UI đôi khi hiển thị thẳng `manual_state` (không cần derived view).
+ */
+export const AssetManualStateLabel: Record<AssetManualState, string> = {
+  [AssetManualState.NORMAL]: 'Đang vận hành',
+  [AssetManualState.SUSPENDED]: 'Tạm ngừng',
+  [AssetManualState.RETIRED]: 'Ngừng sử dụng',
 };
 
 export const WorkOrderStatusLabel: Record<WorkOrderStatus, string> = {

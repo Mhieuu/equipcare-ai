@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { IamModule } from './modules/iam/iam.module.js';
 import { OrganizationModule } from './modules/organization/organization.module.js';
 import { SystemConfigModule } from './modules/config/config.module.js';
+import { AssetModule } from './modules/asset/asset.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -39,6 +40,7 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     IamModule,
     OrganizationModule,
     SystemConfigModule,
+    AssetModule,
   ],
   providers: [
     {
