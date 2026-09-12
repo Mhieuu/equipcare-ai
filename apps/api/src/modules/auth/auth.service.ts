@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Prisma, type sessions } from '@prisma/client';
-import { AppError } from '@equipcare/backend-core';
+import { AppError, writeAudit } from '@equipcare/backend-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { generateRefreshToken, hashRefreshToken } from '../../common/utils/crypto.util.js';
 import type { AuthTokenDto } from './dto/auth-token.dto.js';
@@ -61,6 +61,15 @@ export class AuthService {
 
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) {
+      // Audit: login fail (chống brute-force investigation, Doc02 §NFR-AUDIT-02).
+      await writeAudit({
+        actorType: 'USER',
+        action: 'auth.login.failed',
+        objectType: 'User',
+        objectKey: user.id,
+        newValue: { reason: 'bad_password' },
+        note: `login_name=${loginName}`,
+      });
       throw AppError.unauthorized('Sai tên đăng nhập hoặc mật khẩu');
     }
 
@@ -70,6 +79,15 @@ export class AuthService {
     });
     const refreshToken = generateRefreshToken();
     await this.createSession(user.id, user.auth_version, refreshToken, meta);
+
+    // Audit: login success.
+    await writeAudit({
+      actorId: user.id,
+      actorType: 'USER',
+      action: 'auth.login.success',
+      objectType: 'User',
+      objectKey: user.id,
+    });
 
     return {
       token: {
@@ -212,6 +230,15 @@ export class AuthService {
     });
 
     this.logger.log(`user ${userId} changed password (auth_version → ${newAuthVersion})`);
+    // Audit: change password (Doc02 §NFR-AUDIT-01).
+    await writeAudit({
+      actorId: userId,
+      actorType: 'USER',
+      action: 'auth.change-password',
+      objectType: 'User',
+      objectKey: userId,
+      newValue: { authVersion: newAuthVersion, sessionsRevoked: true },
+    });
   }
 
   // -------------------------------------------------------------------------

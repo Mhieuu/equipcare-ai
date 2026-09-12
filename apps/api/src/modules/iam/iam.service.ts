@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { AppError } from '@equipcare/backend-core';
+import { AppError, listAuditLogs, writeAudit, type AuditLogRecord } from '@equipcare/backend-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CreateUserDto } from './dto/create-user.dto.js';
 import type { UpdateUserDto } from './dto/update-user.dto.js';
@@ -13,6 +13,10 @@ import type {
 } from './dto/user-response.dto.js';
 import type { MePermissionsDto, RoleInfoDto } from './dto/iam-response.dto.js';
 import type { ListUsersQueryDto } from './dto/list-users-query.dto.js';
+import type {
+  AuditLogDto,
+  AuditLogListResponseDto,
+} from './dto/audit-log.dto.js';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
 
 const BCRYPT_COST = 10;
@@ -120,6 +124,14 @@ export class IamService {
         },
       });
       this.logger.log(`user ${user.id} created by actor ${actorId}`);
+      await writeAudit({
+        actorId,
+        actorType: 'USER',
+        action: 'iam.user.create',
+        objectType: 'User',
+        objectKey: user.id,
+        newValue: { loginName: user.login_name, fullName: user.full_name },
+      });
       return this.toSummary(user);
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
@@ -211,6 +223,14 @@ export class IamService {
     this.logger.log(
       `user ${userId} password reset by actor ${actorId} (auth_version → ${newAuthVersion})`,
     );
+    await writeAudit({
+      actorId,
+      actorType: 'USER',
+      action: 'iam.user.reset-password',
+      objectType: 'User',
+      objectKey: userId,
+      newValue: { authVersion: newAuthVersion, sessionsRevoked: true },
+    });
     return { temporaryPassword: newPassword, userId };
   }
 
@@ -260,6 +280,14 @@ export class IamService {
       },
     });
     this.logger.log(`role ${role.code} granted to user ${userId} by actor ${actorId}`);
+    await writeAudit({
+      actorId,
+      actorType: 'USER',
+      action: 'iam.role.grant',
+      objectType: 'UserRole',
+      objectKey: created.id,
+      newValue: { userId, roleCode: role.code, roleId: role.id },
+    });
     return { userRoleId: created.id, roleCode: role.code };
   }
 
@@ -277,6 +305,14 @@ export class IamService {
       data: { is_active: false, revoked_at: new Date() },
     });
     this.logger.log(`user_role ${userRoleId} revoked by actor ${actorId}`);
+    await writeAudit({
+      actorId,
+      actorType: 'USER',
+      action: 'iam.role.revoke',
+      objectType: 'UserRole',
+      objectKey: userRoleId,
+      newValue: { revokedAt: new Date().toISOString() },
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -298,6 +334,54 @@ export class IamService {
       roles: user.roles ?? [],
       permissions: user.permissions ?? [],
       scopes: user.scopes ?? [],
+    };
+  }
+
+  /**
+   * listAuditLogs — Doc02 §NFR-AUDIT-02.
+   * Wrapper quanh backend-core listAuditLogs để format response.
+   */
+  async listAuditLogs(filter: {
+    actorId?: string;
+    action?: string;
+    objectType?: string;
+    objectKey?: string;
+    from?: Date;
+    to?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditLogListResponseDto> {
+    const result = await listAuditLogs({
+      actorId: filter.actorId,
+      action: filter.action,
+      objectType: filter.objectType,
+      objectKey: filter.objectKey,
+      from: filter.from,
+      to: filter.to,
+      limit: filter.limit ?? 50,
+      offset: filter.offset ?? 0,
+    });
+    return {
+      items: result.items.map(this.toAuditDto),
+      total: result.total,
+      limit: filter.limit ?? 50,
+      offset: filter.offset ?? 0,
+    };
+  }
+
+  private toAuditDto(r: AuditLogRecord): AuditLogDto {
+    return {
+      id: r.id,
+      actorId: r.actorId,
+      actorType: r.actorType,
+      action: r.action,
+      objectType: r.objectType,
+      objectKey: r.objectKey,
+      oldValue: r.oldValue,
+      newValue: r.newValue,
+      note: r.note,
+      correlationKey: r.correlationKey,
+      createdAt: r.createdAt.toISOString(),
     };
   }
 
@@ -328,6 +412,14 @@ export class IamService {
     });
 
     this.logger.log(`user ${userId} ${locked ? 'locked' : 'unlocked'} by actor ${actorId}`);
+    await writeAudit({
+      actorId,
+      actorType: 'USER',
+      action: locked ? 'iam.user.lock' : 'iam.user.unlock',
+      objectType: 'User',
+      objectKey: userId,
+      newValue: { isLocked: locked },
+    });
     return this.toSummary({ ...user, is_locked: locked });
   }
 

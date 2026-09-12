@@ -39,6 +39,10 @@ import {
   PermissionsListDto,
   RoleInfoDto,
 } from './dto/iam-response.dto.js';
+import {
+  AuditLogListResponseDto,
+  ListAuditLogsQueryDto,
+} from './dto/audit-log.dto.js';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
 
 /**
@@ -202,5 +206,17 @@ export class IamController {
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<void> {
     return this.iam.revokeRole(id, userRoleId, actor.sub);
+  }
+
+  // -------------------------------------------------------------------------
+  // Audit logs (Doc02 §NFR-AUDIT-02)
+  // -------------------------------------------------------------------------
+
+  @Get('audit-logs')
+  @Permissions('audit:read:all')
+  @ApiOperation({ summary: 'Đọc audit_logs (filter: actorId, action, objectType, date range)' })
+  @ApiResponse({ status: 200, type: AuditLogListResponseDto })
+  listAuditLogs(@Query() query: ListAuditLogsQueryDto): Promise<AuditLogListResponseDto> {
+    return this.iam.listAuditLogs(query);
   }
 }
