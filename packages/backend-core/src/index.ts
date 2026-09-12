@@ -14,4 +14,6 @@ export * from './rbac/policy';
 export * from './state-machine/work-order.machine';
 export * from './state-machine/asset.machine';
 export * from './sla/sla.engine';
+export * from './attachment/file-validator';
+export * from './storage/storage-adapter';
 export * from './audit';

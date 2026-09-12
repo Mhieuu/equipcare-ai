@@ -1,0 +1,9 @@
+# Build artifacts
+/dist
+/node_modules
+
+# Local env
+.env
+
+# Local file storage (M3 attachment) — không commit binary files
+/var

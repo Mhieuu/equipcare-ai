@@ -32,6 +32,8 @@ src/
 │   ├── organization/        Departments / locations (tree) / asset-types
 │   ├── config/              system-settings (ngưỡng nghiệp vụ)
 │   ├── asset/               Assets CRUD + lifecycle (manual_state) + QR (FR-ASSET-01..09)
+│   ├── attachment/          Files STAGED→READY + magic bytes + per-doc RBAC
+│   ├── technical-documents/ Tài liệu kỹ thuật + version + role access
 │   └── health/              /healthz, /healthz/live, /healthz/ready
 └── test/                    E2E specs (jest + supertest, skip khi DB không có)
 ```
@@ -44,6 +46,8 @@ src/
 4. **[Organization](src/modules/organization)** — pattern tree (locations).
 5. **[Config](src/modules/config)** — pattern key-value store + audit.
 6. **[Asset](src/modules/asset)** — CRUD + state machine + QR PNG.
+7. **[Attachment](src/modules/attachment)** — multipart upload + STAGED→READY + magic bytes.
+8. **[TechnicalDocument](src/modules/technical-documents)** — version + per-doc RBAC.
 
 ## Chạy dev
 
@@ -71,7 +75,7 @@ Mặc định chạy port 3001 (đổi qua `API_PORT`). Swagger UI ở `/docs`.
 | Refresh cookie HttpOnly + SameSite=Lax | secure khi prod |
 | Transaction cho mọi multi-write | `prisma.$transaction(...)` (auth.change-password, iam.reset-password, ...) |
 
-## Endpoints (M1 + M2)
+## Endpoints (M1 + M2 + M3)
 
 Xem Swagger UI `/docs` để có spec đầy đủ. Tóm tắt:
 
@@ -83,6 +87,8 @@ Xem Swagger UI `/docs` để có spec đầy đủ. Tóm tắt:
 | `/departments`, `/locations`, `/asset-types` | `iam:user:read` / `iam:user:manage` | Tổ chức & danh mục |
 | `/system-settings` | public read, `system-config:update` write | Ngưỡng nghiệp vụ |
 | `/assets`, `/assets/:id`, `/assets/:id/lifecycle`, `/assets/:id/qr` | `asset:read` / `asset:create` / `asset:update` | Thiết bị + QR |
+| `/files` (POST multipart), `/files/:id`, `/files/:id/link`, `/files/:id/download`, DELETE `/files/:id` | `attachment:upload` / `attachment:read` | Upload + link + download |
+| `/technical-documents`, `/technical-documents/:id`, `/technical-documents/:id/versions`, `/technical-documents/:id/roles` | `asset:read` / `asset:update` | Tài liệu kỹ thuật + version + RBAC |
 
 ## Permission codes
 
