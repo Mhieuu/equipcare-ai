@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 
@@ -12,9 +13,8 @@ async function bootstrap(): Promise<void> {
   // ---- Security headers (Doc02 §NFR-SEC) ----
   app.use(helmet());
 
-  // ---- Body parser limit (Doc02 §NFR-SEC-04 — body ≤ 5 MB, file riêng /files) ----
-  // Mặc định express là 100kb; nâng lên 5 MB cho JSON, raw/URL giữ mặc định.
-  // (M3 sẽ thêm Multipart riêng cho /files.)
+  // ---- Cookie parser (cho refresh cookie HttpOnly) ----
+  app.use(cookieParser());
 
   // ---- CORS allowlist (Doc02 §NFR-SEC-02) ----
   // Dev: mở cho localhost. Prod: đặt APP_URL trong env, chỉ origin đó truy cập.
@@ -32,9 +32,9 @@ async function bootstrap(): Promise<void> {
   // ---- Global validation (class-validator) ----
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // strip field không khai báo trong DTO
-      forbidNonWhitelisted: true, // 400 nếu có field lạ
-      transform: true, // auto-cast type (string param → number)
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
       transformOptions: { enableImplicitConversion: false },
     }),
   );
@@ -46,6 +46,7 @@ async function bootstrap(): Promise<void> {
     .setVersion('0.1.0')
     .addBearerAuth()
     .addApiKey({ type: 'apiKey', name: 'X-Request-Id', in: 'header' }, 'request-id')
+    .addCookieAuth('equipcare_rt')
     .build();
   const doc = SwaggerModule.createDocument(app, swagger);
   SwaggerModule.setup('docs', app, doc);
