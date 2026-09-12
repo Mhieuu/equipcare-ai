@@ -1,9 +1,21 @@
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
+import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', '.next/**', 'coverage/**', '**/*.cjs', '**/*.mjs'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      '.next/**',
+      'coverage/**',
+      '**/*.cjs',
+      '**/*.mjs',
+      // Generated files
+      '**/dist/**',
+      // Prisma client (generated)
+      '**/generated/**',
+    ],
   },
   {
     files: ['**/*.ts', '**/*.tsx'],
@@ -12,14 +24,7 @@ export default [
       ecmaVersion: 2023,
       sourceType: 'module',
       globals: {
-        process: 'readonly',
-        console: 'readonly',
-        Buffer: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-        globalThis: 'readonly',
+        ...globals.node,
       },
     },
     plugins: {
