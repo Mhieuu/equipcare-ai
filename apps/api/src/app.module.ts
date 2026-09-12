@@ -7,6 +7,8 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { IamModule } from './modules/iam/iam.module.js';
+import { OrganizationModule } from './modules/organization/organization.module.js';
+import { SystemConfigModule } from './modules/config/config.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -35,6 +37,8 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     HealthModule,
     AuthModule,
     IamModule,
+    OrganizationModule,
+    SystemConfigModule,
   ],
   providers: [
     {
