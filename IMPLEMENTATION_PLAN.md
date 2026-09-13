@@ -819,7 +819,38 @@ Baseline được đóng băng với chốt Q-01..Q-07 theo khuyến nghị Doc0
 
 ---
 
-## 13. Tổng kết review M0–M9 (13/09/2026)
+## 13. Tổng kết review M0–M10 (13/09/2026)
+
+### 13.0. Kết quả M10 hardening (commit `dceef8a` + `2844d10` + `XXXXX`)
+
+M10 triển khai 6 commit, đóng 5 gap lớn phát hiện qua 4 audit (FR/Q/TC/Endpoint):
+
+| Gap | Fix | E2E |
+|---|---|---|
+| Q-01 WO cancel side-effects (incident transition + approval auto-CANCELLED + occurrence SKIPPED) | `WorkOrderService.handleWorkOrderCancellation()` trong transition CANCELLED | TC-WO-05..08 ✅ |
+| Q-06 net_issued_quantity E2E budget enforcement | `q06-budget.e2e-spec.ts` (TC-Q06-01) verify budget + RETURN paths | +1 test ✅ |
+| Q-07 RBAC scope LOCATION subtree (helper) | `expandLocationSubtree()` backend-core dùng SQL CTE recursive | Helper available, no regression ✅ |
+| Q-08 `v_asset_state` M5+ JOIN work_orders + `active_wo_kinds` | Migration `0010_v_asset_state_wo_join` + `AssetService.list()` dùng view | 100/100 retro ✅ |
+| FR-NOT-06 Realtime WS Socket.IO + JWT auth + room isolation | `NotificationGateway` (`/ws` namespace), service emit `notification:updated` | TC-NOT-WS-01..03 ✅ |
+| Endpoint audit gap (8 missing) + per-action approval permission | `cost-trend`/`action-items`/`occurrences/{skip,generate-now}` + 12 missing TC (TC-WO-05..08, TC-SEC-05..08, TC-AUD-03..04, TC-COST-04, TC-DASH-CT, TC-DASH-AI, TC-MNT-SK, TC-MNT-GN, TC-APR-PERM) | +17 tests ✅ |
+
+### 13.0.1. Quality gates M10
+
+| Metric | Kết quả |
+|---|---|
+| Lint | 0 warning |
+| Build | 5/5 packages PASS |
+| Migration | 11/11 (`0001_init` → `0010_v_asset_state_wo_join`) |
+| PostgreSQL CHECK | **31** (M10 +1 cho view) |
+| PostgreSQL triggers | 3 |
+| Partial unique | 3 |
+| Modules NestJS | 19 |
+| Controllers | 21 (M10: +MaintenanceOccurrenceController) |
+| Endpoints | **93** (M10: +8) |
+| Permissions (seed) | 49 |
+| Audit actions | 34 (M10: +4 — notification.* realtime, approval.auto_cancel_*, incident.auto_transition_*, maintenance_occurrence.auto_skip_*, approval.auto_cancel_on_wo_cancel, maintenance_occurrence.skip/generate_now) |
+| E2E test files | 18 (M10: +3 — q06-budget, q01-sec-aud, m10-endpoints, ws) |
+| E2E tests | **120/120 PASS** |
 
 ### 13.1. Trạng thái tổng thể
 
@@ -887,10 +918,17 @@ Baseline được đóng băng với chốt Q-01..Q-07 theo khuyến nghị Doc0
 | # | Hạng mục | Lý do | Mốc xử lý |
 |---|---|---|---|
 | 1 | M9 Notification center + Realtime + Dashboard + Report | ✅ Đã triển khai (13/09/2026) | — |
-| 2 | M10 Tích hợp + hardening + E2E toàn cục | Chưa triển khai | W13–W14 |
-| 3 | Frontend UI (apps/web) | Plan tập trung backend trước; UI SCR-* sẽ wiring M9+ | M9+ |
+| 2 | M10 Tích hợp + hardening + E2E toàn cục | ✅ Đã triển khai (13/09/2026) | — |
+| 3 | Frontend UI (apps/web) | Plan tập trung backend trước; UI SCR-* sẽ wiring M9+ | M11+ |
 | 4 | Worker scheduler loop | ✅ Đã triển khai M8 (interval 60s, reentrant guard, shared backend-core) | — |
-| 5 | WebSocket gateway (full Socket.IO) | Stub M9 (HTTP metadata); full Socket.IO M10 | M10 |
+| 5 | WebSocket gateway (full Socket.IO) | ✅ Đã triển khai M10 (JWT auth qua handshake, room `user:<id>`, ping/pong, notification:updated realtime) | — |
+| 6 | 12 missing TC (TC-WO-05..08, TC-SEC-05..08, TC-AUD-03..04, TC-COST-04, TC-Q06-01) | ✅ Bổ sung M10 | — |
+| 7 | Q-01 side-effects WO cancel (incident AWAITING_INFO, approval PENDING auto-CANCELLED, occurrence SKIPPED) | ✅ Triển khai `handleWorkOrderCancellation()` M10 | — |
+| 8 | Q-06 E2E test net_issued_quantity budget + RETURN paths | ✅ TC-Q06-01 (q06-budget.e2e-spec.ts) | — |
+| 9 | Q-07 RBAC scope expansion (subtree helper) | ✅ `expandLocationSubtree()` backend-core CTE recursive | — |
+| 10 | Q-08 `v_asset_state` M5+ JOIN work_orders + active_wo_kinds | ✅ Migration 0010_v_asset_state_wo_join M10 | — |
+| 11 | 8 endpoint gap Doc05/plan M6 (cost-trend, action-items, skip/generate-now, dashboard/workload alias) | ✅ M10 (m10-endpoints.e2e-spec.ts) | — |
+| 12 | Per-action permission gate approval (plan M6 #E-34) | ✅ Service `performAction(actorId, actorPermissions, ...)` + route @Permissions 4 codes | — |
 
 ### 13.6. Cam kết chất lượng
 

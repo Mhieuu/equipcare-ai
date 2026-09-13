@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AppError, writeAudit } from '@equipcare/backend-core';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationGateway } from './notification.gateway';
 
 interface ListOpts {
   unread?: boolean;
@@ -10,19 +11,21 @@ interface ListOpts {
 }
 
 /**
- * NotificationService - M9 (Doc04 §5.8).
+ * NotificationService - M9 + M10 (Doc04 §5.8, FR-NOT-06 realtime).
  *
- * Endpoint: GET /notifications (current user), PATCH /:id/read, PATCH /read-all,
+ * Endpoint: GET /notifications, PATCH /:id/read, PATCH /read-all,
  *           GET /notifications/unread-count (badge UI).
  *
- * Worker / scheduler / approval service se dung backend-core upsertNotification
- * de insert notification moi - service nay chi phuc vu doc + mark read.
+ * Realtime: NotificationGateway emit 'notification:updated' khi mark read.
  */
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: NotificationGateway,
+  ) {}
 
   async list(userId: string, opts: ListOpts) {
     const where: Prisma.notificationsWhereInput = { recipient_id: userId };
@@ -63,7 +66,10 @@ export class NotificationService {
       objectType: 'Notification',
       objectKey: id,
     });
-    return this.toDto(updated);
+    // Realtime push
+    const dto = this.toDto(updated);
+    this.gateway.emitNotificationUpdated(actorId, dto);
+    return dto;
   }
 
   async markAllRead(actorId: string) {
@@ -79,6 +85,8 @@ export class NotificationService {
       objectKey: actorId,
       newValue: { count: result.count },
     });
+    // Realtime push batched update - chi bao so luong
+    this.gateway.emitNotificationUpdated(actorId, { readAll: true, count: result.count });
     return { updated: result.count };
   }
 
