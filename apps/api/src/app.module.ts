@@ -20,6 +20,10 @@ import { ApprovalModule } from './modules/approval/approval.module.js';
 import { PartModule } from './modules/part/part.module.js';
 import { StockTransactionModule } from './modules/stock-transaction/stock-transaction.module.js';
 import { MaintenancePlanModule } from './modules/maintenance-plan/maintenance-plan.module.js';
+import { NotificationModule } from './modules/notification/notification.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { ReportModule } from './modules/report/report.module.js';
+import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -61,6 +65,10 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     PartModule,
     StockTransactionModule,
     MaintenancePlanModule,
+    NotificationModule,
+    DashboardModule,
+    ReportModule,
+    RealtimeModule,
   ],
   providers: [
     {

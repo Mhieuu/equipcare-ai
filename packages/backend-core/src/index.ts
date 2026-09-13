@@ -24,4 +24,5 @@ export * from './ai/provider.factory';
 export * from './cost';
 export * from './stock';
 export * from './maintenance';
+export * from './notification';
 export * from './audit';

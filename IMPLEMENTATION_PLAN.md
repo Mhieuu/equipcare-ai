@@ -819,21 +819,21 @@ Baseline được đóng băng với chốt Q-01..Q-07 theo khuyến nghị Doc0
 
 ---
 
-## 13. Tổng kết review M0–M8 (13/09/2026)
+## 13. Tổng kết review M0–M9 (13/09/2026)
 
 ### 13.1. Trạng thái tổng thể
 
 | Hạng mục | Kết quả |
 |---|---|
-| Migration Prisma | **9/9 đã apply** (`0001_init`, `0002_asset`, `0003_attachments`, `0004_incidents_ai`, `0005_work_orders`, `0006_cost_approval`, `0006a_work_order_waiting_approval`, `0007_inventory`, `0008_maintenance`) |
-| PostgreSQL CHECK constraints | **28** CHECK (Doc04 strict enum + business invariants) |
+| Migration Prisma | **10/10 đã apply** (`0001_init` → `0009_notif_dashboard`) |
+| PostgreSQL CHECK constraints | **30** CHECK (Doc04 strict enum + business invariants; +2 notifications enum constraints M9) |
 | PostgreSQL triggers | 3 (FR-APR-09 self-approval, low-stock UPDATE, low-stock INSERT) |
-| Modules NestJS | 16 (M8: +maintenance-plan) |
-| Controllers | 16 với 100+ endpoints |
+| Modules NestJS | **19** (M9: +notification, +dashboard, +report, +realtime) |
+| Controllers | 19 với 100+ endpoints |
 | Permissions (seed) | **49** (Admin + Manager + Technician matrix) |
-| Audit actions | 30+ action types (+ maintenance_plan.create/update/pause/resume, maintenance_occurrence.work_order_created SYSTEM) |
-| E2E test files | 13 files (M8: +maintenance.e2e-spec.ts) |
-| E2E tests | **77/77 PASS** |
+| Audit actions | 30+ action types (+ notification.read, notification.read_all) |
+| E2E test files | 14 files (M9: +notif-dashboard-report.e2e-spec.ts) |
+| E2E tests | **100/100 PASS** |
 | Lint | 0 warning |
 | Build | 5/5 packages PASS |
 
@@ -850,27 +850,30 @@ Baseline được đóng băng với chốt Q-01..Q-07 theo khuyến nghị Doc0
 | M6 Cost + Approval + WAITING_APPROVAL | W9 | ✅ | 13/09/2026 | HOÀN THÀNH |
 | M7 Inventory + Q-06 net_issued_quantity | W10 | ✅ | 13/09/2026 | HOÀN THÀNH |
 | M8 Maintenance + Scheduler | W11 | ✅ | 13/09/2026 | HOÀN THÀNH |
-| M9 Notification + Realtime + Dashboard + Report | W12 | ⏳ | — | CHƯA TRIỂN KHAI |
+| M9 Notification + Realtime + Dashboard + Report | W12 | ✅ | 13/09/2026 | HOÀN THÀNH |
 | M10 Tích hợp + hardening + E2E | W13–W14 | ⏳ | — | CHƯA TRIỂN KHAI |
 
-**Nhận xét timeline**: M2 → M8 tập trung vào 5 ngày (12–13/09/2026) — cao hơn kế hoạch do foundation M1 vững, doc ổn định, chạy song song nhiều module.
+**Nhận xét timeline**: M2 → M9 tập trung vào 6 ngày (12–13/09/2026) — cao hơn kế hoạch do foundation M1 vững, doc ổn định, chạy song song nhiều module.
 
 ### 13.3. Kiểm tra tính đầy đủ (theo tiêu chí hoàn thành từng milestone)
 
-| Mục tiêu | M1 | M2 | M3 | M4 | M5 | M6 | M7 | M8 |
-|---|---|---|---|---|---|---|---|---|
-| Migration áp dụng thành công | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| State machine + guards | ✅ (auth flow) | ✅ (asset NORMAL/SUSPENDED/RETIRED) | ✅ (STAGED→READY) | ✅ (incident 5 states) | ✅ (WO 6 states) | ✅ (approval 6 states) | ✅ (stock movement 6 types) | ✅ (occurrence PLANNED→OVERDUE→IN_PROGRESS→COMPLETED/SKIPPED) |
-| RBAC + Permission check | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Audit logging critical actions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| E2E test pass | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Concurrency / optimistic lock | ✅ (sessions/auth_version) | ✅ (asset row_version) | ✅ (version_seq) | ✅ (incident row_version) | ✅ (WO row_version + partial unique) | ✅ (approval row_version + FR-APR-09 trigger) | ✅ (parts row_version + on_hand>=0 CHECK + Serializable isolation) | ✅ (plan row_version + Q-02 partial unique) |
-| Q-02 1 WO open / occurrence | — | — | — | — | — | — | — | ✅ partial unique `uniq_open_wo_per_occurrence` |
-| Q-06 net_issued_quantity | — | — | — | — | — | ✅ net_cost | ✅ net_issued_quantity | — |
-| Q-06 budget check | — | — | — | — | — | ✅ self-approval trigger + service guard | ✅ Q-06 budget check | — |
-| Low-stock alert (Doc04 §5.8) | — | — | — | — | — | — | ✅ trigger notify_low_stock | — |
-| Idempotency (Doc04 §5.7) | ✅ sessions unique | — | — | — | — | ✅ (revision_no unique per approval) | ✅ operation_key UNIQUE | ✅ UNIQUE(plan_id, due_on) |
-| Scheduler loop / worker processor | — | — | — | — | — | — | — | ✅ setInterval 60s + reentrant guard |
+| Mục tiêu | M1 | M2 | M3 | M4 | M5 | M6 | M7 | M8 | M9 |
+|---|---|---|---|---|---|---|---|---|---|
+| Migration áp dụng thành công | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| State machine + guards | ✅ (auth flow) | ✅ (asset NORMAL/SUSPENDED/RETIRED) | ✅ (STAGED→READY) | ✅ (incident 5 states) | ✅ (WO 6 states) | ✅ (approval 6 states) | ✅ (stock movement 6 types) | ✅ (occurrence PLANNED→OVERDUE→IN_PROGRESS→COMPLETED/SKIPPED) | ✅ (notification UNIQUE conflict, dashboard SLA pause-aware) |
+| RBAC + Permission check | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Audit logging critical actions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| E2E test pass | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Concurrency / optimistic lock | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Q-02 1 WO open / occurrence | — | — | — | — | — | — | — | ✅ | — |
+| Q-04 SLA pause-aware | — | — | — | — | ✅ | — | — | — | ✅ dashboard/overdue |
+| Q-06 net_issued_quantity | — | — | — | — | — | ✅ net_cost | ✅ net_issued_quantity | — | — |
+| Q-06 budget check | — | — | — | — | — | ✅ | ✅ | — | — |
+| Low-stock alert (Doc04 §5.8) | — | — | — | — | — | — | ✅ trigger notify_low_stock | — | ✅ notification center |
+| FR-NOT-01..06 (6 nhóm notif) | — | — | — | — | — | — | — | — | ✅ |
+| FR-REP-01..05 (5 report CSV) | — | — | — | — | — | — | — | — | ✅ |
+| DT-09, DT-10, DT-12, DT-17, DT-18 | — | — | — | — | — | — | — | — | ✅ TC-DATA-01..05 |
+| Scheduler loop / worker processor | — | — | — | — | — | — | — | ✅ setInterval 60s | — |
 
 ### 13.4. Vấn đề phát hiện trong review (đã xử lý)
 
@@ -883,10 +886,11 @@ Baseline được đóng băng với chốt Q-01..Q-07 theo khuyến nghị Doc0
 
 | # | Hạng mục | Lý do | Mốc xử lý |
 |---|---|---|---|
-| 1 | M9 Notification center + Realtime + Dashboard + Report | Chưa triển khai (đã có `notifications` table + low-stock trigger M7 làm nền) | W12 |
+| 1 | M9 Notification center + Realtime + Dashboard + Report | ✅ Đã triển khai (13/09/2026) | — |
 | 2 | M10 Tích hợp + hardening + E2E toàn cục | Chưa triển khai | W13–W14 |
 | 3 | Frontend UI (apps/web) | Plan tập trung backend trước; UI SCR-* sẽ wiring M9+ | M9+ |
 | 4 | Worker scheduler loop | ✅ Đã triển khai M8 (interval 60s, reentrant guard, shared backend-core) | — |
+| 5 | WebSocket gateway (full Socket.IO) | Stub M9 (HTTP metadata); full Socket.IO M10 | M10 |
 
 ### 13.6. Cam kết chất lượng
 

@@ -36,6 +36,10 @@ export class AppError extends Error {
     return new AppError('CONFLICT', message, 409, details);
   }
 
+  static badRequest(message = 'Bad request', details?: Record<string, unknown>): AppError {
+    return new AppError('BAD_REQUEST', message, 400, details);
+  }
+
   static unprocessable(
     code: string,
     message: string,
