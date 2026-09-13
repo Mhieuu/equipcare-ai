@@ -901,6 +901,7 @@ M10 triển khai 6 commit, đóng 5 gap lớn phát hiện qua 4 audit (FR/Q/TC/
 | M8 Maintenance + Scheduler | W11 | ✅ | 13/09/2026 | HOÀN THÀNH |
 | M9 Notification + Realtime + Dashboard + Report | W12 | ✅ | 13/09/2026 | HOÀN THÀNH |
 | M10 Tích hợp + hardening + E2E | W13–W14 | ✅ | 13/09/2026 | HOÀN THÀNH |
+| M11 Frontend (Next.js UI) | W15 | ✅ | 13/09/2026 | HOÀN THÀNH |
 
 **Nhận xét timeline**: M2 → M9 tập trung vào 6 ngày (12–13/09/2026) — cao hơn kế hoạch do foundation M1 vững, doc ổn định, chạy song song nhiều module.
 
@@ -964,4 +965,80 @@ M10 triển khai 6 commit, đóng 5 gap lớn phát hiện qua 4 audit (FR/Q/TC/
 - ✅ Audit logs: 30+ action types, mỗi critical state transition đều có correlationKey để truy ngược (+ M8: maintenance_plan.*, maintenance_occurrence.work_order_created SYSTEM)
 - ✅ RBAC: 49 permissions × 4 roles (Admin/Manager/Technician/User), `PermissionGuard` enforce ở controller
 - ✅ Scheduler: worker singleton PrismaClient + setInterval 60s + reentrant guard (khong tick chong), shared `runSchedulerTick` qua backend-core giữa api service + worker
+
+## 14. M11 — Frontend (Next.js 14 UI)
+
+**Phạm vi**: Dựng UI cho 100% backend API đã chốt M0–M10 (114 endpoints, 19 controllers).
+
+### 14.1. Tech stack
+- **Next.js 14 App Router** (React 18, strict mode, route groups `(main)`)
+- **TypeScript 5.5 strict** (extends root tsconfig, alias `@/*` -> `src/*`)
+- **Tailwind CSS 3.4** (utility CSS, brand color palette, component classes `.btn`, `.input`, `.badge`, `.card`, `.table`)
+- **TanStack Query v5** (cache, polling, refetchInterval, optimistic updates)
+- **Zustand** + `persist` middleware (auth state, localStorage token)
+- **socket.io-client** (JWT trong handshake, room `user:<id>`)
+- **react-hook-form** (form state)
+- **lucide-react** icons
+- **date-fns** format helpers
+
+### 14.2. Routes (22)
+| Route | Loại | Tính năng |
+|---|---|---|
+| `/` | static | Redirect → /login hoặc /dashboard |
+| `/login` | static | Login form + demo account hint |
+| `/(main)/dashboard` | static | KPIs (assets/incidents/WO/overdue/approvals), overdue WO list, technician load, action items |
+| `/(main)/assets` | static | List + filter search |
+| `/(main)/assets/new` | static | Create form (type/dept/location) |
+| `/(main)/assets/[id]` | dynamic | Detail + lifecycle transitions + active WO list |
+| `/(main)/assets/[id]/qr` | dynamic | QR display + print |
+| `/(main)/incidents` | static | List + status filter |
+| `/(main)/incidents/new` | static | Create form (asset picker, description, impact) |
+| `/(main)/incidents/[id]` | dynamic | Detail + transition + messages thread |
+| `/(main)/work-orders` | static | Kanban (5 columns) + list toggle |
+| `/(main)/work-orders/new` | static | Create form (kind/priority/creationMode/assignee) |
+| `/(main)/work-orders/[id]` | dynamic | Detail + SLA timer + assign/start/pause/complete/cancel |
+| `/(main)/approvals` | static | Queue + status filter |
+| `/(main)/approvals/[id]` | dynamic | Detail + decision (approve/reject/info-request) |
+| `/(main)/inventory/parts` | static | List + low-stock filter + receipt modal |
+| `/(main)/maintenance/plans` | static | List + active/paused toggle |
+| `/(main)/maintenance/plans/[id]` | dynamic | Detail + pause/resume + occurrences table |
+| `/(main)/notifications` | static | List + mark-read + realtime WS |
+| `/(main)/reports` | static | CSV download buttons |
+| `/(main)/iam/users` | static | List + search |
+| `/(main)/iam/users/[id]` | dynamic | Detail + grant/revoke role |
+| `/(main)/iam/audit-logs` | static | Filter theo action + pagination |
+
+### 14.3. Components (8)
+- `AppShell` — sidebar + role-based nav (filter by permission) + unread badge
+- `AuthGuard` — wrap `(main)` layout, redirect khi chưa login
+- `DataTable<T>` — generic sortable table + pagination
+- `Modal` — keyboard ESC close + size variants
+- `ConfirmDialog` — variant (danger/primary) + async onConfirm
+- `Toast` — variants (success/error/warning/info) + auto-dismiss 5s
+- `badges.tsx` — WorkOrder/Incident/Approval/Activity status badges (dùng label tiếng Việt từ `@equipcare/shared`)
+- `providers.tsx` — QueryClient + ToastProvider + fetchMe on mount
+
+### 14.4. Lib (3)
+- `api.ts` — fetch wrapper với auto 401-refresh (cookie-based), credentials: include, ApiError class
+- `auth.ts` — Zustand store: accessToken/refreshToken/user/hasRole/hasPermission/logout
+- `socket.ts` — Socket.IO client với JWT handshake, listen `notification:new`/`notification:updated`
+
+### 14.5. Shared package migration
+Backend shared compile sang CJS → conflict với Next 14 ESM. Đổi sang ESM:
+- `tsconfig.json`: `module: "ESNext"`, `verbatimModuleSyntax: false`
+- Build output `dist/*.js` dùng `export *` ESM syntax
+- `package.json`: `"type": "module"` đã có sẵn
+
+### 14.6. Quality gates
+- `pnpm --filter @equipcare/web typecheck`: 0 errors
+- `pnpm --filter @equipcare/web lint`: 0 warnings (đã cleanup 19 unused imports)
+- `pnpm --filter @equipcare/web build`: 22 routes compiled (5 dynamic, 17 static)
+
+### 14.7. Trade-offs / Known limits
+- Static prerender cho list pages (5 dynamic routes `[id]`) — list pages gọi API tại client (đúng pattern SPA).
+- Không có i18n switcher (UI hard-code tiếng Việt theo spec Doc04).
+- Không có Storybook — component demo qua AppShell trực tiếp.
+- Chưa SSR initial data — initial paint show skeleton/empty, React Query fetch sau.
+- Chưa có Playwright E2E cho UI — verify bằng build success + manual demo flow qua `pnpm dev`.
+
 
