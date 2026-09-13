@@ -14,6 +14,8 @@ export const Permission = {
   // Incident
   INCIDENT_CREATE: 'incident:create',
   INCIDENT_READ: 'incident:read',
+  INCIDENT_TRANSITION: 'incident:transition',
+  INCIDENT_MESSAGE_CREATE: 'incident:message:create',
   INCIDENT_TRIAGE: 'incident:triage',
   INCIDENT_CLOSE: 'incident:close',
   INCIDENT_REJECT: 'incident:reject',

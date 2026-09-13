@@ -12,6 +12,8 @@ import { SystemConfigModule } from './modules/config/config.module.js';
 import { AssetModule } from './modules/asset/asset.module.js';
 import { AttachmentModule } from './modules/attachment/attachment.module.js';
 import { TechnicalDocumentModule } from './modules/technical-documents/technical-documents.module.js';
+import { IncidentModule } from './modules/incident/incident.module.js';
+import { AiModule } from './modules/ai/ai.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -45,6 +47,8 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     AssetModule,
     AttachmentModule,
     TechnicalDocumentModule,
+    IncidentModule,
+    AiModule,
   ],
   providers: [
     {

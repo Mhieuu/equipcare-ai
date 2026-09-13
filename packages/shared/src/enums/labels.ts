@@ -17,6 +17,9 @@ import {
 import {
   IncidentStatus,
   IncidentPriority,
+  IncidentMessageType,
+  AiRequestStatus,
+  AiTaskType,
 } from './incident.enum';
 import {
   ApprovalStatus,
@@ -82,6 +85,27 @@ export const IncidentPriorityLabel: Record<IncidentPriority, string> = {
   [IncidentPriority.MEDIUM]: 'Trung bình',
   [IncidentPriority.HIGH]: 'Cao',
   [IncidentPriority.CRITICAL]: 'Khẩn cấp',
+};
+
+export const IncidentMessageTypeLabel: Record<IncidentMessageType, string> = {
+  [IncidentMessageType.REPORTER]: 'Người báo',
+  [IncidentMessageType.STAFF]: 'Kỹ thuật/Manager',
+  [IncidentMessageType.SYSTEM]: 'Hệ thống',
+  [IncidentMessageType.AI]: 'AI gợi ý',
+};
+
+export const AiRequestStatusLabel: Record<AiRequestStatus, string> = {
+  [AiRequestStatus.QUEUED]: 'Đang chờ',
+  [AiRequestStatus.RUNNING]: 'Đang xử lý',
+  [AiRequestStatus.SUCCEEDED]: 'Thành công',
+  [AiRequestStatus.FAILED]: 'Thất bại',
+  [AiRequestStatus.TIMED_OUT]: 'Quá hạn',
+};
+
+export const AiTaskTypeLabel: Record<AiTaskType, string> = {
+  [AiTaskType.INCIDENT_TRIAGE]: 'Phân loại sự cố',
+  [AiTaskType.ASSET_SUMMARY]: 'Tóm tắt thiết bị',
+  [AiTaskType.OTHER]: 'Khác',
 };
 
 export const ApprovalStatusLabel: Record<ApprovalStatus, string> = {
