@@ -177,6 +177,132 @@ export class DashboardService {
   }
 
   // ---------------------------------------------------------------------------
+  // /dashboard/cost-trend - xu huong chi phi 12 thang (Doc05 §8.4)
+  // ---------------------------------------------------------------------------
+  async getCostTrend(opts: { months?: number } = {}) {
+    const months = Math.min(Math.max(opts.months ?? 12, 1), 24);
+    const since = new Date();
+    since.setMonth(since.getMonth() - months);
+    since.setDate(1);
+    since.setHours(0, 0, 0, 0);
+
+    const entries = await this.prisma.cost_entries.findMany({
+      where: { created_at: { gte: since } },
+      select: { category: true, direction: true, quantity: true, unit_price: true, created_at: true },
+    });
+
+    const buckets = new Map<string, { partCost: number; laborCost: number; otherCost: number; totalCost: number }>();
+    for (let i = 0; i < months; i++) {
+      const d = new Date(since);
+      d.setMonth(d.getMonth() + i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      buckets.set(key, { partCost: 0, laborCost: 0, otherCost: 0, totalCost: 0 });
+    }
+
+    for (const e of entries) {
+      const d = e.created_at instanceof Date ? e.created_at : new Date(e.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const bucket = buckets.get(key);
+      if (!bucket) continue;
+      const amount =
+        (e.direction === 'DEBIT' ? 1 : -1) * Number(e.quantity) * Number(e.unit_price);
+      if (e.category === 'PART') bucket.partCost += amount;
+      else if (e.category === 'LABOR') bucket.laborCost += amount;
+      else bucket.otherCost += amount;
+      bucket.totalCost += amount;
+    }
+
+    const items = Array.from(buckets.entries())
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([month, b]) => ({ month, ...b }));
+    return { items, months };
+  }
+
+  // ---------------------------------------------------------------------------
+  // /dashboard/action-items - TODO widgets (Doc05 §8.4)
+  // ---------------------------------------------------------------------------
+  async getActionItems(opts: { limit?: number } = {}) {
+    const limit = Math.min(opts.limit ?? 20, 100);
+    const overdueAge = 24 * 3600 * 1000;
+    const since = new Date(Date.now() - overdueAge);
+
+    const stuckWos = await this.prisma.work_orders.findMany({
+      where: {
+        status: { in: ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_APPROVAL'] },
+        created_at: { lte: since },
+      },
+      include: {
+        asset: { select: { code: true, name: true } },
+        assignee: { select: { full_name: true } },
+      },
+      orderBy: { created_at: 'asc' },
+      take: limit,
+    });
+
+    const stuckApprovalsRaw = await this.prisma.approvals.findMany({
+      where: { status: 'SUBMITTED' },
+      select: { id: true, code: true, work_order_id: true, proposer_id: true, updated_at: true, created_at: true },
+      orderBy: { updated_at: 'asc' },
+      take: limit,
+    });
+    // Lay them thong tin user + WO
+    const proposerIds = Array.from(new Set(stuckApprovalsRaw.map((a) => a.proposer_id)));
+    const woIds = Array.from(new Set(stuckApprovalsRaw.map((a) => a.work_order_id)));
+    const [proposers, wos] = await Promise.all([
+      this.prisma.users.findMany({
+        where: { id: { in: proposerIds } },
+        select: { id: true, full_name: true },
+      }),
+      this.prisma.work_orders.findMany({
+        where: { id: { in: woIds } },
+        select: { id: true, code: true },
+      }),
+    ]);
+    const proposerMap = new Map(proposers.map((p) => [p.id, p.full_name]));
+    const woMap = new Map(wos.map((w) => [w.id, w.code]));
+    // Filter sau theo updated_at (thay cho submitted_at)
+    const stuckApprovals = stuckApprovalsRaw.filter((a) => a.updated_at.getTime() <= since.getTime());
+
+    const lowStockParts = await this.prisma.parts.findMany({
+      where: { is_active: true, minimum_stock: { gt: 0 } },
+      select: { id: true, code: true, name: true, on_hand: true, minimum_stock: true },
+      take: 200,
+    });
+    const lowStock = lowStockParts
+      .filter((p) => Number(p.on_hand) < Number(p.minimum_stock))
+      .slice(0, limit);
+
+    return {
+      stuckWorkOrders: stuckWos.map((w) => ({
+        id: w.id,
+        code: w.code,
+        asset: w.asset ? { code: w.asset.code, name: w.asset.name } : null,
+        assignee: w.assignee?.full_name ?? null,
+        status: w.status,
+        priority: w.priority_code,
+        ageHours: Math.floor((Date.now() - w.created_at.getTime()) / (3600 * 1000)),
+        createdAt: w.created_at.toISOString(),
+      })),
+      pendingApprovals: stuckApprovals.map((a) => ({
+        id: a.id,
+        code: a.code,
+        workOrderCode: woMap.get(a.work_order_id) ?? null,
+        proposer: proposerMap.get(a.proposer_id) ?? null,
+        ageHours: Math.floor((Date.now() - a.updated_at.getTime()) / (3600 * 1000)),
+        updatedAt: a.updated_at.toISOString(),
+      })),
+      lowStockParts: lowStock.map((p) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        onHand: Number(p.on_hand),
+        minimumStock: Number(p.minimum_stock),
+      })),
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
   // /dashboard/asset-critical - asset nhieu incident / chi phi cao (SCR-REP-05)
   // ---------------------------------------------------------------------------
   async getAssetCritical(opts: { months?: number; limit?: number } = {}) {

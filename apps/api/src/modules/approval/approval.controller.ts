@@ -77,18 +77,23 @@ export class ApprovalController {
 
   /**
    * Universal action endpoint. Body.action quyet dinh target state.
-   * Permission yêu cầu là APPROVAL_DECIDE (approve/reject/info-request) hoặc
-   * APPROVAL_SUBMIT (submit) hoặc APPROVAL_CANCEL (cancel) - service se check
-   * actor_id == proposer_id cho SUBMIT/CANCEL.
+   * Permission requirements (plan M6 §12.2):
+   *   - SUBMITTED         -> APPROVAL_SUBMIT (proposer only)
+   *   - APPROVED/REJECTED -> APPROVAL_DECIDE (approver, not proposer)
+   *   - INFO_REQUESTED    -> APPROVAL_REQUEST_INFO (approver, not proposer)
+   *   - CANCELLED         -> APPROVAL_CANCEL (proposer)
+   *
+   * Service enforce per-action permission dua vao actor.permissions
+   * (fallback khi @Permissions cho phep nhieu action hon).
    */
   @Patch(':id')
-  @Permissions(Permission.APPROVAL_DECIDE)
+  @Permissions(Permission.APPROVAL_DECIDE, Permission.APPROVAL_SUBMIT, Permission.APPROVAL_CANCEL, Permission.APPROVAL_REQUEST_INFO)
   action(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: ApprovalActionDto,
   ) {
-    return this.service.performAction(user.sub, id, dto);
+    return this.service.performAction(user.sub, user.permissions ?? [], id, dto);
   }
 
   @Post(':id/revisions')

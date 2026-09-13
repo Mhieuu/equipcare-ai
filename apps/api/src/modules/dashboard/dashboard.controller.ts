@@ -46,4 +46,24 @@ export class DashboardController {
       limit: limit ? Number(limit) : undefined,
     });
   }
+
+  /**
+   * Doc05 §8.4: Cost trend theo thang (12 thang gan nhat).
+   *   Response: { items: [{ month: 'YYYY-MM', partCost, laborCost, otherCost, totalCost }] }
+   */
+  @Get('cost-trend')
+  @Permissions(Permission.DASHBOARD_VIEW)
+  costTrend(@Query('months') months?: string) {
+    return this.service.getCostTrend({ months: months ? Number(months) : undefined });
+  }
+
+  /**
+   * Doc05 §8.4: Action items (todo widgets) cho dashboard manager.
+   *   Tap hop: WO qua han (>24h chua complete) + approvals pending > 24h + low-stock parts.
+   */
+  @Get('action-items')
+  @Permissions(Permission.DASHBOARD_VIEW)
+  actionItems(@Query('limit') limit?: string) {
+    return this.service.getActionItems({ limit: limit ? Number(limit) : undefined });
+  }
 }

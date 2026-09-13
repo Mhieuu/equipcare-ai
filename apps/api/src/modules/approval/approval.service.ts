@@ -11,6 +11,8 @@ import {
   ApprovalStatus,
   WorkOrderStatus,
   WorkOrderNoteType,
+  Permission,
+  type PermissionCode,
 } from '@equipcare/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -227,6 +229,7 @@ export class ApprovalService {
 
   async performAction(
     actorId: string,
+    actorPermissions: PermissionCode[],
     id: string,
     dto: ApprovalActionDto,
   ) {
@@ -237,6 +240,22 @@ export class ApprovalService {
       },
     });
     if (!a) throw AppError.notFound('Khong tim thay approval', { id });
+
+    // Plan M6 §12.2: per-action permission gate (route M6 unified action).
+    const actionPerm: Record<string, PermissionCode> = {
+      [ApprovalEventType.SUBMITTED]: Permission.APPROVAL_SUBMIT,
+      [ApprovalEventType.APPROVED]: Permission.APPROVAL_DECIDE,
+      [ApprovalEventType.REJECTED]: Permission.APPROVAL_DECIDE,
+      [ApprovalEventType.INFO_REQUESTED]: Permission.APPROVAL_REQUEST_INFO,
+      [ApprovalEventType.CANCELLED]: Permission.APPROVAL_CANCEL,
+    };
+    const requiredPerm = actionPerm[String(dto.action)];
+    if (requiredPerm && !actorPermissions.includes(requiredPerm)) {
+      throw AppError.forbidden(
+        `Action ${dto.action} can ${requiredPerm}`,
+        { action: dto.action, required: requiredPerm, code: 'APR_PERMISSION_DENIED' },
+      );
+    }
 
     // Optimistic lock (R-04)
     if (
