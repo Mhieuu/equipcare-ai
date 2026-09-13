@@ -841,16 +841,34 @@ M10 triển khai 6 commit, đóng 5 gap lớn phát hiện qua 4 audit (FR/Q/TC/
 | Lint | 0 warning |
 | Build | 5/5 packages PASS |
 | Migration | 11/11 (`0001_init` → `0010_v_asset_state_wo_join`) |
-| PostgreSQL CHECK | **31** (M10 +1 cho view) |
-| PostgreSQL triggers | 3 |
-| Partial unique | 3 |
-| Modules NestJS | 19 |
-| Controllers | 21 (M10: +MaintenanceOccurrenceController) |
-| Endpoints | **93** (M10: +8) |
-| Permissions (seed) | 49 |
-| Audit actions | 34 (M10: +4 — notification.* realtime, approval.auto_cancel_*, incident.auto_transition_*, maintenance_occurrence.auto_skip_*, approval.auto_cancel_on_wo_cancel, maintenance_occurrence.skip/generate_now) |
-| E2E test files | 18 (M10: +3 — q06-budget, q01-sec-aud, m10-endpoints, ws) |
-| E2E tests | **120/120 PASS** |
+| PostgreSQL CHECK | **30** (Doc04 strict enum + business invariants) |
+| PostgreSQL triggers | 3 (FR-APR-09 self-approval, low-stock UPDATE, low-stock INSERT) |
+| Partial unique indexes | **2** (Q-02: `uniq_open_repair_per_incident`, `uniq_open_wo_per_occurrence`) |
+| Partial filter indexes | 4 (`idx_maintenance_plans_active_basis`, `idx_notifications_unread_recipient`, `idx_parts_low_stock`, `idx_work_orders_active_started`) |
+| FK | 88 |
+| Tables | 36 base tables |
+| Indexes (total) | 109 |
+| Modules NestJS | **20** |
+| Controllers | **21** |
+| Endpoints | **114** (GET/POST/PATCH/PUT/DELETE routes) |
+| Permissions (seed) | **49** |
+| Role matrix | ADMIN 49 · MANAGER 38 · TECHNICIAN 18 · USER 4 · APPROVER_PARTIAL 2 |
+| Audit actions (distinct) | **51** (4991 log rows qua nhiều test rounds) |
+| Audit action types new (M10) | notification.read / .read_all (realtime emit), approval.auto_cancel_on_wo_cancel, incident.auto_transition_to_resolved, maintenance_occurrence.auto_skip_plan_paused, work_order.auto_transition_completed, demo.* |
+| E2E test files | **19** (M9: 14 → M10: +q06-budget, q01-sec-aud, m10-endpoints, ws, demo-flow) |
+| E2E tests | **135/135 PASS** |
+| Demo flow §15 steps | **35/35 PASS** |
+
+### 13.0.2. Bug da fix trong giai đoạn pre-M11 finalize
+
+| # | Vấn đề | Phát hiện qua | Fix |
+|---|---|---|---|
+| 1 | `_prisma_migrations` co 2 row failed cho `0010_v_asset_state_wo_join` (do Postgres view column type mismatch) | Health check 13/09/2026 | Cleanup 2 failed rows (`DELETE FROM _prisma_migrations WHERE finished_at IS NULL`) — schema applied 1 lan only |
+| 2 | Plan §13.0.1 ghi "93 endpoints" nhung actual 114 | Endpoint count audit | Update plan |
+| 3 | Plan §13.0.1 ghi "Partial unique 3" nhung actual 2 (Q-02 × 2) | DB index audit | Update plan |
+| 4 | Plan §13.0.1 ghi "Modules 19" nhung actual 20 (tach rieng maintenance-occurrence) | Module count audit | Update plan |
+| 5 | Plan §13.0.1 ghi "Audit actions 34" nhung actual 51 distinct (nhieu SYSTEM + auto.*) | DB audit count | Update plan |
+| 6 | TECHNICIAN role thieu `APPROVAL_SUBMIT`/`APPROVAL_CANCEL` (KTV can quyen nay de demo flow §15) | Demo E2E test | Them 2 permissions vao seed matrix |
 
 ### 13.1. Trạng thái tổng thể
 
@@ -882,29 +900,34 @@ M10 triển khai 6 commit, đóng 5 gap lớn phát hiện qua 4 audit (FR/Q/TC/
 | M7 Inventory + Q-06 net_issued_quantity | W10 | ✅ | 13/09/2026 | HOÀN THÀNH |
 | M8 Maintenance + Scheduler | W11 | ✅ | 13/09/2026 | HOÀN THÀNH |
 | M9 Notification + Realtime + Dashboard + Report | W12 | ✅ | 13/09/2026 | HOÀN THÀNH |
-| M10 Tích hợp + hardening + E2E | W13–W14 | ⏳ | — | CHƯA TRIỂN KHAI |
+| M10 Tích hợp + hardening + E2E | W13–W14 | ✅ | 13/09/2026 | HOÀN THÀNH |
 
 **Nhận xét timeline**: M2 → M9 tập trung vào 6 ngày (12–13/09/2026) — cao hơn kế hoạch do foundation M1 vững, doc ổn định, chạy song song nhiều module.
 
 ### 13.3. Kiểm tra tính đầy đủ (theo tiêu chí hoàn thành từng milestone)
 
-| Mục tiêu | M1 | M2 | M3 | M4 | M5 | M6 | M7 | M8 | M9 |
-|---|---|---|---|---|---|---|---|---|---|
-| Migration áp dụng thành công | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Mục tiêu | M1 | M2 | M3 | M4 | M5 | M6 | M7 | M8 | M9 | M10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Migration áp dụng thành công | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | State machine + guards | ✅ (auth flow) | ✅ (asset NORMAL/SUSPENDED/RETIRED) | ✅ (STAGED→READY) | ✅ (incident 5 states) | ✅ (WO 6 states) | ✅ (approval 6 states) | ✅ (stock movement 6 types) | ✅ (occurrence PLANNED→OVERDUE→IN_PROGRESS→COMPLETED/SKIPPED) | ✅ (notification UNIQUE conflict, dashboard SLA pause-aware) |
 | RBAC + Permission check | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Audit logging critical actions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | E2E test pass | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Concurrency / optimistic lock | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Q-02 1 WO open / occurrence | — | — | — | — | — | — | — | ✅ | — |
-| Q-04 SLA pause-aware | — | — | — | — | ✅ | — | — | — | ✅ dashboard/overdue |
-| Q-06 net_issued_quantity | — | — | — | — | — | ✅ net_cost | ✅ net_issued_quantity | — | — |
-| Q-06 budget check | — | — | — | — | — | ✅ | ✅ | — | — |
-| Low-stock alert (Doc04 §5.8) | — | — | — | — | — | — | ✅ trigger notify_low_stock | — | ✅ notification center |
-| FR-NOT-01..06 (6 nhóm notif) | — | — | — | — | — | — | — | — | ✅ |
-| FR-REP-01..05 (5 report CSV) | — | — | — | — | — | — | — | — | ✅ |
-| DT-09, DT-10, DT-12, DT-17, DT-18 | — | — | — | — | — | — | — | — | ✅ TC-DATA-01..05 |
-| Scheduler loop / worker processor | — | — | — | — | — | — | — | ✅ setInterval 60s | — |
+| Q-02 1 WO open / occurrence | — | — | — | — | — | — | — | ✅ | — | ✅ regression |
+| Q-04 SLA pause-aware | — | — | — | — | ✅ | — | — | — | ✅ dashboard/overdue | — |
+| Q-06 net_issued_quantity | — | — | — | — | — | ✅ net_cost | ✅ net_issued_quantity | — | — | ✅ E2E TC-Q06-01 |
+| Q-06 budget check | — | — | — | — | — | ✅ | ✅ | — | — | ✅ E2E TC-Q06-01 |
+| Low-stock alert (Doc04 §5.8) | — | — | — | — | — | — | ✅ trigger notify_low_stock | — | ✅ notification center | — |
+| FR-NOT-01..06 (6 nhóm notif) | — | — | — | — | — | — | — | — | ✅ | ✅ WS realtime (M10) |
+| FR-REP-01..05 (5 report CSV) | — | — | — | — | — | — | — | — | ✅ | ✅ cost-trend/action-items (M10) |
+| DT-09, DT-10, DT-12, DT-17, DT-18 | — | — | — | — | — | — | — | — | ✅ TC-DATA-01..05 | — |
+| Scheduler loop / worker processor | — | — | — | — | — | — | — | ✅ setInterval 60s | — | — |
+| Per-action permission gate approval | — | — | — | — | — | — | — | — | — | ✅ M10 |
+| Q-01 WO cancel side-effects | — | — | — | — | — | — | — | — | — | ✅ handleWorkOrderCancellation |
+| Q-08 v_asset_state WO JOIN | — | — | — | — | — | — | — | — | — | ✅ migration 0010 |
+| 12 missing TC coverage | — | — | — | — | — | — | — | — | — | ✅ TC-WO-05..08, TC-SEC-05..08, TC-AUD-03..04, TC-COST-04 |
+| Demo flow §15 end-to-end | — | — | — | — | — | — | — | — | — | ✅ 35/35 steps |
 
 ### 13.4. Vấn đề phát hiện trong review (đã xử lý)
 
