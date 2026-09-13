@@ -3,19 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
     }
   },
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.esm.json && tsc -p tsconfig.json && node -e \"require('fs').writeFileSync('./dist/cjs/package.json', '{ \\\"type\\\": \\\"commonjs\\\" }')\"",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.json",
     "test": "echo \"no tests yet\" && exit 0"
   },
   "dependencies": {

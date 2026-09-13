@@ -51,3 +51,6 @@ playwright/.cache/
 # ---- Docker volumes (host paths) ----
 .pg_data/
 .minio_data/
+apps/api/cookies.txt
+tsconfig.tsbuildinfo
+*.tsbuildinfo

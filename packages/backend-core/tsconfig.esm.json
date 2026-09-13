@@ -1,15 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist/cjs",
+    "outDir": "./dist/esm",
     "rootDir": "./src",
-    "declaration": false,
-    "module": "CommonJS",
+    "declaration": true,
+    "module": "ESNext",
     "moduleResolution": "Node",
     "esModuleInterop": true,
     "baseUrl": "../../",
     "paths": {
-      "@equipcare/shared": ["packages/shared/dist/cjs/index"]
+      "@equipcare/shared": ["packages/shared/dist/esm/index.d.ts"]
     }
   },
   "include": ["src/**/*"]
