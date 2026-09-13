@@ -2,21 +2,22 @@ import { WorkOrderStatus, type WorkOrderStatus as WOStatus } from '@equipcare/sh
 import { AppError } from '../errors/app-error.js';
 
 /**
- * Work Order state machine (Doc04 section 3.2).
+ * Work Order state machine (Doc04 section 3.2 + M6 bo sung WAITING_APPROVAL).
  *
- * Status enum: NEW | ASSIGNED | IN_PROGRESS | COMPLETED | CANCELLED.
- * PAUSED khong co trong enum (Doc04 Q-04) - pause/resume chi la note event.
- * WAITING_APPROVAL se duoc them o M6 (qua PATCH rieng, khong qua transition).
+ * Status enum:
+ *   NEW | ASSIGNED | IN_PROGRESS | WAITING_APPROVAL | COMPLETED | CANCELLED.
  *
  * Allowed transitions:
- *   NEW         -> ASSIGNED | CANCELLED
- *   ASSIGNED    -> IN_PROGRESS | CANCELLED
- *   IN_PROGRESS -> COMPLETED | CANCELLED
+ *   NEW               -> ASSIGNED | CANCELLED
+ *   ASSIGNED          -> IN_PROGRESS | CANCELLED
+ *   IN_PROGRESS       -> WAITING_APPROVAL | COMPLETED | CANCELLED
+ *   WAITING_APPROVAL  -> IN_PROGRESS | COMPLETED | CANCELLED
  *   COMPLETED, CANCELLED -> terminal
  *
- * Luu y:
- *   - IN_PROGRESS -> IN_PROGRESS khong qua transition (chi qua API notes).
- *   - Cancel can ly do (Doc02 section FR-WO-09).
+ * PAUSED khong co trong enum (Doc04 Q-04) - pause/resume chi la note event.
+ * WAITING_APPROVAL: vao qua approval.submit (M6) - service layer approval.service tu dong
+ * set WAITING_APPROVAL_START note + doi WO.status. User PATCH /transition cung co the
+ * set IN_PROGRESS -> WAITING_APPROVAL neu muon; nhung service khuyen khich dung submit.
  */
 const TRANSITIONS: Record<WOStatus, WOStatus[]> = {
   [WorkOrderStatus.NEW]: [WorkOrderStatus.ASSIGNED, WorkOrderStatus.CANCELLED],
@@ -25,6 +26,12 @@ const TRANSITIONS: Record<WOStatus, WOStatus[]> = {
     WorkOrderStatus.CANCELLED,
   ],
   [WorkOrderStatus.IN_PROGRESS]: [
+    WorkOrderStatus.WAITING_APPROVAL,
+    WorkOrderStatus.COMPLETED,
+    WorkOrderStatus.CANCELLED,
+  ],
+  [WorkOrderStatus.WAITING_APPROVAL]: [
+    WorkOrderStatus.IN_PROGRESS,
     WorkOrderStatus.COMPLETED,
     WorkOrderStatus.CANCELLED,
   ],

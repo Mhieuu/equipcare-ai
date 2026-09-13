@@ -18,15 +18,18 @@ import {
   PauseReason,
 } from './work-order.enum';
 import {
+  ApprovalStatus,
+  ApprovalEventType,
+  CostCategory,
+  CostDirection,
+} from './approval.enum';
+import {
   IncidentStatus,
   IncidentPriority,
   IncidentMessageType,
   AiRequestStatus,
   AiTaskType,
 } from './incident.enum';
-import {
-  ApprovalStatus,
-} from './approval.enum';
 
 /**
  * Q-08 (plan §9): nhãn tiếng Việt cho `assets.activity_status` (Doc04 §7.2).
@@ -63,6 +66,7 @@ export const WorkOrderStatusLabel: Record<WorkOrderStatus, string> = {
   [WorkOrderStatus.NEW]: 'Mới tạo',
   [WorkOrderStatus.ASSIGNED]: 'Đã phân công',
   [WorkOrderStatus.IN_PROGRESS]: 'Đang thực hiện',
+  [WorkOrderStatus.WAITING_APPROVAL]: 'Chờ phê duyệt',
   [WorkOrderStatus.COMPLETED]: 'Hoàn thành',
   [WorkOrderStatus.CANCELLED]: 'Đã hủy',
 };
@@ -132,9 +136,31 @@ export const AiTaskTypeLabel: Record<AiTaskType, string> = {
 
 export const ApprovalStatusLabel: Record<ApprovalStatus, string> = {
   [ApprovalStatus.DRAFT]: 'Nháp',
-  [ApprovalStatus.PENDING]: 'Chờ duyệt',
-  [ApprovalStatus.NEEDS_INFO]: 'Yêu cầu bổ sung',
+  [ApprovalStatus.SUBMITTED]: 'Chờ duyệt',
+  [ApprovalStatus.INFO_REQUESTED]: 'Yêu cầu bổ sung',
   [ApprovalStatus.APPROVED]: 'Đã duyệt',
   [ApprovalStatus.REJECTED]: 'Từ chối',
   [ApprovalStatus.CANCELLED]: 'Đã hủy',
+};
+
+export const ApprovalEventTypeLabel: Record<ApprovalEventType, string> = {
+  [ApprovalEventType.SUBMITTED]: 'Đã gửi',
+  [ApprovalEventType.DRAFT_UPDATED]: 'Cập nhật nháp',
+  [ApprovalEventType.REVISION_CREATED]: 'Tạo bản sửa',
+  [ApprovalEventType.APPROVED]: 'Phê duyệt',
+  [ApprovalEventType.REJECTED]: 'Từ chối',
+  [ApprovalEventType.INFO_REQUESTED]: 'Yêu cầu bổ sung',
+  [ApprovalEventType.CANCELLED]: 'Hủy',
+  [ApprovalEventType.REVOKED]: 'Thu hồi',
+};
+
+export const CostCategoryLabel: Record<CostCategory, string> = {
+  [CostCategory.PART]: 'Linh kiện',
+  [CostCategory.LABOR]: 'Nhân công',
+  [CostCategory.OTHER]: 'Khác',
+};
+
+export const CostDirectionLabel: Record<CostDirection, string> = {
+  [CostDirection.DEBIT]: 'Ghi tăng',
+  [CostDirection.CREDIT]: 'Ghi giảm',
 };

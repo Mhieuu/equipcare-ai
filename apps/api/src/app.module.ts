@@ -15,6 +15,8 @@ import { TechnicalDocumentModule } from './modules/technical-documents/technical
 import { IncidentModule } from './modules/incident/incident.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { WorkOrderModule } from './modules/work-order/work-order.module.js';
+import { CostEntryModule } from './modules/cost-entry/cost-entry.module.js';
+import { ApprovalModule } from './modules/approval/approval.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -51,6 +53,8 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     IncidentModule,
     AiModule,
     WorkOrderModule,
+    CostEntryModule,
+    ApprovalModule,
   ],
   providers: [
     {

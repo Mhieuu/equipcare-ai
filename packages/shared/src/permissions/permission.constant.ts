@@ -30,7 +30,11 @@ export const Permission = {
 
   // Approval
   APPROVAL_CREATE: 'approval:create',
+  APPROVAL_UPDATE_DRAFT: 'approval:draft:update',
+  APPROVAL_SUBMIT: 'approval:submit',
   APPROVAL_DECIDE: 'approval:decide',
+  APPROVAL_REQUEST_INFO: 'approval:request-info',
+  APPROVAL_CANCEL: 'approval:cancel',
 
   // Inventory
   INVENTORY_PART_READ: 'inventory:part:read',
@@ -41,6 +45,7 @@ export const Permission = {
 
   // Cost
   COST_READ: 'cost:read',
+  COST_CREATE: 'cost:create',
 
   // Maintenance
   MAINTENANCE_PLAN_READ: 'maintenance:plan:read',
