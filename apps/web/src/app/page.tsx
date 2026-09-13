@@ -1,21 +1,18 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
+
 export default function HomePage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+  const router = useRouter();
+  const accessToken = useAuth((s) => s.accessToken);
+  useEffect(() => {
+    router.replace(accessToken ? '/dashboard' : '/login');
+  }, [accessToken, router]);
   return (
-    <main style={{ padding: '2rem' }}>
-      <h1>EquipCare AI</h1>
-      <p>Baseline locked — M0 scaffold.</p>
-      <p>
-        API target:{' '}
-        <a href={`${apiUrl}/healthz`} target="_blank" rel="noreferrer">
-          {apiUrl}/healthz
-        </a>
-      </p>
-      <p>
-        Swagger:{' '}
-        <a href={`${apiUrl}/docs`} target="_blank" rel="noreferrer">
-          {apiUrl}/docs
-        </a>
-      </p>
-    </main>
+    <div className="min-h-screen flex items-center justify-center text-slate-500">
+      Đang chuyển hướng...
+    </div>
   );
 }

@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import './globals.css';
+import { Providers } from '@/components/providers';
 
 export const metadata = {
   title: 'EquipCare AI',
@@ -8,8 +10,8 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="vi">
-      <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0 }}>
-        {children}
+      <body className="min-h-screen">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
