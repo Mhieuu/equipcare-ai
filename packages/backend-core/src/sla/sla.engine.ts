@@ -8,15 +8,15 @@ import { WorkOrderStatus, type WorkOrderStatus as WOStatus } from '@equipcare/sh
  *   excluded_seconds      = duration(union(pause_intervals, waiting_approval_intervals))
  *   active_elapsed        = total_elapsed − excluded
  *   is_overdue = active_elapsed > sla_seconds
- *                AND status IN (ASSIGNED, IN_PROGRESS, WAITING_APPROVAL)
+ *                AND status IN (ASSIGNED, IN_PROGRESS)
  *
- * PAUSED/RESUMED là event, không phải status → status vẫn là IN_PROGRESS khi pause.
+ * PAUSED/RESUMED la note event (Doc04 Q-04), khong phai status -> status van la
+ * IN_PROGRESS khi pause. WAITING_APPROVAL se them vao OPEN_STATUSES o M6.
  */
 
 const OPEN_STATUSES: WOStatus[] = [
   WorkOrderStatus.ASSIGNED,
   WorkOrderStatus.IN_PROGRESS,
-  WorkOrderStatus.WAITING_APPROVAL,
 ];
 
 export interface SlaInterval {

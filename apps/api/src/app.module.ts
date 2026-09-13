@@ -14,6 +14,7 @@ import { AttachmentModule } from './modules/attachment/attachment.module.js';
 import { TechnicalDocumentModule } from './modules/technical-documents/technical-documents.module.js';
 import { IncidentModule } from './modules/incident/incident.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
+import { WorkOrderModule } from './modules/work-order/work-order.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -49,6 +50,7 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     TechnicalDocumentModule,
     IncidentModule,
     AiModule,
+    WorkOrderModule,
   ],
   providers: [
     {

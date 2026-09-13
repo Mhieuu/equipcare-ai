@@ -165,6 +165,21 @@ async function main(): Promise<void> {
   });
   console.info('[seed] departments.bootstrap upserted');
 
+  // 1b. Asset type bootstrap (loại thiết bị mặc định — cần thiết cho asset CRUD test)
+  const BOOTSTRAP_ASSET_TYPE_ID = '00000000-0000-4000-8000-000000000050';
+  await prisma.asset_types.upsert({
+    where: { id: BOOTSTRAP_ASSET_TYPE_ID },
+    update: {},
+    create: {
+      id: BOOTSTRAP_ASSET_TYPE_ID,
+      code: 'AT-BOOTSTRAP',
+      name: 'Thiết bị chung',
+      description: 'Loại thiết bị mặc định cho bootstrap',
+      is_active: true,
+    },
+  });
+  console.info('[seed] asset_types.bootstrap upserted');
+
   // 2. Location bootstrap (vị trí gốc)
   await prisma.locations.upsert({
     where: { id: BOOTSTRAP_LOCATION_ID },

@@ -13,6 +13,9 @@ import {
 import {
   WorkOrderStatus,
   WorkOrderType,
+  WorkOrderCreationMode,
+  WorkOrderNoteType,
+  PauseReason,
 } from './work-order.enum';
 import {
   IncidentStatus,
@@ -60,7 +63,6 @@ export const WorkOrderStatusLabel: Record<WorkOrderStatus, string> = {
   [WorkOrderStatus.NEW]: 'Mới tạo',
   [WorkOrderStatus.ASSIGNED]: 'Đã phân công',
   [WorkOrderStatus.IN_PROGRESS]: 'Đang thực hiện',
-  [WorkOrderStatus.WAITING_APPROVAL]: 'Chờ phê duyệt',
   [WorkOrderStatus.COMPLETED]: 'Hoàn thành',
   [WorkOrderStatus.CANCELLED]: 'Đã hủy',
 };
@@ -69,6 +71,26 @@ export const WorkOrderTypeLabel: Record<WorkOrderType, string> = {
   [WorkOrderType.REPAIR]: 'Sửa chữa',
   [WorkOrderType.MAINTENANCE]: 'Bảo trì',
   [WorkOrderType.INSPECTION]: 'Kiểm tra',
+};
+
+export const WorkOrderCreationModeLabel: Record<WorkOrderCreationMode, string> = {
+  [WorkOrderCreationMode.MANUAL]: 'Tạo thủ công',
+  [WorkOrderCreationMode.FROM_INCIDENT]: 'Từ sự cố',
+  [WorkOrderCreationMode.FROM_MAINTENANCE]: 'Từ lịch bảo trì',
+};
+
+export const WorkOrderNoteTypeLabel: Record<WorkOrderNoteType, string> = {
+  [WorkOrderNoteType.PROGRESS]: 'Tiến độ',
+  [WorkOrderNoteType.PAUSE_START]: 'Bắt đầu tạm dừng',
+  [WorkOrderNoteType.PAUSE_END]: 'Tiếp tục',
+  [WorkOrderNoteType.WAITING_APPROVAL_START]: 'Chờ phê duyệt',
+  [WorkOrderNoteType.WAITING_APPROVAL_END]: 'Thoát chờ phê duyệt',
+};
+
+export const PauseReasonLabel: Record<PauseReason, string> = {
+  [PauseReason.WAITING_PART]: 'Chờ linh kiện',
+  [PauseReason.WAITING_RESOURCE]: 'Chờ nguồn lực',
+  [PauseReason.OTHER]: 'Khác',
 };
 
 export const IncidentStatusLabel: Record<IncidentStatus, string> = {
