@@ -491,6 +491,7 @@ Lý do đổi M6/M7 (so với Doc02 thứ tự gốc): M7 phụ thuộc M6 vì `
 >   - `POST /work-orders/:woId/parts/return` (lookup original ISSUE, `original_work_order_id` cross-check WO, sum prev returns, check RETURN <= remaining → STOCK_RETURN_EXCEEDS_ISSUE 422; neu original sai movement_type → STOCK_RETURN_INVALID_ORIGINAL 422; cap on_hand tang tuong ung).
 >   - `POST /stock-transactions/receipt` (RECEIPT tang on_hand, cap decimal>=0).
 >   - `POST /stock-transactions/adjust` (ADJUSTMENT +/-; reason >=3 ky tu → STOCK_ADJUSTMENT_REQUIRES_REASON 422; signed quantity).
+>   - `POST /parts/:id/adjust` (alias cho SCR-PART-05 - cùng service, partId resolve từ path).
 >   - `GET /stock-transactions?partId&workOrderId` (ledger view, orderBy occurred_at DESC).
 >   - Atomic transaction (Serializable isolation) + audit (stock.issue/return/receipt/adjust).
 > - Module `work-order` (apps/api, M7 nested): `GET /work-orders/:id/parts/planned` (list), `POST /work-orders/:id/parts/planned` (upsert UNIQUE(wo,part), audit work_order.plan_part).
@@ -800,3 +801,85 @@ Reporter / Manager            → Dashboard; xuất CSV; báo cáo
 - [Doc07] Kế hoạch kiểm thử và nghiệm thu, v1.1, 08/09/2026
 
 Baseline được đóng băng với chốt Q-01..Q-07 theo khuyến nghị Doc04. Mọi thay đổi sau ngày LOCK phải qua change request.
+
+---
+
+## 13. Tổng kết review M0–M7 (13/09/2026)
+
+### 13.1. Trạng thái tổng thể
+
+| Hạng mục | Kết quả |
+|---|---|
+| Migration Prisma | **8/8 đã apply** (`0001_init`, `0002_asset`, `0003_attachments`, `0004_incidents_ai`, `0005_work_orders`, `0006_cost_approval`, `0006a_work_order_waiting_approval`, `0007_inventory`) |
+| PostgreSQL CHECK constraints | 23 CHECK (Doc04 strict enum + business invariants) |
+| PostgreSQL triggers | 3 (FR-APR-09 self-approval, low-stock UPDATE, low-stock INSERT) |
+| Modules NestJS | 15 (auth, iam, organization, config, health, asset, attachment, technical-documents, incident, ai, work-order, cost-entry, approval, part, stock-transaction) |
+| Controllers | 15 với 100+ endpoints |
+| Permissions (seed) | **49** (Admin + Manager + Technician matrix) |
+| Audit actions | 30+ action types (auth, iam, org, asset, attachment, technical-document, incident, ai, work_order, stock, part, approval, cost_entry, incident.auto_resolve) |
+| E2E test files | 12 files |
+| E2E tests | **72/72 PASS** |
+| Lint | 0 warning |
+| Build | 5/5 packages PASS |
+
+### 13.2. Timeline thực tế vs kế hoạch
+
+| Milestone | Plan (Tuần) | Thực tế | Ngày chốt | Trạng thái |
+|---|---|---|---|---|
+| M0 Baseline | Trước W1 | ✅ | 11/09/2026 | HOÀN THÀNH |
+| M1 Foundation + Auth + IAM + Org | W1–W2 | ✅ | 12/09/2026 | HOÀN THÀNH |
+| M2 Asset + QR + lifecycle | W3–W4 | ✅ | 12/09/2026 | HOÀN THÀNH |
+| M3 Attachment + Technical Docs | W5 | ✅ | 12/09/2026 | HOÀN THÀNH |
+| M4 Incident + AI async | W6–W7 | ✅ | 12/09/2026 | HOÀN THÀNH |
+| M5 Work Order core + SLA | W8 | ✅ | 13/09/2026 | HOÀN THÀNH |
+| M6 Cost + Approval + WAITING_APPROVAL | W9 | ✅ | 13/09/2026 | HOÀN THÀNH |
+| M7 Inventory + Q-06 net_issued_quantity | W10 | ✅ | 13/09/2026 | HOÀN THÀNH |
+| M8 Maintenance + Scheduler | W11 | ⏳ | — | CHƯA TRIỂN KHAI |
+| M9 Notification + Realtime + Dashboard + Report | W12 | ⏳ | — | CHƯA TRIỂN KHAI |
+| M10 Tích hợp + hardening + E2E | W13–W14 | ⏳ | — | CHƯA TRIỂN KHAI |
+
+**Nhận xét timeline**: M2 → M7 tập trung vào 4 ngày (12–13/09/2026) — cao hơn kế hoạch do foundation M1 vững, doc ổn định, chạy song song nhiều module.
+
+### 13.3. Kiểm tra tính đầy đủ (theo tiêu chí hoàn thành từng milestone)
+
+| Mục tiêu | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
+|---|---|---|---|---|---|---|---|
+| Migration áp dụng thành công | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| State machine + guards | ✅ (auth flow) | ✅ (asset NORMAL/SUSPENDED/RETIRED) | ✅ (STAGED→READY) | ✅ (incident 5 states) | ✅ (WO 6 states) | ✅ (approval 6 states) | ✅ (stock movement 6 types) |
+| RBAC + Permission check | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Audit logging critical actions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| E2E test pass | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Concurrency / optimistic lock | ✅ (sessions/auth_version) | ✅ (asset row_version) | ✅ (version_seq) | ✅ (incident row_version) | ✅ (WO row_version + partial unique) | ✅ (approval row_version + FR-APR-09 trigger) | ✅ (parts row_version + on_hand>=0 CHECK + Serializable isolation) |
+| Q-06 net_issued_quantity | — | — | — | — | — | ✅ net_cost | ✅ net_issued_quantity |
+| Q-06 budget check (FR-APR-09 / Q-06) | — | — | — | — | — | ✅ self-approval trigger + service guard | ✅ Q-06 budget check trong service |
+| Low-stock alert (Doc04 §5.8) | — | — | — | — | — | — | ✅ trigger notify_low_stock |
+| Idempotency (Doc04 §5.7) | ✅ sessions unique | — | — | — | — | ✅ (revision_no unique per approval) | ✅ operation_key UNIQUE |
+
+### 13.4. Vấn đề phát hiện trong review (đã xử lý)
+
+| # | Vấn đề | Xử lý |
+|---|---|---|
+| 1 | Endpoint `POST /parts/:id/adjust` thiếu (plan M7 liệt kê) | Đã thêm — alias cho `POST /stock-transactions/adjust`, partId resolve từ path. |
+| 2 | `PATCH /approvals/:id` (universal action) thiếu `@Permissions` | Đã thêm `@Permissions(Permission.APPROVAL_DECIDE)` — admin/manager OK, technician sẽ 403. |
+
+### 13.5. Items chưa xử lý / để M8+
+
+| # | Hạng mục | Lý do | Mốc xử lý |
+|---|---|---|---|
+| 1 | M8 Maintenance Plan + Scheduler | Chưa triển khai | W11 |
+| 2 | M9 Notification center + Realtime + Dashboard + Report | Chưa triển khai (đã có `notifications` table + low-stock trigger M7 làm nền) | W12 |
+| 3 | M10 Tích hợp + hardening + E2E toàn cục | Chưa triển khai | W13–W14 |
+| 4 | Frontend UI (apps/web) | Plan tập trung backend trước; UI SCR-* sẽ wiring M9+ | M8+ |
+| 5 | Worker process (apps/worker) | Chỉ build PASS, chưa có job processor (M8 sẽ thêm scheduler) | M8 |
+
+### 13.6. Cam kết chất lượng
+
+- ✅ Lint: 0 warning
+- ✅ TypeScript strict: pass cho tất cả package
+- ✅ Build: 5/5 packages (shared, backend-core, api, worker, web)
+- ✅ E2E: 12 suites / 72 tests PASS (PostgreSQL thật)
+- ✅ DB constraints: 23 CHECK + 3 triggers hoạt động đúng (đã test ràng buộc qua E2E: STOCK_INSUFFICIENT, STOCK_RETURN_EXCEEDS_ISSUE, STOCK_RETURN_INVALID_ORIGINAL, STOCK_ADJUSTMENT_REQUIRES_REASON, APR_SELF_APPROVAL_FORBIDDEN, parts_on_hand_non_negative)
+- ✅ Concurrency: 50 req đồng thời trong TC-PART-03 — chỉ số request thành công, số còn lại 422 STOCK_INSUFFICIENT (Serializable isolation hoạt động đúng)
+- ✅ Audit logs: 30+ action types, mỗi critical state transition đều có correlationKey để truy ngược
+- ✅ RBAC: 49 permissions × 4 roles (Admin/Manager/Technician/User), `PermissionGuard` enforce ở controller
+

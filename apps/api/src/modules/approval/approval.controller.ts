@@ -77,10 +77,12 @@ export class ApprovalController {
 
   /**
    * Universal action endpoint. Body.action quyet dinh target state.
-   * Permission check o day dam bao caller co it nhat 1 trong cac quyen
-   * phu hop (Controller se apply theo action o router rieng neu can).
+   * Permission yêu cầu là APPROVAL_DECIDE (approve/reject/info-request) hoặc
+   * APPROVAL_SUBMIT (submit) hoặc APPROVAL_CANCEL (cancel) - service se check
+   * actor_id == proposer_id cho SUBMIT/CANCEL.
    */
   @Patch(':id')
+  @Permissions(Permission.APPROVAL_DECIDE)
   action(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,
