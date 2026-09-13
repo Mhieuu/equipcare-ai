@@ -102,6 +102,9 @@ importers:
       '@types/jest':
         specifier: 29.5.13
         version: 29.5.13
+      '@types/jsonwebtoken':
+        specifier: ^9.0.10
+        version: 9.0.10
       '@types/multer':
         specifier: ^2.2.0
         version: 2.2.0
@@ -120,6 +123,9 @@ importers:
       jest:
         specifier: 29.7.0
         version: 29.7.0(@types/node@22.5.0)
+      jsonwebtoken:
+        specifier: ^9.0.3
+        version: 9.0.3
       prisma:
         specifier: 5.20.0
         version: 5.20.0

@@ -58,12 +58,34 @@ export class AssetService {
       ];
     }
 
-    const [items, total] = await this.prisma.$transaction([
+    // Lay activity_status tu view v_asset_state (M10 JOIN work_orders MAINTENANCE/REPAIR).
+    // Lay sub-select activeWoKinds (REPAIR/MAINTENANCE) de truyen cho deriveActivityStatus
+    // (FE cung can derived label - Q-08 mapping).
+    const assetIdsQuery = this.prisma.assets.findMany({
+      where,
+      orderBy: { code: 'asc' },
+      take: filter.limit ?? 50,
+      skip: filter.offset ?? 0,
+      select: { id: true },
+    });
+    const assetIds = await assetIdsQuery;
+    const ids = assetIds.map((a) => a.id);
+
+    const [viewRows, items, total] = await Promise.all([
+      ids.length
+        ? this.prisma.$queryRaw<Array<{
+            asset_id: string;
+            activity_status: string;
+            active_wo_kinds: string | null;
+          }>>`
+            SELECT asset_id, activity_status, active_wo_kinds
+            FROM v_asset_state
+            WHERE asset_id = ANY(${ids}::uuid[])
+          `
+        : Promise.resolve([]),
       this.prisma.assets.findMany({
-        where,
+        where: { id: { in: ids.length ? ids : ['00000000-0000-0000-0000-000000000000'] } },
         orderBy: { code: 'asc' },
-        take: filter.limit ?? 50,
-        skip: filter.offset ?? 0,
         include: {
           asset_type: { select: { id: true, code: true, name: true } },
           department: { select: { id: true, code: true, name: true } },
@@ -72,8 +94,12 @@ export class AssetService {
       }),
       this.prisma.assets.count({ where }),
     ]);
+    type ViewRow = { asset_id: string; activity_status: string; active_wo_kinds: string | null };
+    const viewMap: Map<string, ViewRow> = new Map((viewRows as ViewRow[]).map((v) => [v.asset_id, v]));
+    void viewRows;
+
     return {
-      items: items.map((a) => this.toListDto(a)),
+      items: items.map((a) => this.toListDto(a, viewMap.get(a.id))),
       total,
       limit: filter.limit ?? 50,
       offset: filter.offset ?? 0,
@@ -264,9 +290,27 @@ export class AssetService {
 
   // Type-safe với includes — dùng any cho phần include vì Prisma return type phức tạp.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private toListDto(a: any) {
+  private toListDto(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    a: any,
+    viewRow?: { asset_id: string; activity_status: string; active_wo_kinds: string | null },
+  ) {
     const manualState = a.manual_state as AssetManualState;
-    const activityStatus: ActivityStatus = deriveActivityStatus(manualState);
+    let activityStatus: ActivityStatus;
+    let activeWoKinds: { maintenance: boolean; repair: boolean } | undefined;
+    if (viewRow) {
+      // Lay tu view (M10 JOIN work_orders)
+      const kinds = (viewRow.active_wo_kinds ?? '').split(',').filter(Boolean);
+      activeWoKinds = {
+        repair: kinds.includes('REPAIR'),
+        maintenance: kinds.includes('MAINTENANCE'),
+      };
+      activityStatus = viewRow.activity_status as ActivityStatus;
+    } else {
+      // Fallback M2 mode (chi manual_state)
+      activeWoKinds = undefined;
+      activityStatus = deriveActivityStatus(manualState);
+    }
     return {
       id: a.id,
       code: a.code,
@@ -281,6 +325,7 @@ export class AssetService {
       manualStateLabel: AssetManualStateLabel[manualState],
       activityStatus,
       activityStatusLabel: ActivityStatusLabel[activityStatus],
+      activeWoKinds: activeWoKinds ?? null,
       rowVersion: a.row_version,
       createdAt: a.created_at instanceof Date ? a.created_at.toISOString() : a.created_at,
       updatedAt: a.updated_at instanceof Date ? a.updated_at.toISOString() : a.updated_at,

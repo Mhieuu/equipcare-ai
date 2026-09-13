@@ -262,6 +262,15 @@ export class WorkOrderService {
       await this.tryResolveIncidentOnComplete(actorId, wo.incident_id);
     }
 
+    // Q-01 side-effects khi WO CANCELLED:
+    //   1. Approval PENDING/INFO_REQUESTED -> CANCELLED (auto).
+    //   2. REPAIR WO cancel: incident chuyen trang thai theo cancel reason
+    //      (Doc04 Q-01: 'need_info_from_reporter' -> AWAITING_INFO, khac -> NEW).
+    //   3. MAINTENANCE WO cancel: occurrence -> SKIPPED (ly do WO_CANCELLED).
+    if (to === WorkOrderStatus.CANCELLED) {
+      await this.handleWorkOrderCancellation(actorId, wo, dto.reason ?? '');
+    }
+
     return this.get(updated.id);
   }
 
@@ -552,6 +561,163 @@ export class WorkOrderService {
       oldValue: { status: incStatus },
       newValue: { status: IncidentStatus.RESOLVED, reason: 'LAST_WO_REPAIR_COMPLETED' },
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Q-01 side-effects khi WO CANCELLED:
+  //   (a) Approval PENDING (status IN SUBMITTED, INFO_REQUESTED) -> CANCELLED.
+  //       (APPROVED/REJECTED/CANCELLED khong dong).
+  //   (b) REPAIR WO cancel: con WO REPAIR mo khac? giu incident nguyen trang thai.
+  //       Khong con WO REPAIR mo?:
+  //         - reason chua 'need_info_from_reporter' (case-insensitive) -> AWAITING_INFO.
+  //         - ly do khac -> NEW (re-dispatch khi can).
+  //   (c) MAINTENANCE WO cancel: occurrence (neu co) -> SKIPPED (reason WO_CANCELLED).
+  // Tat ca thuc hien trong transaction de audit + message + update atomic.
+  // 'replaced_by_work_order_id' deferred theo plan Q-01 (P1).
+  // ---------------------------------------------------------------------------
+  private async handleWorkOrderCancellation(
+    actorId: string,
+    wo: {
+      id: string;
+      kind: string;
+      incident_id: string | null;
+      occurrence_id: string | null;
+    },
+    cancelReason: string,
+  ) {
+    // (a) Approval PENDING -> CANCELLED
+    const pendingApprovals = await this.prisma.approvals.findMany({
+      where: {
+        work_order_id: wo.id,
+        status: { in: ['SUBMITTED', 'INFO_REQUESTED'] },
+      },
+      select: { id: true, status: true },
+    });
+    for (const ap of pendingApprovals) {
+      // Lay revision hien tai (latest) de tao event
+      const latestRevision = await this.prisma.approval_revisions.findFirst({
+        where: { approval_id: ap.id },
+        orderBy: { revision_no: 'desc' },
+        select: { id: true },
+      });
+      if (!latestRevision) continue;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.approvals.update({
+          where: { id: ap.id },
+          data: {
+            status: 'CANCELLED',
+            row_version: { increment: 1 },
+          },
+        });
+        await tx.approval_events.create({
+          data: {
+            approval_id: ap.id,
+            revision_id: latestRevision.id,
+            actor_id: actorId,
+            event_type: 'CANCELLED',
+            note: `Auto-cancel vi Work Order ${wo.id} bi CANCEL. reason="${cancelReason}"`,
+          },
+        });
+      });
+      await writeAudit({
+        actorId,
+        actorType: 'USER',
+        action: 'approval.auto_cancel_on_wo_cancel',
+        objectType: 'Approval',
+        objectKey: ap.id,
+        correlationKey: wo.id,
+        newValue: { from: ap.status, to: 'CANCELLED', reason: 'WORK_ORDER_CANCELLED' },
+      });
+    }
+
+    // (b) REPAIR WO cancel: cap nhat incident neu khong con WO REPAIR mo.
+    if (wo.kind === WorkOrderType.REPAIR && wo.incident_id) {
+      const openRepairCount = await this.prisma.work_orders.count({
+        where: {
+          incident_id: wo.incident_id,
+          kind: WorkOrderType.REPAIR,
+          status: {
+            in: [
+              WorkOrderStatus.NEW,
+              WorkOrderStatus.ASSIGNED,
+              WorkOrderStatus.IN_PROGRESS,
+              WorkOrderStatus.WAITING_APPROVAL,
+            ],
+          },
+          NOT: { id: wo.id },
+        },
+      });
+      if (openRepairCount === 0) {
+        const inc = await this.prisma.incidents.findUnique({
+          where: { id: wo.incident_id },
+        });
+        if (
+          inc &&
+          inc.status !== IncidentStatus.RESOLVED &&
+          inc.status !== IncidentStatus.CLOSED &&
+          inc.status !== IncidentStatus.CANCELLED
+        ) {
+          const reasonLower = (cancelReason ?? '').toLowerCase();
+          const isNeedInfo = reasonLower.includes('need_info_from_reporter');
+          const nextStatus = isNeedInfo
+            ? IncidentStatus.AWAITING_INFO
+            : IncidentStatus.NEW;
+          await this.prisma.$transaction(async (tx) => {
+            await tx.incidents.update({
+              where: { id: inc.id },
+              data: {
+                status: nextStatus,
+                row_version: { increment: 1 },
+              },
+            });
+            await tx.incident_messages.create({
+              data: {
+                incident_id: inc.id,
+                author_id: actorId,
+                message_type: IncidentMessageType.SYSTEM,
+                body: `Trang thai: ${inc.status} -> ${nextStatus} (auto: WO REPAIR cuoi cung bi CANCEL, reason="${cancelReason}")`,
+              },
+            });
+          });
+          await writeAudit({
+            actorId,
+            actorType: 'USER',
+            action: 'incident.auto_transition_on_wo_cancel',
+            objectType: 'incidents',
+            objectKey: inc.id,
+            correlationKey: wo.id,
+            oldValue: { status: inc.status },
+            newValue: { status: nextStatus, reason: 'WO_CANCELLED_LAST_REPAIR' },
+          });
+        }
+      }
+    }
+
+    // (c) MAINTENANCE WO cancel: occurrence -> SKIPPED.
+    // maintenance_occurrences khong co cot skip_reason, ghi vao audit.
+    if (wo.kind === WorkOrderType.MAINTENANCE && wo.occurrence_id) {
+      const occ = await this.prisma.maintenance_occurrences.findUnique({
+        where: { id: wo.occurrence_id },
+      });
+      if (occ && occ.status !== 'COMPLETED' && occ.status !== 'SKIPPED') {
+        await this.prisma.maintenance_occurrences.update({
+          where: { id: occ.id },
+          data: {
+            status: 'SKIPPED',
+          },
+        });
+        await writeAudit({
+          actorId,
+          actorType: 'USER',
+          action: 'maintenance_occurrence.auto_skip_on_wo_cancel',
+          objectType: 'MaintenanceOccurrence',
+          objectKey: occ.id,
+          correlationKey: wo.id,
+          oldValue: { status: occ.status },
+          newValue: { status: 'SKIPPED', reason: 'WO_CANCELLED' },
+        });
+      }
+    }
   }
 
   /** Build SlaInterval[] tu note timeline. Moi note PAUSE_START mo mot interval; PAUSE_END dong. */
