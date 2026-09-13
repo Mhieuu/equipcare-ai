@@ -6,6 +6,8 @@ import {
   IsIn,
   IsDateString,
   IsArray,
+  IsNumber,
+  Min,
 } from 'class-validator';
 import {
   WorkOrderType,
@@ -180,4 +182,19 @@ export class SlaTimelineQueryDto {
   @IsOptional()
   @IsDateString()
   to?: string;
+}
+
+/** Upsert 1 work_order_parts row. */
+export class PlanPartDto {
+  @IsUUID()
+  partId!: string;
+
+  @IsNumber()
+  @Min(0)
+  plannedQuantity!: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

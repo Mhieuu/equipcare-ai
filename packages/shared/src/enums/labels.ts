@@ -23,6 +23,7 @@ import {
   CostCategory,
   CostDirection,
 } from './approval.enum';
+import { StockTransactionType } from './inventory.enum';
 import {
   IncidentStatus,
   IncidentPriority,
@@ -163,4 +164,13 @@ export const CostCategoryLabel: Record<CostCategory, string> = {
 export const CostDirectionLabel: Record<CostDirection, string> = {
   [CostDirection.DEBIT]: 'Ghi tăng',
   [CostDirection.CREDIT]: 'Ghi giảm',
+};
+
+export const StockTransactionTypeLabel: Record<StockTransactionType, string> = {
+  [StockTransactionType.ISSUE]: 'Xuất kho (WO)',
+  [StockTransactionType.RETURN]: 'Trả lại kho',
+  [StockTransactionType.RECEIPT]: 'Nhập kho',
+  [StockTransactionType.ADJUSTMENT]: 'Điều chỉnh',
+  [StockTransactionType.TRANSFER_IN]: 'Nhận chuyển kho',
+  [StockTransactionType.TRANSFER_OUT]: 'Xuất chuyển kho',
 };

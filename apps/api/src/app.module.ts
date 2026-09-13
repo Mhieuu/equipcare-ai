@@ -17,6 +17,8 @@ import { AiModule } from './modules/ai/ai.module.js';
 import { WorkOrderModule } from './modules/work-order/work-order.module.js';
 import { CostEntryModule } from './modules/cost-entry/cost-entry.module.js';
 import { ApprovalModule } from './modules/approval/approval.module.js';
+import { PartModule } from './modules/part/part.module.js';
+import { StockTransactionModule } from './modules/stock-transaction/stock-transaction.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -55,6 +57,8 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     WorkOrderModule,
     CostEntryModule,
     ApprovalModule,
+    PartModule,
+    StockTransactionModule,
   ],
   providers: [
     {

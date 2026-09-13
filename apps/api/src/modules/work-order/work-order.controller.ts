@@ -25,6 +25,7 @@ import {
   CancelWorkOrderDto,
   AddNoteDto,
   ListWorkOrdersQueryDto,
+  PlanPartDto,
 } from './dto/work-order.dto';
 
 /**
@@ -122,5 +123,23 @@ export class WorkOrderController {
     @Body() dto: AddNoteDto,
   ) {
     return this.service.addNote(user.sub, id, dto);
+  }
+
+  // M7 planned parts
+  @Get(':id/parts/planned')
+  @Permissions(Permission.INVENTORY_PART_READ)
+  listParts(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.service.listPlannedParts(id);
+  }
+
+  @Post(':id/parts/planned')
+  @Permissions(Permission.INVENTORY_PART_CREATE)
+  @HttpCode(201)
+  planPart(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: PlanPartDto,
+  ) {
+    return this.service.planPart(user.sub, id, dto.partId, dto.plannedQuantity, dto.note);
   }
 }

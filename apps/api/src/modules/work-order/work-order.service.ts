@@ -12,6 +12,7 @@ import {
   isOverdue,
   type SlaInterval,
 } from '@equipcare/backend-core';
+import { PrismaService } from '../../prisma/prisma.service';
 import {
   WorkOrderStatus,
   WorkOrderStatusLabel,
@@ -21,7 +22,6 @@ import {
   IncidentStatus,
   IncidentMessageType,
 } from '@equipcare/shared';
-import { PrismaService } from '../../prisma/prisma.service';
 import type {
   CreateWorkOrderDto,
   TransitionWorkOrderDto,
@@ -654,6 +654,97 @@ export class WorkOrderService {
         author: n.author,
         createdAt: n.created_at instanceof Date ? n.created_at.toISOString() : n.created_at,
       })),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Planned parts (M7)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Upsert 1 work_order_parts row cho WO. Moi WO chi co 1 row/part (UNIQUE).
+   */
+  async planPart(
+    actorId: string,
+    workOrderId: string,
+    partId: string,
+    plannedQuantity: number,
+    note?: string | null,
+  ) {
+    if (!Number.isFinite(plannedQuantity) || plannedQuantity < 0) {
+      throw AppError.unprocessable(
+        'WO_PART_INVALID_QTY',
+        'planned_quantity phai >= 0',
+        { plannedQuantity },
+      );
+    }
+    const wo = await this.prisma.work_orders.findUnique({ where: { id: workOrderId } });
+    if (!wo) throw AppError.notFound('Khong tim thay work order', { workOrderId });
+    if (wo.status === 'COMPLETED' || wo.status === 'CANCELLED') {
+      throw AppError.unprocessable(
+        'WO_TERMINAL_NO_PLAN',
+        'WO da terminal, khong the plan them parts',
+        { status: wo.status },
+      );
+    }
+    const part = await this.prisma.parts.findUnique({ where: { id: partId } });
+    if (!part) throw AppError.notFound('Khong tim thay linh kien', { partId });
+
+    const existing = await this.prisma.work_order_parts.findUnique({
+      where: { work_order_id_part_id: { work_order_id: workOrderId, part_id: partId } },
+    });
+
+    let result;
+    if (existing) {
+      result = await this.prisma.work_order_parts.update({
+        where: { id: existing.id },
+        data: {
+          planned_quantity: new Prisma.Decimal(plannedQuantity),
+          note: note ?? null,
+          row_version: { increment: 1 },
+        },
+      });
+    } else {
+      result = await this.prisma.work_order_parts.create({
+        data: {
+          work_order_id: workOrderId,
+          part_id: partId,
+          planned_quantity: new Prisma.Decimal(plannedQuantity),
+          note: note ?? null,
+        },
+      });
+    }
+
+    await writeAudit({
+      actorId,
+      actorType: 'USER',
+      action: 'work_order.plan_part',
+      objectType: 'WorkOrderPart',
+      objectKey: result.id,
+      correlationKey: workOrderId,
+      newValue: { partId, plannedQuantity, note },
+    });
+
+    return this.workOrderPartToDto(result);
+  }
+
+  async listPlannedParts(workOrderId: string) {
+    const rows = await this.prisma.work_order_parts.findMany({
+      where: { work_order_id: workOrderId },
+      orderBy: [{ created_at: 'asc' }],
+    });
+    return rows.map((r) => this.workOrderPartToDto(r));
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private workOrderPartToDto(p: any) {
+    return {
+      id: p.id,
+      workOrderId: p.work_order_id,
+      partId: p.part_id,
+      plannedQuantity: p.planned_quantity?.toString() ?? '0',
+      note: p.note ?? null,
+      rowVersion: p.row_version,
     };
   }
 }

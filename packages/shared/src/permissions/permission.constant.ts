@@ -42,6 +42,8 @@ export const Permission = {
   INVENTORY_ISSUE: 'inventory:issue',
   INVENTORY_RECEIPT: 'inventory:receipt',
   INVENTORY_TRANSFER: 'inventory:transfer',
+  INVENTORY_ADJUST: 'inventory:adjust',
+  INVENTORY_RETURN: 'inventory:return',
 
   // Cost
   COST_READ: 'cost:read',
