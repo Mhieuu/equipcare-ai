@@ -19,6 +19,7 @@ import { CostEntryModule } from './modules/cost-entry/cost-entry.module.js';
 import { ApprovalModule } from './modules/approval/approval.module.js';
 import { PartModule } from './modules/part/part.module.js';
 import { StockTransactionModule } from './modules/stock-transaction/stock-transaction.module.js';
+import { MaintenancePlanModule } from './modules/maintenance-plan/maintenance-plan.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -59,6 +60,7 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     ApprovalModule,
     PartModule,
     StockTransactionModule,
+    MaintenancePlanModule,
   ],
   providers: [
     {

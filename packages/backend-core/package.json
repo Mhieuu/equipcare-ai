@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@equipcare/shared": "workspace:*",
-    "@prisma/client": "5.20.0"
+    "@prisma/client": "5.20.0",
+    "date-fns": "3.6.0"
   },
   "devDependencies": {
     "@types/node": "22.5.0",

@@ -499,6 +499,21 @@ Lý do đổi M6/M7 (so với Doc02 thứ tự gốc): M7 phụ thuộc M6 vì `
 > - Tests `parts-stock.e2e-spec.ts` (TC-PART-01..07): CRUD part (code dup 409), RECEIPT/ADJUST (+/-) + reason required, ISSUE/RETURN atomic on_hand + concurrency 50 req → STOCK_INSUFFICIENT 422 partial success + RETURN exceeds (so luong return vuot issue goc) 422, RETURN original sai movement_type 422, ISSUE trên WO terminal 422, **low-stock trigger ghi notifications INVENTORY_LOW_STOCK** cross threshold, ledger view.
 > - **Quality gates**: lint 0 warnings, build all PASS, E2E 12 suites / 72 tests PASS.
 
+> **Trạng thái M8 (13/09/2026)**: ✅ HOÀN THÀNH API layer.
+> - Migration `0008_maintenance`: CHECK `maintenance_plans.interval_unit` (DAY/WEEK/MONTH/QUARTER/YEAR), `maintenance_plans.schedule_basis` (FIXED/AFTER_COMPLETION), `maintenance_plans.interval_value > 0`, `maintenance_occurrences.status` (PLANNED/SKIPPED/OVERDUE/IN_PROGRESS/COMPLETED), `maintenance_occurrences.plan_version > 0`. Partial unique index `uniq_open_wo_per_occurrence` (work_orders.occurrence_id WHERE status NOT IN terminal) — Doc04 Q-02: dam bao 1 occurrence chi co 1 WO open. Index `idx_maintenance_occurrences_status_due`, `idx_maintenance_plans_active_basis`.
+> - Backend-core `maintenance/`:
+>   - `maintenance.domain.ts`: `advanceDueOn` (FIXED recurrence DAY/WEEK/MONTH/QUARTER/YEAR dung date-fns), `toDateOnly`, `isDueOverdue`, `MaintenanceIntervalUnit`, `MaintenanceScheduleBasis`, `MaintenanceOccurrenceStatus`.
+>   - `scheduler.tick.ts`: `runSchedulerTick(prisma)` (Doc04 §5.10 + Q-02 full):
+>       1) Active FIXED plan: sinh PLANNED/OVERDUE occurrence + advance next_due_on.
+>       2) Paused plan: sinh SKIPPED (PAUSED) + advance next_due_on.
+>       3) Pending occurrence (PLANNED/OVERDUE) khong co WO open: tao WO (kind=MAINTENANCE, creation_mode=FROM_MAINTENANCE, priority=MEDIUM), `due_at=occurrence.due_on+1d`, snapshot checklist, audit SYSTEM `maintenance_occurrence.work_order_created`. Q-02 enforce bang partial unique index.
+>       4) Occurrence co WO COMPLETED → status COMPLETED.
+> - Shared: permission `MAINTENANCE_PLAN_MANAGE` (đã co M1).
+> - Module `maintenance-plan` (apps/api): CRUD plan + `POST /:id/pause` + `POST /:id/resume` (audit) + `GET /:id/occurrences` + `POST /maintenance-plans/tick` (manual debug). Optimistic lock row_version.
+> - Worker `apps/worker/src/main.ts`: singleton PrismaClient + scheduler loop interval 60s (env `SCHEDULER_INTERVAL_MS`), shared `runSchedulerTick` qua backend-core. Reentrant guard (khong tick chong khi tick truoc dang chay).
+> - Tests `maintenance.e2e-spec.ts` (TC-MNT-01..05): CRUD plan + validation intervalUnit, pause/resume + SKIPPED khong sinh them khi tick 2 (resume + advance), tick sinh OVERDUE occurrence + auto WO (creation_mode=FROM_MAINTENANCE, kind=MAINTENANCE), Q-02 khong tao WO trung khi tick 2 lan lien tiep, WO COMPLETED → occurrence COMPLETED sau tick.
+> - **Quality gates**: lint 0 warnings, build all PASS, E2E **13 suites / 77 tests PASS** (+1 file, +5 tests).
+
 > **Trạng thái M6 (13/09/2026)**: ✅ HOÀN THÀNH API layer.
 > - Migration `0006_cost_approval`: 4 CHECK enum (`cost_entries.category`, `cost_entries.direction`, `approvals.status`, `approval_events.event_type`) + 3 indexes. **DB trigger `enforce_no_self_approval` (FR-APR-09)** reject INSERT event_type='APPROVED' khi actor_id == approval.proposer_id.
 > - Migration `0006a_work_order_waiting_approval`: thêm WAITING_APPROVAL vào `work_orders.status_check` (M6 mở rộng enum Doc04) — drop + recreate; vẫn dùng partial unique `uniq_open_repair_per_incident` (WAITING_APPROVAL là "open").

@@ -23,4 +23,5 @@ export * from './ai/mock-ai-provider';
 export * from './ai/provider.factory';
 export * from './cost';
 export * from './stock';
+export * from './maintenance';
 export * from './audit';

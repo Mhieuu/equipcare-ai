@@ -1,6 +1,15 @@
+import { PrismaClient } from '@prisma/client';
+import { runSchedulerTick, type SchedulerTickResult } from '@equipcare/backend-core';
+
 /**
- * Scheduler processor — placeholder.
- * Sẽ đầy đủ ở M8: tick maintenance occurrences, generate WO cho OVERDUE.
- * Q-02: SKIPPED không sinh bù khi resume; OVERDUE đảm bảo có WO mở/thay thế.
+ * Maintenance scheduler tick - shared implementation in backend-core.
+ * Worker chi wrap vao loop, goi runSchedulerTick moi interval.
  */
-export const schedulerProcessorName = 'scheduler';
+export async function processMaintenanceTick(
+  prisma: PrismaClient,
+): Promise<SchedulerTickResult> {
+  return runSchedulerTick(prisma);
+}
+
+export type { SchedulerTickResult };
+export const schedulerProcessorName = 'maintenance-scheduler';
