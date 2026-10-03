@@ -10,6 +10,7 @@ import { apiGet, apiPost } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/toast';
 import { IncidentStatusBadge, PriorityBadge } from '@/components/badges';
+import { AiTriagePanel } from '@/components/ai-triage-panel';
 import { IncidentStatus, IncidentMessageTypeLabel, IncidentPriority } from '@equipcare/shared';
 
 interface IncidentDetail {
@@ -104,6 +105,10 @@ export default function IncidentDetailPage() {
           <dd className="text-sm whitespace-pre-line">{incident.impactDescription ?? '—'}</dd>
         </div>
       </div>
+
+      {hasPermission('incident:triage') && (
+        <AiTriagePanel incidentId={incident.id} currentPriority={incident.priority} />
+      )}
 
       {hasPermission('incident:transition') && (
         <div className="card p-4">
