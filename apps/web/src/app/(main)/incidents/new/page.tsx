@@ -51,7 +51,7 @@ export default function NewIncidentPage() {
           <label className="label">Thiết bị *</label>
           <select {...register('assetId', { required: 'Bắt buộc' })} className="input">
             <option value="">-- Chọn thiết bị --</option>
-            {assetsRes?.items.map((a) => (
+            {assetsRes?.items?.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.code} - {a.name}
               </option>

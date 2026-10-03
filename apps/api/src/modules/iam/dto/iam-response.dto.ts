@@ -19,10 +19,26 @@ export class RoleInfoDto {
 }
 
 /**
+ * Thông tin người dùng hiện tại trả về cho frontend.
+ */
+export class MeUserDto {
+  @ApiProperty()
+  id!: string;
+  @ApiProperty()
+  loginName!: string;
+  @ApiProperty()
+  fullName!: string;
+  @ApiProperty({ nullable: true })
+  email!: string | null;
+}
+
+/**
  * Response cho GET /iam/me/permissions — context của current user.
- * Frontend dùng để ẩn/hiện menu, check trước khi gọi API.
+ * Frontend dùng để ẩn/hiện menu, check trước khi gọi API, và hydrate user store.
  */
 export class MePermissionsDto {
+  @ApiProperty({ type: MeUserDto })
+  user!: MeUserDto;
   @ApiProperty({ type: [String] })
   roles!: string[];
   @ApiProperty({

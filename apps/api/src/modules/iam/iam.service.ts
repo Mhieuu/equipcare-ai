@@ -329,8 +329,20 @@ export class IamService {
     return perms.map((p) => p.code);
   }
 
-  mePermissions(user: AuthenticatedUser): MePermissionsDto {
+  async mePermissions(user: AuthenticatedUser): Promise<MePermissionsDto> {
+    const u = await this.prisma.users.findUnique({
+      where: { id: user.sub },
+      select: { id: true, login_name: true, full_name: true, email: true },
+    });
     return {
+      user: u
+        ? {
+            id: u.id,
+            loginName: u.login_name,
+            fullName: u.full_name,
+            email: u.email,
+          }
+        : { id: user.sub, loginName: '', fullName: '', email: null },
       roles: user.roles ?? [],
       permissions: user.permissions ?? [],
       scopes: user.scopes ?? [],

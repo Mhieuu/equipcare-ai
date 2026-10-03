@@ -77,7 +77,7 @@ export class IamController {
   @Get('me/permissions')
   @ApiOperation({ summary: 'Quyền + scope của current user (frontend dùng để gate UI)' })
   @ApiResponse({ status: 200, type: MePermissionsDto })
-  mePermissions(@CurrentUser() user: AuthenticatedUser): MePermissionsDto {
+  mePermissions(@CurrentUser() user: AuthenticatedUser): Promise<MePermissionsDto> {
     return this.iam.mePermissions(user);
   }
 

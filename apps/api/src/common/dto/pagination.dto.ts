@@ -24,11 +24,16 @@ export class PaginationQueryDto {
   @Max(100)
   pageSize: number = 20;
 
-  get offset(): number {
-    return (this.page - 1) * this.pageSize;
+  /**
+   * Số row tối đa trả về. Lưu ý: dùng method thay vì getter để class-transformer
+   * (khi whitelist+forbidNonWhitelisted) không throw "Cannot set property of
+   * #<...> which has only a getter" khi nhận query `?limit=20`.
+   */
+  getLimit(): number {
+    return this.pageSize;
   }
 
-  get limit(): number {
-    return this.pageSize;
+  getOffset(): number {
+    return (this.page - 1) * this.pageSize;
   }
 }

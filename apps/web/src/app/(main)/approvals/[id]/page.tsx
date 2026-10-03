@@ -8,7 +8,7 @@ import { apiGet, apiPatch } from '@/lib/api';
 import { useToast } from '@/components/toast';
 import { ApprovalStatusBadge } from '@/components/badges';
 import { Modal } from '@/components/modal';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 import { ApprovalStatus } from '@equipcare/shared';
 
 interface ApprovalDetail {
@@ -17,15 +17,15 @@ interface ApprovalDetail {
   reason: string;
   actionPlan: string;
   otherEstimatedCost: string | null;
-  workOrder: { id: string; code: string; description: string; asset: { code: string; name: string } };
-  proposer: { id: string; fullName: string };
+  workOrder: { id: string; code: string; description: string; asset: { code: string; name: string } | null };
+  proposer: { id: string; fullName: string } | null;
   events: Array<{ id: string; eventType: string; actorName: string; note: string | null; createdAt: string }>;
   currentRevision: {
     id: string;
     revisionNo: number;
     netCost: string | null;
     parts: Array<{ partId: string; partCode: string; partName: string; quantity: number; unitPrice: string }>;
-  };
+  } | null;
 }
 
 export default function ApprovalDetailPage() {
@@ -67,7 +67,7 @@ export default function ApprovalDetailPage() {
         <div>
           <h1 className="text-2xl font-bold">Phê duyệt #{a.id.slice(0, 8)}</h1>
           <p className="text-sm text-slate-500">
-            WO: <span className="font-mono">{a.workOrder.code}</span> · Người đề xuất: {a.proposer.fullName}
+            WO: <span className="font-mono">{a.workOrder?.code ?? '—'}</span> · Người đề xuất: {a.proposer?.fullName ?? '—'}
           </p>
         </div>
         <ApprovalStatusBadge status={a.status} />
@@ -147,7 +147,7 @@ export default function ApprovalDetailPage() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="badge-gray text-xs">{e.eventType}</span>
                 <span className="text-sm font-medium">{e.actorName}</span>
-                <span className="text-xs text-slate-500">{format(new Date(e.createdAt), 'dd/MM HH:mm')}</span>
+                <span className="text-xs text-slate-500">{formatDate(e.createdAt, 'dd/MM HH:mm')}</span>
               </div>
               {e.note && <p className="text-sm">{e.note}</p>}
             </li>

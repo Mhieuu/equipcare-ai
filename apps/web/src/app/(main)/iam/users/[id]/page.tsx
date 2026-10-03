@@ -64,7 +64,7 @@ export default function UserDetailPage() {
 
       <div>
         <h1 className="text-2xl font-bold">{user.fullName}</h1>
-        <p className="text-sm text-slate-500">Login: <span className="font-mono">{user.loginName}</span> · {user.email}</p>
+        <p className="text-sm text-slate-500">Login: <span className="font-mono">{user.loginName}</span> · {user.email ?? '—'}</p>
       </div>
 
       <div className="card p-4">

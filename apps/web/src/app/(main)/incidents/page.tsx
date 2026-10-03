@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { apiGet } from '@/lib/api';
 import { DataTable } from '@/components/data-table';
 import { IncidentStatusBadge, PriorityBadge } from '@/components/badges';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 import { IncidentStatus, IncidentPriority } from '@equipcare/shared';
 
 interface Incident {
@@ -75,8 +75,8 @@ export default function IncidentsPage() {
             ),
             width: '180px',
           },
-          { key: 'asset', header: 'Thiết bị', render: (r) => `${r.asset.code} - ${r.asset.name}` },
-          { key: 'reporter', header: 'Người báo', render: (r) => r.reporter.fullName },
+          { key: 'asset', header: 'Thiết bị', render: (r) => r.asset ? `${r.asset.code} - ${r.asset.name}` : '—' },
+          { key: 'reporter', header: 'Người báo', render: (r) => r.reporter?.fullName ?? '—' },
           {
             key: 'desc',
             header: 'Mô tả',
@@ -87,7 +87,7 @@ export default function IncidentsPage() {
           {
             key: 'created',
             header: 'Ngày tạo',
-            render: (r) => format(new Date(r.createdAt), 'dd/MM/yyyy HH:mm'),
+            render: (r) => formatDate(r.createdAt, 'dd/MM/yyyy HH:mm'),
             width: '140px',
           },
         ]}

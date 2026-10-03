@@ -8,6 +8,7 @@ import {
   Min,
   IsIn,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreatePartDto {
   @IsString()
@@ -103,6 +104,38 @@ export class AdjustPartDto {
 }
 
 export class ListPartsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  pageSize?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  offset?: number;
+
+  get take(): number {
+    return this.limit ?? this.pageSize ?? 100;
+  }
+
+  get skip(): number {
+    return this.offset ?? ((this.page ?? 1) - 1) * this.take;
+  }
+
   @IsOptional()
   @IsString()
   @IsIn(['true', 'false'])

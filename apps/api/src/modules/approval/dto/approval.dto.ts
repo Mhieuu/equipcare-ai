@@ -8,7 +8,9 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApprovalEventType, type ApprovalStatus } from '@equipcare/shared';
+import { PaginationQueryDto } from '../../../common/dto/pagination.dto.js';
 
 /**
  * POST /approvals: create draft approval (Doc04 section 5.7).
@@ -78,7 +80,19 @@ export class ApprovalActionDto {
 /**
  * Query inbox (FR-APR inbox).
  */
-export class ListApprovalsQueryDto {
+export class ListApprovalsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  offset?: number;
+
   @IsOptional()
   @IsString()
   @IsIn([
@@ -90,4 +104,12 @@ export class ListApprovalsQueryDto {
     'INFO_REQUESTED',
   ])
   status?: ApprovalStatus;
+
+  getTake(): number {
+    return this.limit ?? this.getLimit();
+  }
+
+  getSkip(): number {
+    return this.offset ?? this.getOffset();
+  }
 }

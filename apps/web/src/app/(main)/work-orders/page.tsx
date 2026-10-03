@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { apiGet } from '@/lib/api';
 import { DataTable } from '@/components/data-table';
 import { WorkOrderStatusBadge, WorkOrderTypeBadge } from '@/components/badges';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 import { WorkOrderStatus, WorkOrderType } from '@equipcare/shared';
 
 interface WO {
@@ -129,9 +129,9 @@ export default function WorkOrdersPage() {
               { key: 'code', header: 'Mã', render: (r) => <Link href={`/work-orders/${r.id}`} className="font-medium text-brand-700 hover:underline">{r.code}</Link>, width: '180px' },
               { key: 'kind', header: 'Loại', render: (r) => <WorkOrderTypeBadge type={r.kind} /> },
               { key: 'status', header: 'Trạng thái', render: (r) => <WorkOrderStatusBadge status={r.status} /> },
-              { key: 'asset', header: 'Thiết bị', render: (r) => `${r.asset.code} - ${r.asset.name}` },
+              { key: 'asset', header: 'Thiết bị', render: (r) => r.asset ? `${r.asset.code} - ${r.asset.name}` : '—' },
               { key: 'assignee', header: 'KTV', render: (r) => r.assignee?.fullName ?? '—' },
-              { key: 'due', header: 'Hạn', render: (r) => r.dueAt ? format(new Date(r.dueAt), 'dd/MM HH:mm') : '—', width: '120px' },
+              { key: 'due', header: 'Hạn', render: (r) => formatDate(r.dueAt, 'dd/MM HH:mm'), width: '120px' },
             ]}
             rows={data?.items ?? []}
           />

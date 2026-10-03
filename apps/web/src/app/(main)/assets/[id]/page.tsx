@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/toast';
 import { AssetStatusBadge } from '@/components/badges';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { formatDate } from '@/lib/format';
 import { AssetManualState, AssetManualStateLabel } from '@equipcare/shared';
 
 interface AssetDetail {
@@ -91,9 +92,9 @@ export default function AssetDetailPage() {
           <Row label="Vị trí" value={asset.location?.name} />
           <Row label="Serial" value={asset.serialNumber ?? '—'} />
           <Row label="Nhà cung cấp" value={asset.supplierName ?? '—'} />
-          <Row label="Ngày mua" value={asset.purchasedOn ?? '—'} />
-          <Row label="Ngày vận hành" value={asset.commissionedOn ?? '—'} />
-          <Row label="Bảo hành đến" value={asset.warrantyUntil ?? '—'} />
+          <Row label="Ngày mua" value={formatDate(asset.purchasedOn, 'dd/MM/yyyy')} />
+          <Row label="Ngày vận hành" value={formatDate(asset.commissionedOn, 'dd/MM/yyyy')} />
+          <Row label="Bảo hành đến" value={formatDate(asset.warrantyUntil, 'dd/MM/yyyy')} />
           <Row label="Manual state" value={AssetManualStateLabel[asset.manualState as AssetManualState] ?? asset.manualState} />
         </div>
 

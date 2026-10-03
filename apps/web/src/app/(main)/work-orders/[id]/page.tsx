@@ -9,7 +9,7 @@ import { apiGet, apiPost, apiPatch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/toast';
 import { WorkOrderStatusBadge, WorkOrderTypeBadge } from '@/components/badges';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Modal } from '@/components/modal';
 import { WorkOrderStatus, WorkOrderNoteType } from '@equipcare/shared';
@@ -162,7 +162,7 @@ export default function WorkOrderDetailPage() {
           <Row label="Mô tả" value={<span className="whitespace-pre-line">{wo.description}</span>} />
           <Row label="Ưu tiên" value={wo.priorityCode} />
           <Row label="KTV" value={wo.assignee?.fullName ?? '—'} />
-          <Row label="Hạn" value={wo.dueAt ? format(new Date(wo.dueAt), 'dd/MM HH:mm') : '—'} />
+          <Row label="Hạn" value={formatDate(wo.dueAt, 'dd/MM HH:mm')} />
         </div>
 
         <div className="card p-4 space-y-2">
@@ -172,8 +172,8 @@ export default function WorkOrderDetailPage() {
               <Row label="Active elapsed" value={fmtDur(wo.slaStatus.activeElapsedSeconds)} />
               <Row label="Remaining" value={fmtDur(wo.slaStatus.remainingSeconds)} />
               <Row label="Pause total" value={fmtDur(wo.slaStatus.pauseSeconds)} />
-              <Row label="Started" value={wo.startedAt ? format(new Date(wo.startedAt), 'dd/MM HH:mm') : '—'} />
-              <Row label="Completed" value={wo.completedAt ? format(new Date(wo.completedAt), 'dd/MM HH:mm') : '—'} />
+              <Row label="Started" value={formatDate(wo.startedAt, 'dd/MM HH:mm')} />
+              <Row label="Completed" value={formatDate(wo.completedAt, 'dd/MM HH:mm')} />
             </>
           ) : (
             <p className="text-sm text-slate-500">Chưa bắt đầu</p>
@@ -227,7 +227,7 @@ export default function WorkOrderDetailPage() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-medium">{n.authorName}</span>
                 <span className="badge-gray text-xs">{n.noteType}</span>
-                <span className="text-xs text-slate-500">{format(new Date(n.createdAt), 'dd/MM HH:mm')}</span>
+                <span className="text-xs text-slate-500">{formatDate(n.createdAt, 'dd/MM HH:mm')}</span>
               </div>
               <p className="text-sm whitespace-pre-line">{n.body}</p>
             </li>

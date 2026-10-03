@@ -1,6 +1,7 @@
 import {
   Injectable,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   AppError,
@@ -12,10 +13,15 @@ import {
 } from '@equipcare/backend-core';
 import {
   IncidentStatus,
+  IncidentPriority,
   IncidentMessageType,
   ActivityStatus,
 } from '@equipcare/shared';
-import { CreateIncidentDto, TransitionIncidentDto } from './dto/incident.dto';
+import {
+  CreateIncidentDto,
+  TransitionIncidentDto,
+  ListIncidentsQueryDto,
+} from './dto/incident.dto';
 
 /**
  * IncidentService — quản lý lifecycle sự cố.
@@ -115,19 +121,10 @@ export class IncidentService {
     return incident;
   }
 
-  async list(query: {
-    page?: number;
-    pageSize?: number;
-    status?: string;
-    priority?: string;
-    assetId?: string;
-    sort?: string;
-  }) {
-    const page = Math.max(1, Number(query.page ?? 1));
-    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize ?? 20)));
-    const where: Record<string, unknown> = {};
-    if (query.status) where.status = query.status;
-    if (query.priority) where.priority_code = query.priority;
+  async list(query: ListIncidentsQueryDto) {
+    const where: Prisma.incidentsWhereInput = {};
+    if (query.status) where.status = query.status as IncidentStatus;
+    if (query.priority) where.priority_code = query.priority as IncidentPriority;
     if (query.assetId) where.asset_id = query.assetId;
 
     const [items, total] = await Promise.all([
@@ -138,13 +135,13 @@ export class IncidentService {
           reporter: { select: { id: true, login_name: true, full_name: true } },
         },
         orderBy: { created_at: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        skip: query.getSkip(),
+        take: query.getTake(),
       }),
       this.prisma.incidents.count({ where }),
     ]);
 
-    return { items, page, pageSize, total };
+    return { items, page: query.page, pageSize: query.pageSize, total };
   }
 
   /**

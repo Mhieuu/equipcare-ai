@@ -86,7 +86,7 @@ export default function DashboardPage() {
         <div className="card p-4">
           <h2 className="font-semibold mb-3">WO quá hạn</h2>
           <ul className="space-y-1">
-            {overdue?.items.length ? overdue.items.map((o) => (
+            {overdue?.items?.length ? overdue.items.map((o) => (
               <li key={o.workOrderId} className="flex items-center justify-between text-sm py-1">
                 <Link href={`/work-orders/${o.workOrderId}`} className="text-brand-700 hover:underline">{o.workOrderCode}</Link>
                 <span className="text-xs text-slate-500">{o.assetCode} · {Math.floor(o.overdueSeconds / 3600)}h</span>
@@ -98,7 +98,7 @@ export default function DashboardPage() {
         <div className="card p-4">
           <h2 className="font-semibold mb-3 flex items-center gap-2"><Users className="h-4 w-4" /> Tải công việc KTV</h2>
           <ul className="space-y-1">
-            {techLoad?.items.length ? techLoad.items.slice(0, 10).map((t) => (
+            {techLoad?.items?.length ? techLoad.items.slice(0, 10).map((t) => (
               <li key={t.userId} className="flex items-center justify-between text-sm py-1">
                 <span>{t.fullName}</span>
                 <span className="text-xs">
@@ -113,7 +113,7 @@ export default function DashboardPage() {
         <div className="card p-4 lg:col-span-2">
           <h2 className="font-semibold mb-3">Hành động cần làm</h2>
           <ul className="space-y-1">
-            {actions?.items.length ? actions.items.slice(0, 10).map((a, i) => (
+            {actions?.items?.length ? actions.items.slice(0, 10).map((a, i) => (
               <li key={i} className="flex items-center justify-between text-sm py-1">
                 <Link href={a.href} className="text-brand-700 hover:underline">{a.title}</Link>
                 <span className={a.severity === 'high' ? 'badge-red' : a.severity === 'medium' ? 'badge-yellow' : 'badge-gray'}>{a.severity}</span>

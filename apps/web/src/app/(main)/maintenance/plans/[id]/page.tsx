@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Pause, Play } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 import { apiGet, apiPost } from '@/lib/api';
 import { useToast } from '@/components/toast';
 
@@ -96,7 +96,7 @@ export default function PlanDetailPage() {
           <tbody>
             {plan.occurrences.map((o) => (
               <tr key={o.id}>
-                <td>{format(new Date(o.dueOn), 'dd/MM/yyyy')}</td>
+                <td>{formatDate(o.dueOn, 'dd/MM/yyyy')}</td>
                 <td>
                   <span className={
                     o.status === 'COMPLETED' ? 'badge-green' :

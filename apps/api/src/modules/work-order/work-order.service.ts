@@ -81,7 +81,8 @@ export class WorkOrderService {
         incident: { select: { id: true, code: true } },
       },
       orderBy: [{ due_at: 'asc' }, { created_at: 'desc' }],
-      take: 100,
+      take: filter.take,
+      skip: filter.skip,
     });
     return { items: items.map((w) => this.toListDto(w)), total: items.length };
   }

@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Send } from 'lucide-react';
-import { format } from 'date-fns';
 import Link from 'next/link';
+import { formatDate } from '@/lib/format';
 import { apiGet, apiPost } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/toast';
@@ -18,10 +18,10 @@ interface IncidentDetail {
   status: IncidentStatus;
   priority: IncidentPriority;
   description: string;
-  impactDescription: string;
+  impactDescription: string | null;
   occurredAt: string | null;
   asset: { id: string; code: string; name: string };
-  reporter: { id: string; fullName: string };
+  reporter: { id: string; fullName: string } | null;
   messages: Array<{
     id: string;
     body: string;
@@ -93,7 +93,7 @@ export default function IncidentDetailPage() {
       <div className="card p-4 space-y-3">
         <div>
           <dt className="text-xs text-slate-500">Người báo</dt>
-          <dd className="font-medium">{incident.reporter.fullName}</dd>
+          <dd className="font-medium">{incident.reporter?.fullName ?? '—'}</dd>
         </div>
         <div>
           <dt className="text-xs text-slate-500">Mô tả</dt>
@@ -101,7 +101,7 @@ export default function IncidentDetailPage() {
         </div>
         <div>
           <dt className="text-xs text-slate-500">Ảnh hưởng</dt>
-          <dd className="text-sm whitespace-pre-line">{incident.impactDescription}</dd>
+          <dd className="text-sm whitespace-pre-line">{incident.impactDescription ?? '—'}</dd>
         </div>
       </div>
 
@@ -159,7 +159,7 @@ export default function IncidentDetailPage() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-medium">{m.authorName}</span>
                 <span className="badge-gray text-xs">{IncidentMessageTypeLabel[m.messageType as never] ?? m.messageType}</span>
-                <span className="text-xs text-slate-500">{format(new Date(m.createdAt), 'dd/MM/yyyy HH:mm')}</span>
+                <span className="text-xs text-slate-500">{formatDate(m.createdAt, 'dd/MM/yyyy HH:mm')}</span>
               </div>
               <p className="text-sm whitespace-pre-line">{m.body}</p>
             </li>

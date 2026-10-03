@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
 import { DataTable } from '@/components/data-table';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 
 interface AuditLog {
   id: string;
@@ -50,11 +50,11 @@ export default function AuditLogsPage() {
         onRefresh={() => refetch()}
         pagination={{ page, pageSize: 50, total: data?.total ?? 0, onPageChange: setPage }}
         columns={[
-          { key: 'time', header: 'Thời gian', render: (r) => format(new Date(r.createdAt), 'dd/MM HH:mm:ss'), width: '140px' },
+          { key: 'time', header: 'Thời gian', render: (r) => formatDate(r.createdAt, 'dd/MM HH:mm:ss'), width: '140px' },
           { key: 'action', header: 'Action', render: (r) => <code className="text-xs">{r.action}</code>, width: '200px' },
           { key: 'objectType', header: 'Object', render: (r) => r.objectType, width: '120px' },
-          { key: 'objectKey', header: 'Key', render: (r) => <code className="text-xs text-slate-500">{r.objectKey.slice(0, 8)}</code>, width: '100px' },
-          { key: 'actor', header: 'Actor', render: (r) => <code className="text-xs">{r.actorId.slice(0, 8)} ({r.actorType})</code> },
+          { key: 'objectKey', header: 'Key', render: (r) => <code className="text-xs text-slate-500">{r.objectKey?.slice(0, 8) ?? '—'}</code>, width: '100px' },
+          { key: 'actor', header: 'Actor', render: (r) => <code className="text-xs">{r.actorId?.slice(0, 8) ?? '—'} ({r.actorType})</code> },
           { key: 'note', header: 'Note', render: (r) => r.note ?? '—' },
         ]}
         rows={data?.items ?? []}

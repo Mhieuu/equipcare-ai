@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Pause, Play } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { DataTable } from '@/components/data-table';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 
 interface Plan {
   id: string;
@@ -53,9 +53,9 @@ export default function MaintenancePlansPage() {
         columns={[
           { key: 'code', header: 'Mã', render: (r) => <Link href={`/maintenance/plans/${r.id}`} className="font-mono text-brand-700 hover:underline">{r.code}</Link>, width: '150px' },
           { key: 'name', header: 'Tên', render: (r) => r.name },
-          { key: 'asset', header: 'Thiết bị', render: (r) => `${r.asset.code} - ${r.asset.name}` },
+          { key: 'asset', header: 'Thiết bị', render: (r) => r.asset ? `${r.asset.code} - ${r.asset.name}` : '—' },
           { key: 'interval', header: 'Chu kỳ', render: (r) => `Mỗi ${r.intervalValue} ${r.intervalUnit}`, width: '160px' },
-          { key: 'next', header: 'Kỳ tới', render: (r) => r.nextDueOn ? format(new Date(r.nextDueOn), 'dd/MM/yyyy') : '—', width: '120px' },
+          { key: 'next', header: 'Kỳ tới', render: (r) => formatDate(r.nextDueOn, 'dd/MM/yyyy'), width: '120px' },
           { key: 'status', header: 'TT', render: (r) => r.isActive ? <span className="badge-green">Đang chạy</span> : <span className="badge-gray">Tạm dừng</span>, width: '110px' },
         ]}
         rows={data?.items ?? []}

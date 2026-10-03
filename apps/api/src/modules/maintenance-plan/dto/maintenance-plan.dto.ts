@@ -9,7 +9,9 @@ import {
   IsOptional,
   IsArray,
   IsBoolean,
+  IsNumber,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import {
   MaintenanceIntervalUnit,
   MaintenanceScheduleBasis,
@@ -80,6 +82,38 @@ export class UpdateMaintenancePlanDto {
 }
 
 export class ListMaintenancePlansQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  pageSize?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  offset?: number;
+
+  get take(): number {
+    return this.limit ?? this.pageSize ?? 100;
+  }
+
+  get skip(): number {
+    return this.offset ?? ((this.page ?? 1) - 1) * this.take;
+  }
+
   @IsOptional()
   @IsUUID()
   assetId?: string;

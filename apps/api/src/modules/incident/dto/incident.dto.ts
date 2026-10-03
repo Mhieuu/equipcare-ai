@@ -1,4 +1,5 @@
-import { IsOptional, IsString, MaxLength, IsIn } from 'class-validator';
+import { IsOptional, IsString, MaxLength, IsIn, IsNumber, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import {
   IncidentPriority,
   IncidentStatus,
@@ -9,6 +10,18 @@ import { PaginationQueryDto } from '../../../common/dto/pagination.dto.js';
  * List query cho incidents (Doc02 §7 — pagination/filter/sort).
  */
 export class ListIncidentsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  offset?: number;
+
   @IsOptional()
   @IsString()
   @IsIn(Object.values(IncidentStatus))
@@ -22,6 +35,15 @@ export class ListIncidentsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   assetId?: string;
+
+  /** Trả về take/skip để service dùng chung. */
+  getTake(): number {
+    return this.limit ?? this.getLimit();
+  }
+
+  getSkip(): number {
+    return this.offset ?? this.getOffset();
+  }
 }
 
 /**

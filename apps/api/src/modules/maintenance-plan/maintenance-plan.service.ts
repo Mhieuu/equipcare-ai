@@ -75,7 +75,8 @@ export class MaintenancePlanService {
     const items = await this.prisma.maintenance_plans.findMany({
       where,
       orderBy: [{ next_due_on: 'asc' }],
-      take: 200,
+      take: query.take,
+      skip: query.skip,
     });
     return { items: items.map((p) => this.toDto(p)), total: items.length };
   }

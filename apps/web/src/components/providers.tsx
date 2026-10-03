@@ -26,6 +26,18 @@ async function fetchMe() {
   }
 }
 
+// Routes the user is most likely to visit first. Pinging them as soon as the
+// access token is known lets Next.js dev server compile them in the background
+// so navigation doesn't have to wait for the first compile (can be 1-8s).
+const WARMUP_ROUTES = [
+  '/dashboard',
+  '/incidents',
+  '/work-orders',
+  '/assets',
+  '/approvals',
+  '/inventory/parts',
+];
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
     () =>
@@ -48,9 +60,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
       setUser(null);
       return;
     }
+    // Kick off user fetch in the background.
     void fetchMe().then((u) => {
       if (u) setUser(u);
     });
+    // Warm up server-side compilation for common routes. Done as fire-and-forget
+    // GETs so the dev server pre-compiles them in the background while the user
+    // is still on the current page.
+    if (typeof window !== 'undefined') {
+      const base = window.location.origin;
+      for (const route of WARMUP_ROUTES) {
+        fetch(base + route, { credentials: 'include', cache: 'no-store' }).catch(
+          () => undefined,
+        );
+      }
+    }
   }, [accessToken, setUser]);
 
   return (

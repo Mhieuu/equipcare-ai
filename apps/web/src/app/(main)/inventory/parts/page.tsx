@@ -121,8 +121,8 @@ export default function PartsPage() {
           },
           { key: 'min', header: 'Tối thiểu', render: (r) => `${r.minimumStock} ${r.unit}`, width: '120px' },
           { key: 'price', header: 'Giá', render: (r) => r.referencePrice ? `${Number(r.referencePrice).toLocaleString('vi-VN')} đ` : '—', width: '120px' },
-          { key: 'dept', header: 'Phòng ban', render: (r) => r.department.name },
-          { key: 'loc', header: 'Vị trí', render: (r) => r.location.name },
+          { key: 'dept', header: 'Phòng ban', render: (r) => r.department?.name ?? '—' },
+          { key: 'loc', header: 'Vị trí', render: (r) => r.location?.name ?? '—' },
           {
             key: 'actions',
             header: '',

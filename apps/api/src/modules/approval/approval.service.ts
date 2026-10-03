@@ -19,6 +19,7 @@ import {
   CreateApprovalDto,
   UpdateDraftApprovalDto,
   ApprovalActionDto,
+  ListApprovalsQueryDto,
 } from './dto/approval.dto';
 
 /**
@@ -51,12 +52,14 @@ export class ApprovalService {
   // CRUD
   // ===========================================================================
 
-  async list(query: { status?: ApprovalStatus }) {
+  async list(query: ListApprovalsQueryDto) {
     const where: Prisma.approvalsWhereInput = {};
     if (query.status) where.status = query.status;
     const items = await this.prisma.approvals.findMany({
       where,
       orderBy: [{ updated_at: 'desc' }],
+      take: query.getTake(),
+      skip: query.getSkip(),
       include: {
         proposer: { select: { id: true, login_name: true, full_name: true } },
         work_order: {

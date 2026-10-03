@@ -60,11 +60,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-500 text-sm">Đang tải...</div>
-      </div>
-    );
+    // Token exists but user profile is still being fetched (or AuthGuard is
+    // waiting for Zustand to hydrate). Render a shell-shaped skeleton so the
+    // sidebar+main grid appears instantly and only the data inside animates.
+    return <AppShellSkeleton />;
   }
 
   const visibleNav = NAV_ITEMS.filter((item) => {
@@ -98,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="flex-1">{item.label}</span>
                 {item.href === '/notifications' && (unread?.count ?? 0) > 0 && (
                   <span className="bg-rose-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                    {unread!.count}
+                    {unread?.count ?? 0}
                   </span>
                 )}
               </Link>
@@ -112,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user.fullName}</p>
-              <p className="text-xs text-slate-400 truncate">{user.roles[0]?.name ?? '—'}</p>
+              <p className="text-xs text-slate-400 truncate">{user.roles?.[0]?.name ?? '—'}</p>
             </div>
           </div>
           <button
@@ -129,6 +128,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <main className="flex-1 overflow-y-auto">
         <div className="px-6 py-6">{children}</div>
+      </main>
+    </div>
+  );
+}
+
+/**
+ * Skeleton shown while the user profile is being fetched but the access token
+ * is already present. Mirrors the real AppShell layout so there's no visual
+ * jolt when the data arrives. Children are rendered as-is — page-specific
+ * queries keep their own loading states.
+ */
+function AppShellSkeleton() {
+  return (
+    <div className="flex min-h-screen">
+      <aside className="w-60 bg-slate-900 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-slate-700 animate-pulse" />
+          <div className="h-5 w-24 rounded bg-slate-700 animate-pulse" />
+        </div>
+        <nav className="flex-1 px-2 py-3 space-y-1 overflow-hidden">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-9 rounded-md bg-slate-800/60 animate-pulse"
+              style={{ animationDelay: `${i * 60}ms` }}
+            />
+          ))}
+        </nav>
+        <div className="px-3 py-3 border-t border-slate-800 flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-slate-700 animate-pulse" />
+          <div className="flex-1 space-y-1">
+            <div className="h-3 w-24 rounded bg-slate-700 animate-pulse" />
+            <div className="h-3 w-16 rounded bg-slate-700/70 animate-pulse" />
+          </div>
+        </div>
+      </aside>
+      <main className="flex-1 overflow-y-auto">
+        <div className="px-6 py-6">
+          <div className="h-7 w-40 rounded bg-slate-200 animate-pulse" />
+        </div>
       </main>
     </div>
   );

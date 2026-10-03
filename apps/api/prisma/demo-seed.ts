@@ -1131,6 +1131,12 @@ async function cleanDemoData(): Promise<void> {
 
   // Access scopes + user roles for demo users (only non-bootstrap)
   const demoUserIds = Object.values(DEMO_USERS);
+  // Sessions and audit_logs reference users; delete them first
+  await prisma.sessions.deleteMany({ where: { user_id: { in: demoUserIds } } });
+  await prisma.audit_logs.updateMany({
+    where: { actor_id: { in: demoUserIds } },
+    data: { actor_id: null },
+  });
   await prisma.access_scopes.deleteMany({
     where: { user_role: { user_id: { in: demoUserIds } } },
   });

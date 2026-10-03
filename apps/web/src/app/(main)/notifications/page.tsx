@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCheck, Filter } from 'lucide-react';
 import { apiGet, apiPatch } from '@/lib/api';
 import { useToast } from '@/components/toast';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 import { clsx } from 'clsx';
 
 interface Notification {
@@ -70,7 +70,7 @@ export default function NotificationsPage() {
       <div className="card divide-y divide-slate-100">
         {isLoading ? (
           <div className="p-6 text-center text-slate-500">Đang tải...</div>
-        ) : !data?.items.length ? (
+        ) : !data?.items?.length ? (
           <div className="p-6 text-center text-slate-500">Không có thông báo</div>
         ) : (
           data.items.map((n) => (
@@ -88,7 +88,7 @@ export default function NotificationsPage() {
                   </div>
                   {n.body && <p className="text-sm text-slate-600 mb-1">{n.body}</p>}
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>{format(new Date(n.createdAt), 'dd/MM HH:mm')}</span>
+                    <span>{formatDate(n.createdAt, 'dd/MM HH:mm')}</span>
                     {n.objectKey && (
                       <span className="text-brand-700">→ {n.objectType}/{n.objectKey.slice(0, 8)}</span>
                     )}

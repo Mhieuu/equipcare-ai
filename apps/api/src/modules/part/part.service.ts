@@ -78,7 +78,8 @@ export class PartService {
     const items = await this.prisma.parts.findMany({
       where,
       orderBy: [{ code: 'asc' }],
-      take: 200,
+      take: query.take,
+      skip: query.skip,
     });
 
     const mapped = items.map((p) => this.toDto(p));

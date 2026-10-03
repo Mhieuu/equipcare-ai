@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { Wrench, Loader2 } from 'lucide-react';
-import { apiPost, ApiError } from '@/lib/api';
+import { apiPost, apiGet, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/toast';
 
@@ -13,9 +13,37 @@ interface LoginForm {
   password: string;
 }
 
+interface MeResponse {
+  user: { id: string; loginName: string; fullName: string; email: string | null };
+  roles: Array<{ code: string; name: string }>;
+  permissions: string[];
+}
+
+async function fetchMeAndCache(token: string, setUser: (u: unknown) => void) {
+  // Race against a 4s timeout so login never blocks forever if /iam/me/permissions is slow.
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000));
+  const work = (async () => {
+    try {
+      const res = await apiGet<MeResponse>('/iam/me/permissions');
+      setUser({
+        id: res.user.id,
+        loginName: res.user.loginName,
+        fullName: res.user.fullName,
+        email: res.user.email,
+        roles: res.roles,
+        permissions: res.permissions,
+      });
+      return res;
+    } catch {
+      return null;
+    }
+  })();
+  return Promise.race([work, timeout]);
+}
+
 export default function LoginPage() {
   const router = useRouter();
-  const { setTokens } = useAuth();
+  const { setTokens, setUser } = useAuth();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const {
@@ -33,6 +61,12 @@ export default function LoginPage() {
         noAuth: true,
       });
       setTokens(res.accessToken, res.refreshToken ?? '');
+      // Warm up the /dashboard route in parallel with fetching the user profile,
+      // so navigation doesn't have to wait for the first compile.
+      void router.prefetch('/dashboard');
+      // Wait briefly for /iam/me/permissions so AppShell has `user` immediately
+      // on arrival (4s hard cap so we never get stuck on the spinner).
+      await fetchMeAndCache(res.accessToken, setUser as (u: unknown) => void);
       router.replace('/dashboard');
     } catch (e) {
       const err = e as ApiError;

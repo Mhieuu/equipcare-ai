@@ -10,7 +10,7 @@ import { useToast } from '@/components/toast';
 import { WorkOrderType, IncidentPriority, WorkOrderCreationMode } from '@equipcare/shared';
 
 interface AssetOption { id: string; code: string; name: string }
-interface IncidentOption { id: string; code: string; description: string }
+interface IncidentOption { id: string; code: string; description: string | null }
 interface UserOption { id: string; fullName: string; loginName: string }
 
 interface FormData {
@@ -134,9 +134,9 @@ export default function NewWorkOrderPage() {
             <label className="label">Sự cố liên quan *</label>
             <select {...register('incidentId', { required: creationMode === 'FROM_INCIDENT' })} className="input">
               <option value="">-- Chọn --</option>
-              {incidentsRes?.items.map((i) => (
+              {incidentsRes?.items?.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.code} - {i.description.slice(0, 50)}
+                  {i.code} - {(i.description ?? '').slice(0, 50)}
                 </option>
               ))}
             </select>
@@ -147,7 +147,7 @@ export default function NewWorkOrderPage() {
           <label className="label">Thiết bị *</label>
           <select {...register('assetId', { required: true })} className="input">
             <option value="">-- Chọn --</option>
-            {assetsRes?.items.map((a) => (
+            {assetsRes?.items?.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.code} - {a.name}
               </option>
@@ -164,7 +164,7 @@ export default function NewWorkOrderPage() {
           <label className="label">Phân công cho KTV (tùy chọn)</label>
           <select {...register('assigneeId')} className="input">
             <option value="">-- Để trống --</option>
-            {techsRes?.items.map((u) => (
+            {techsRes?.items?.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.fullName} ({u.loginName})
               </option>

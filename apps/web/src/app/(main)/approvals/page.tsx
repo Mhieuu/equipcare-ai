@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { apiGet } from '@/lib/api';
 import { ApprovalStatusBadge } from '@/components/badges';
 import { DataTable } from '@/components/data-table';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/format';
 import { ApprovalStatus } from '@equipcare/shared';
 
 interface Approval {
@@ -52,12 +52,12 @@ export default function ApprovalsPage() {
         onRefresh={() => refetch()}
         pagination={{ page, pageSize: 20, total: data?.total ?? 0, onPageChange: setPage }}
         columns={[
-          { key: 'code', header: 'Phiếu WO', render: (r) => <Link href={`/work-orders/${r.workOrder.id}`} className="font-mono text-brand-700 hover:underline">{r.workOrder.code}</Link>, width: '180px' },
-          { key: 'proposer', header: 'Người đề xuất', render: (r) => r.proposer.fullName },
+          { key: 'code', header: 'Phiếu WO', render: (r) => r.workOrder ? <Link href={`/work-orders/${r.workOrder.id}`} className="font-mono text-brand-700 hover:underline">{r.workOrder.code}</Link> : '—', width: '180px' },
+          { key: 'proposer', header: 'Người đề xuất', render: (r) => r.proposer?.fullName ?? '—' },
           { key: 'reason', header: 'Lý do', render: (r) => <div className="truncate max-w-md">{r.reason}</div> },
           { key: 'status', header: 'Trạng thái', render: (r) => <ApprovalStatusBadge status={r.status} /> },
-          { key: 'rev', header: 'Rev', render: (r) => r.currentRevision.revisionNo, width: '60px' },
-          { key: 'created', header: 'Ngày tạo', render: (r) => format(new Date(r.createdAt), 'dd/MM HH:mm'), width: '110px' },
+          { key: 'rev', header: 'Rev', render: (r) => r.currentRevision?.revisionNo ?? '—', width: '60px' },
+          { key: 'created', header: 'Ngày tạo', render: (r) => formatDate(r.createdAt, 'dd/MM HH:mm'), width: '110px' },
           {
             key: 'actions',
             header: '',

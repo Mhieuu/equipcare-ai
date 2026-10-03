@@ -9,6 +9,7 @@ import {
   IsNumber,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import {
   WorkOrderType,
   WorkOrderStatus,
@@ -20,8 +21,42 @@ import {
 
 /**
  * List query (Doc02 section 7 — pagination/filter/sort).
+ *
+ * Hỗ trợ cả `page`/`pageSize` và `limit`/`offset` để frontend cũ vẫn dùng được.
  */
 export class ListWorkOrdersQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  pageSize?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  offset?: number;
+
+  get take(): number {
+    return this.limit ?? this.pageSize ?? 50;
+  }
+
+  get skip(): number {
+    return this.offset ?? ((this.page ?? 1) - 1) * this.take;
+  }
+
   @IsOptional()
   @IsString()
   @IsIn(Object.values(WorkOrderStatus))
