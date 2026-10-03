@@ -1,0 +1,2137 @@
+{
+  "generatedAt": "2026-10-03T18:01:56.637Z",
+  "apiVersion": "0.1.0",
+  "endpoints": [
+    {
+      "module": "ai",
+      "method": "POST",
+      "path": "/ai/incidents/:id/analyze",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "ai",
+      "method": "GET",
+      "path": "/ai/requests/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "approval",
+      "method": "GET",
+      "path": "/approvals",
+      "bodyDto": "ListApprovalsQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "approval",
+      "method": "GET",
+      "path": "/approvals/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "approval",
+      "method": "POST",
+      "path": "/approvals",
+      "bodyDto": "CreateApprovalDto",
+      "returnDto": null
+    },
+    {
+      "module": "approval",
+      "method": "PATCH",
+      "path": "/approvals/:id/draft",
+      "bodyDto": "UpdateDraftApprovalDto",
+      "returnDto": null
+    },
+    {
+      "module": "approval",
+      "method": "PATCH",
+      "path": "/approvals/:id",
+      "bodyDto": "ApprovalActionDto",
+      "returnDto": null
+    },
+    {
+      "module": "approval",
+      "method": "POST",
+      "path": "/approvals/:id/revisions",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "asset",
+      "method": "GET",
+      "path": "/assets",
+      "bodyDto": "ListAssetsQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "asset",
+      "method": "GET",
+      "path": "/assets/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "asset",
+      "method": "POST",
+      "path": "/assets",
+      "bodyDto": "CreateAssetDto",
+      "returnDto": null
+    },
+    {
+      "module": "asset",
+      "method": "PATCH",
+      "path": "/assets/:id",
+      "bodyDto": "UpdateAssetDto",
+      "returnDto": null
+    },
+    {
+      "module": "asset",
+      "method": "POST",
+      "path": "/assets/:id/lifecycle",
+      "bodyDto": "TransitionAssetStateDto",
+      "returnDto": null
+    },
+    {
+      "module": "asset",
+      "method": "GET",
+      "path": "/assets/:id/qr",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "attachment",
+      "method": "POST",
+      "path": "/files",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "attachment",
+      "method": "GET",
+      "path": "/files/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "attachment",
+      "method": "POST",
+      "path": "/files/:id/link",
+      "bodyDto": "LinkAttachmentDto",
+      "returnDto": null
+    },
+    {
+      "module": "attachment",
+      "method": "GET",
+      "path": "/files/:id/download",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "attachment",
+      "method": "DELETE",
+      "path": "/files/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/login",
+      "bodyDto": "AuthTokenDto",
+      "returnDto": "AuthTokenDto"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/refresh",
+      "bodyDto": null,
+      "returnDto": "AuthTokenDto"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/logout",
+      "bodyDto": null,
+      "returnDto": "AuthTokenDto"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/change-password",
+      "bodyDto": "ChangePasswordDto",
+      "returnDto": "AuthTokenDto"
+    },
+    {
+      "module": "config",
+      "method": "GET",
+      "path": "/system-settings",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "config",
+      "method": "GET",
+      "path": "/system-settings/:key",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "config",
+      "method": "PUT",
+      "path": "/system-settings/:key",
+      "bodyDto": "UpdateSystemSettingDto",
+      "returnDto": null
+    },
+    {
+      "module": "config",
+      "method": "POST",
+      "path": "/system-settings",
+      "bodyDto": "CreateSystemSettingDto",
+      "returnDto": null
+    },
+    {
+      "module": "cost-entry",
+      "method": "GET",
+      "path": "/work-orders/:workOrderId/cost-entries",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "cost-entry",
+      "method": "POST",
+      "path": "/work-orders/:workOrderId/cost-entries",
+      "bodyDto": "CreateCostEntryDto",
+      "returnDto": null
+    },
+    {
+      "module": "dashboard",
+      "method": "GET",
+      "path": "/dashboard/kpis",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "dashboard",
+      "method": "GET",
+      "path": "/dashboard/overdue",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "dashboard",
+      "method": "GET",
+      "path": "/dashboard/technician-load",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "dashboard",
+      "method": "GET",
+      "path": "/dashboard/asset-critical",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "dashboard",
+      "method": "GET",
+      "path": "/dashboard/cost-trend",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "dashboard",
+      "method": "GET",
+      "path": "/dashboard/action-items",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "health",
+      "method": "GET",
+      "path": "/healthz/live",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "health",
+      "method": "GET",
+      "path": "/healthz/ready",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "health",
+      "method": "GET",
+      "path": "/healthz",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "iam",
+      "method": "GET",
+      "path": "/iam/me/permissions",
+      "bodyDto": "MePermissionsDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "GET",
+      "path": "/iam/users",
+      "bodyDto": "UserListResponseDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "POST",
+      "path": "/iam/users",
+      "bodyDto": "UserSummaryDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "GET",
+      "path": "/iam/users/:id",
+      "bodyDto": "UserDetailDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "PATCH",
+      "path": "/iam/users/:id",
+      "bodyDto": "UpdateUserDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "POST",
+      "path": "/iam/users/:id/reset-password",
+      "bodyDto": "ResetPasswordResponseDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "POST",
+      "path": "/iam/users/:id/lock",
+      "bodyDto": null,
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "POST",
+      "path": "/iam/users/:id/unlock",
+      "bodyDto": null,
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "GET",
+      "path": "/iam/roles",
+      "bodyDto": null,
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "GET",
+      "path": "/iam/permissions",
+      "bodyDto": "PermissionsListDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "POST",
+      "path": "/iam/users/:id/roles",
+      "bodyDto": "GrantRoleDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "DELETE",
+      "path": "/iam/users/:id/roles/:userRoleId",
+      "bodyDto": null,
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "iam",
+      "method": "GET",
+      "path": "/iam/audit-logs",
+      "bodyDto": "AuditLogListResponseDto",
+      "returnDto": "MePermissionsDto"
+    },
+    {
+      "module": "incident",
+      "method": "GET",
+      "path": "/incidents",
+      "bodyDto": "ListIncidentsQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "incident",
+      "method": "GET",
+      "path": "/incidents/:id",
+      "bodyDto": "CreateIncidentDto",
+      "returnDto": null
+    },
+    {
+      "module": "incident",
+      "method": "POST",
+      "path": "/incidents",
+      "bodyDto": "CreateIncidentDto",
+      "returnDto": null
+    },
+    {
+      "module": "incident",
+      "method": "POST",
+      "path": "/incidents/:id/transition",
+      "bodyDto": "TransitionIncidentDto",
+      "returnDto": null
+    },
+    {
+      "module": "incident",
+      "method": "POST",
+      "path": "/incidents/:id/messages",
+      "bodyDto": "CreateIncidentMessageDto",
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "GET",
+      "path": "/maintenance-occurrences/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "POST",
+      "path": "/maintenance-occurrences/:id/skip",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "POST",
+      "path": "/maintenance-occurrences/:id/generate-now",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "GET",
+      "path": "/maintenance-plans",
+      "bodyDto": "ListMaintenancePlansQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "GET",
+      "path": "/maintenance-plans/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "GET",
+      "path": "/maintenance-plans/:id/occurrences",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "POST",
+      "path": "/maintenance-plans",
+      "bodyDto": "CreateMaintenancePlanDto",
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "PATCH",
+      "path": "/maintenance-plans/:id",
+      "bodyDto": "UpdateMaintenancePlanDto",
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "POST",
+      "path": "/maintenance-plans/:id/pause",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "POST",
+      "path": "/maintenance-plans/:id/resume",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "maintenance-plan",
+      "method": "POST",
+      "path": "/maintenance-plans/tick",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "notification",
+      "method": "GET",
+      "path": "/notifications",
+      "bodyDto": "ListNotificationsQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "notification",
+      "method": "GET",
+      "path": "/notifications/unread-count",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "notification",
+      "method": "PATCH",
+      "path": "/notifications/read-all",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "notification",
+      "method": "PATCH",
+      "path": "/notifications/:id/read",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "GET",
+      "path": "/departments",
+      "bodyDto": "ListOrgQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "GET",
+      "path": "/departments/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "POST",
+      "path": "/departments",
+      "bodyDto": "CreateDepartmentDto",
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "PATCH",
+      "path": "/departments/:id",
+      "bodyDto": "UpdateDepartmentDto",
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "GET",
+      "path": "/locations",
+      "bodyDto": "ListOrgQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "GET",
+      "path": "/locations/tree",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "GET",
+      "path": "/locations/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "POST",
+      "path": "/locations",
+      "bodyDto": "CreateLocationDto",
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "PATCH",
+      "path": "/locations/:id",
+      "bodyDto": "UpdateLocationDto",
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "GET",
+      "path": "/asset-types",
+      "bodyDto": "ListOrgQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "GET",
+      "path": "/asset-types/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "POST",
+      "path": "/asset-types",
+      "bodyDto": "CreateAssetTypeDto",
+      "returnDto": null
+    },
+    {
+      "module": "organization",
+      "method": "PATCH",
+      "path": "/asset-types/:id",
+      "bodyDto": "UpdateAssetTypeDto",
+      "returnDto": null
+    },
+    {
+      "module": "part",
+      "method": "GET",
+      "path": "/parts",
+      "bodyDto": "ListPartsQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "part",
+      "method": "GET",
+      "path": "/parts/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "part",
+      "method": "POST",
+      "path": "/parts",
+      "bodyDto": "CreatePartDto",
+      "returnDto": null
+    },
+    {
+      "module": "part",
+      "method": "PATCH",
+      "path": "/parts/:id",
+      "bodyDto": "UpdatePartDto",
+      "returnDto": null
+    },
+    {
+      "module": "part",
+      "method": "POST",
+      "path": "/parts/:id/adjust",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "realtime",
+      "method": "GET",
+      "path": "/ws",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "report",
+      "method": "GET",
+      "path": "/reports/:type",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "stock-transaction",
+      "method": "POST",
+      "path": "/work-orders/:woId/parts/issue",
+      "bodyDto": "IssuePartDto",
+      "returnDto": null
+    },
+    {
+      "module": "stock-transaction",
+      "method": "POST",
+      "path": "/work-orders/:woId/parts/return",
+      "bodyDto": "ReturnPartDto",
+      "returnDto": null
+    },
+    {
+      "module": "stock-transaction",
+      "method": "POST",
+      "path": "/stock-transactions/receipt",
+      "bodyDto": "RecordStockMovementDto",
+      "returnDto": null
+    },
+    {
+      "module": "stock-transaction",
+      "method": "POST",
+      "path": "/stock-transactions/adjust",
+      "bodyDto": "RecordStockMovementDto",
+      "returnDto": null
+    },
+    {
+      "module": "stock-transaction",
+      "method": "GET",
+      "path": "/stock-transactions",
+      "bodyDto": "ListStockTransactionsQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "technical-documents",
+      "method": "POST",
+      "path": "/technical-documents",
+      "bodyDto": "CreateTechnicalDocumentDto",
+      "returnDto": null
+    },
+    {
+      "module": "technical-documents",
+      "method": "GET",
+      "path": "/technical-documents",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "technical-documents",
+      "method": "GET",
+      "path": "/technical-documents/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "technical-documents",
+      "method": "PATCH",
+      "path": "/technical-documents/:id",
+      "bodyDto": "UpdateTechnicalDocumentDto",
+      "returnDto": null
+    },
+    {
+      "module": "technical-documents",
+      "method": "POST",
+      "path": "/technical-documents/:id/versions",
+      "bodyDto": "AddVersionDto",
+      "returnDto": null
+    },
+    {
+      "module": "technical-documents",
+      "method": "POST",
+      "path": "/technical-documents/:id/roles",
+      "bodyDto": "GrantRoleAccessDto",
+      "returnDto": null
+    },
+    {
+      "module": "technical-documents",
+      "method": "DELETE",
+      "path": "/technical-documents/:id/roles/:roleId",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "GET",
+      "path": "/work-orders",
+      "bodyDto": "ListWorkOrdersQueryDto",
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "GET",
+      "path": "/work-orders/:id",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "GET",
+      "path": "/work-orders/:id/sla-status",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "POST",
+      "path": "/work-orders",
+      "bodyDto": "CreateWorkOrderDto",
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "PATCH",
+      "path": "/work-orders/:id/assign",
+      "bodyDto": "AssignWorkOrderDto",
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "PATCH",
+      "path": "/work-orders/:id/transition",
+      "bodyDto": "TransitionWorkOrderDto",
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "POST",
+      "path": "/work-orders/:id/complete",
+      "bodyDto": "CompleteWorkOrderDto",
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "POST",
+      "path": "/work-orders/:id/cancel",
+      "bodyDto": "CancelWorkOrderDto",
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "POST",
+      "path": "/work-orders/:id/notes",
+      "bodyDto": "AddNoteDto",
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "GET",
+      "path": "/work-orders/:id/parts/planned",
+      "bodyDto": null,
+      "returnDto": null
+    },
+    {
+      "module": "work-order",
+      "method": "POST",
+      "path": "/work-orders/:id/parts/planned",
+      "bodyDto": "PlanPartDto",
+      "returnDto": null
+    }
+  ],
+  "schemas": {
+    "approval\\dto\\approval.dto.ts": {
+      "CreateApprovalDto": {
+        "workOrderId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "actionPlan": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "otherEstimatedCost": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        }
+      },
+      "UpdateDraftApprovalDto": {
+        "reason": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "actionPlan": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "otherEstimatedCost": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        }
+      },
+      "ApprovalActionDto": {
+        "action": {
+          "type": "string",
+          "optional": true
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "partIds": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "rowVersion": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "asset\\dto\\asset.dto.ts": {
+      "CreateAssetDto": {
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50,
+          "optional": true
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "assetTypeId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "departmentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "locationId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "serialNumber": {
+          "type": "string",
+          "maxLength": 100,
+          "optional": true
+        },
+        "supplierName": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "purchasedOn": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "commissionedOn": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "warrantyUntil": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "description": {
+          "type": "string"
+        },
+        "specifications": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "UpdateAssetDto": {
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "assetTypeId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "departmentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "locationId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "serialNumber": {
+          "type": "string",
+          "maxLength": 100,
+          "optional": true
+        },
+        "supplierName": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "purchasedOn": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "commissionedOn": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "warrantyUntil": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "specifications": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "TransitionAssetStateDto": {
+        "to": {
+          "type": "string",
+          "optional": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "ListAssetsQueryDto": {
+        "search": {
+          "type": "string",
+          "optional": true
+        },
+        "assetTypeId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "departmentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "locationId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "manualState": {
+          "type": "string",
+          "optional": true
+        },
+        "limit": {
+          "type": "number",
+          "optional": true
+        },
+        "offset": {
+          "type": "number",
+          "optional": true
+        }
+      }
+    },
+    "attachment\\dto\\attachment.dto.ts": {
+      "UploadResponseDto": {
+        "storageState": {
+          "type": "string",
+          "optional": true
+        },
+        "ttlSeconds": {
+          "type": "number",
+          "optional": true
+        }
+      },
+      "FileInfoDto": {
+        "storageState": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "auth\\dto\\auth-token.dto.ts": {
+      "AuthTokenDto": {
+        "accessToken": {
+          "type": "string",
+          "optional": true
+        },
+        "expiresIn": {
+          "type": "number",
+          "optional": true
+        },
+        "mustChangePassword": {
+          "type": "boolean",
+          "optional": true
+        }
+      }
+    },
+    "auth\\dto\\change-password.dto.ts": {
+      "ChangePasswordDto": {
+        "currentPassword": {
+          "type": "string",
+          "optional": true
+        },
+        "newPassword": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 128,
+          "optional": true
+        }
+      }
+    },
+    "auth\\dto\\login.dto.ts": {
+      "LoginDto": {
+        "loginName": {
+          "type": "string",
+          "maxLength": 100,
+          "optional": true
+        },
+        "password": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "config\\dto\\config.dto.ts": {
+      "UpdateSystemSettingDto": {
+        "value": {
+          "type": "object",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "CreateSystemSettingDto": {
+        "key": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "optional": true
+        },
+        "value": {
+          "type": "object",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "optional": true
+        }
+      }
+    },
+    "cost-entry\\dto\\cost-entry.dto.ts": {
+      "CreateCostEntryDto": {
+        "category": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "direction": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "quantity": {
+          "type": "number",
+          "minimum": 0.001,
+          "optional": true
+        },
+        "unitPrice": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        },
+        "approvalRevisionId": {
+          "type": "string",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "occurredAt": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "iam\\dto\\audit-log.dto.ts": {
+      "ListAuditLogsQueryDto": {
+        "actorId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "action": {
+          "type": "string",
+          "optional": true
+        },
+        "objectType": {
+          "type": "string",
+          "optional": true
+        },
+        "objectKey": {
+          "type": "string",
+          "optional": true
+        },
+        "from": {
+          "type": "string",
+          "optional": true
+        },
+        "to": {
+          "type": "string",
+          "optional": true
+        },
+        "limit": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 200,
+          "optional": true
+        },
+        "offset": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        }
+      },
+      "AuditLogDto": {
+        "id": {
+          "type": "string",
+          "optional": true
+        },
+        "actorId": {
+          "type": "string",
+          "optional": true
+        },
+        "actorType": {
+          "type": "string",
+          "optional": true
+        },
+        "action": {
+          "type": "string",
+          "optional": true
+        },
+        "objectType": {
+          "type": "string",
+          "optional": true
+        },
+        "objectKey": {
+          "type": "string",
+          "optional": true
+        },
+        "oldValue": {
+          "type": "object",
+          "optional": true
+        },
+        "newValue": {
+          "type": "object",
+          "optional": true
+        },
+        "note": {
+          "type": "string",
+          "optional": true
+        },
+        "correlationKey": {
+          "type": "string",
+          "optional": true
+        },
+        "createdAt": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "AuditLogListResponseDto": {
+        "items": {
+          "type": "array",
+          "optional": true
+        },
+        "total": {
+          "type": "number",
+          "optional": true
+        },
+        "limit": {
+          "type": "number",
+          "optional": true
+        },
+        "offset": {
+          "type": "number",
+          "optional": true
+        }
+      }
+    },
+    "iam\\dto\\create-user.dto.ts": {
+      "CreateUserDto": {
+        "message": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 128
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 150,
+          "optional": true
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "optional": true
+        },
+        "departmentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        }
+      }
+    },
+    "iam\\dto\\grant-role.dto.ts": {
+      "GrantRoleDto": {
+        "roleId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        }
+      }
+    },
+    "iam\\dto\\iam-response.dto.ts": {
+      "PermissionsListDto": {
+        "codes": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "RoleInfoDto": {
+        "id": {
+          "type": "string",
+          "optional": true
+        },
+        "code": {
+          "type": "string",
+          "optional": true
+        },
+        "name": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "MeUserDto": {
+        "id": {
+          "type": "string",
+          "optional": true
+        },
+        "loginName": {
+          "type": "string",
+          "optional": true
+        },
+        "fullName": {
+          "type": "string",
+          "optional": true
+        },
+        "email": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "MePermissionsDto": {
+        "user": {
+          "type": "string",
+          "optional": true
+        },
+        "roles": {
+          "type": "string",
+          "optional": true
+        },
+        "type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "iam\\dto\\list-users-query.dto.ts": {
+      "ListUsersQueryDto": {
+        "limit": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 200,
+          "optional": true
+        },
+        "offset": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        },
+        "departmentId": {
+          "type": "string",
+          "optional": true
+        },
+        "search": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "iam\\dto\\reset-password.dto.ts": {
+      "ResetPasswordDto": {
+        "message": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 128
+        }
+      }
+    },
+    "iam\\dto\\update-user.dto.ts": {
+      "UpdateUserDto": {
+        "fullName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150,
+          "optional": true
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "optional": true
+        },
+        "departmentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        }
+      }
+    },
+    "iam\\dto\\user-response.dto.ts": {
+      "UserRoleInfoDto": {
+        "userRoleId": {
+          "type": "string",
+          "optional": true
+        },
+        "roleCode": {
+          "type": "string",
+          "optional": true
+        },
+        "roleName": {
+          "type": "string",
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        },
+        "grantedBy": {
+          "type": "string",
+          "optional": true
+        },
+        "grantedAt": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "UserSummaryDto": {
+        "id": {
+          "type": "string",
+          "optional": true
+        },
+        "loginName": {
+          "type": "string",
+          "optional": true
+        },
+        "fullName": {
+          "type": "string",
+          "optional": true
+        },
+        "email": {
+          "type": "string",
+          "optional": true
+        },
+        "departmentId": {
+          "type": "string",
+          "optional": true
+        },
+        "isLocked": {
+          "type": "boolean",
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        },
+        "mustChangePassword": {
+          "type": "boolean",
+          "optional": true
+        },
+        "authVersion": {
+          "type": "number",
+          "optional": true
+        },
+        "roles": {
+          "type": "array",
+          "optional": true
+        },
+        "createdAt": {
+          "type": "string",
+          "optional": true
+        },
+        "updatedAt": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "UserListResponseDto": {
+        "items": {
+          "type": "array",
+          "optional": true
+        },
+        "total": {
+          "type": "number",
+          "optional": true
+        },
+        "limit": {
+          "type": "number",
+          "optional": true
+        },
+        "offset": {
+          "type": "number",
+          "optional": true
+        }
+      },
+      "ResetPasswordResponseDto": {
+        "temporaryPassword": {
+          "type": "string",
+          "optional": true
+        },
+        "userId": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "incident\\dto\\incident.dto.ts": {
+      "CreateIncidentDto": {
+        "assetId": {
+          "type": "string",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "impactDescription": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "occurredAt": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "TransitionIncidentDto": {
+        "to": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "CreateIncidentMessageDto": {
+        "body": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        }
+      }
+    },
+    "maintenance-plan\\dto\\maintenance-plan.dto.ts": {
+      "CreateMaintenancePlanDto": {
+        "assetId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "intervalUnit": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "intervalValue": {
+          "type": "number",
+          "minimum": 1,
+          "optional": true
+        },
+        "startOn": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "scheduleBasis": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "checklist": {
+          "type": "array",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "UpdateMaintenancePlanDto": {
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "intervalUnit": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "intervalValue": {
+          "type": "number",
+          "minimum": 1,
+          "optional": true
+        },
+        "checklist": {
+          "type": "array",
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        },
+        "rowVersion": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "notification\\dto\\notification.dto.ts": {
+      "ListNotificationsQueryDto": {
+        "unread": {
+          "type": "string",
+          "enum": [
+            "[true",
+            "false]"
+          ],
+          "optional": true
+        },
+        "eventType": {
+          "type": "string",
+          "optional": true
+        },
+        "limit": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "organization\\dto\\org.dto.ts": {
+      "CreateDepartmentDto": {
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 30,
+          "optional": true
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 150,
+          "optional": true
+        }
+      },
+      "UpdateDepartmentDto": {
+        "name": {
+          "type": "string",
+          "maxLength": 150,
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        }
+      },
+      "CreateLocationDto": {
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40,
+          "optional": true
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 150,
+          "optional": true
+        },
+        "parentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        }
+      },
+      "UpdateLocationDto": {
+        "name": {
+          "type": "string",
+          "maxLength": 150,
+          "optional": true
+        },
+        "parentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        }
+      },
+      "CreateAssetTypeDto": {
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40,
+          "optional": true
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 150,
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "UpdateAssetTypeDto": {
+        "name": {
+          "type": "string",
+          "maxLength": 150,
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        }
+      },
+      "ListOrgQueryDto": {
+        "limit": {
+          "type": "number",
+          "optional": true
+        },
+        "offset": {
+          "type": "number",
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        }
+      }
+    },
+    "part\\dto\\part.dto.ts": {
+      "CreatePartDto": {
+        "code": {
+          "type": "string",
+          "maxLength": 50,
+          "optional": true
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 30,
+          "optional": true
+        },
+        "departmentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "locationId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "referencePrice": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        },
+        "minimumStock": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        },
+        "supplierName": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "optional": true
+        }
+      },
+      "UpdatePartDto": {
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 30,
+          "optional": true
+        },
+        "referencePrice": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        },
+        "minimumStock": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        },
+        "supplierName": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        },
+        "rowVersion": {
+          "type": "string",
+          "optional": true
+        }
+      },
+      "AdjustPartDto": {
+        "quantity": {
+          "type": "number",
+          "optional": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        },
+        "rowVersion": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "stock-transaction\\dto\\stock-transaction.dto.ts": {
+      "RecordStockMovementDto": {
+        "partId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "quantity": {
+          "type": "number",
+          "optional": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        },
+        "sourceNote": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        }
+      },
+      "IssuePartDto": {
+        "partId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "quantity": {
+          "type": "number",
+          "minimum": 0.001,
+          "optional": true
+        },
+        "sourceNote": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "ReturnPartDto": {
+        "originalStockTxId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "quantity": {
+          "type": "number",
+          "minimum": 0.001,
+          "optional": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "ListStockTransactionsQueryDto": {
+        "partId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "workOrderId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        }
+      }
+    },
+    "technical-documents\\dto\\technical-document.dto.ts": {
+      "UpdateTechnicalDocumentDto": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "optional": true
+        },
+        "documentType": {
+          "type": "string",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "assetId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "assetTypeId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "isActive": {
+          "type": "boolean",
+          "optional": true
+        }
+      },
+      "AddVersionDto": {
+        "fileId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "changeNote": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "GrantRoleAccessDto": {
+        "roleId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        }
+      }
+    },
+    "work-order\\dto\\work-order.dto.ts": {
+      "CreateWorkOrderDto": {
+        "assetId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "kind": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "incidentId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "assigneeId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "creationMode": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "priorityCode": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "dueAt": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "checklist": {
+          "type": "array",
+          "optional": true
+        },
+        "downtimeStart": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        }
+      },
+      "TransitionWorkOrderDto": {
+        "to": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "rowVersion": {
+          "type": "string",
+          "optional": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "AssignWorkOrderDto": {
+        "assigneeId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "CompleteWorkOrderDto": {
+        "resultSummary": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "actionTaken": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "confirmedCause": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "checklistResults": {
+          "type": "array",
+          "optional": true
+        },
+        "downtimeEnd": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        }
+      },
+      "CancelWorkOrderDto": {
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      },
+      "AddNoteDto": {
+        "noteType": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 2000,
+          "optional": true
+        },
+        "pauseReason": {
+          "type": "string",
+          "enum": "__EXTRACT_FROM_SHARED__",
+          "optional": true
+        }
+      },
+      "SlaTimelineQueryDto": {
+        "from": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        "to": {
+          "type": "string",
+          "format": "date",
+          "optional": true
+        }
+      },
+      "PlanPartDto": {
+        "partId": {
+          "type": "string",
+          "format": "uuid",
+          "optional": true
+        },
+        "plannedQuantity": {
+          "type": "number",
+          "minimum": 0,
+          "optional": true
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 500,
+          "optional": true
+        }
+      }
+    }
+  }
+}
