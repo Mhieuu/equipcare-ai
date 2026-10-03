@@ -44,17 +44,17 @@ export default function IncidentDetailPage() {
   const [reason, setReason] = useState('');
 
   const { data: incident, isLoading } = useQuery({
-    queryKey: ['incident', params.id],
-    queryFn: () => apiGet<IncidentDetail>(`/incidents/${params.id}`),
-    enabled: !!params.id,
+    queryKey: ['incident', params?.id as string],
+    queryFn: () => apiGet<IncidentDetail>(`/incidents/${params!.id as string}`),
+    enabled: !!params?.id,
   });
 
   const transitionMutation = useMutation({
     mutationFn: (vars: { to: IncidentStatus; reason?: string }) =>
-      apiPost(`/incidents/${params.id}/transition`, vars),
+      apiPost(`/incidents/${params!.id as string}/transition`, vars),
     onSuccess: () => {
       toast.success('Đã chuyển trạng thái');
-      void qc.invalidateQueries({ queryKey: ['incident', params.id] });
+      void qc.invalidateQueries({ queryKey: ['incident', params?.id as string] });
       setTransitionTo('');
       setReason('');
     },
@@ -62,10 +62,10 @@ export default function IncidentDetailPage() {
   });
 
   const messageMutation = useMutation({
-    mutationFn: (body: string) => apiPost(`/incidents/${params.id}/messages`, { body }),
+    mutationFn: (body: string) => apiPost(`/incidents/${params!.id as string}/messages`, { body }),
     onSuccess: () => {
       setNewMessage('');
-      void qc.invalidateQueries({ queryKey: ['incident', params.id] });
+      void qc.invalidateQueries({ queryKey: ['incident', params?.id as string] });
     },
   });
 

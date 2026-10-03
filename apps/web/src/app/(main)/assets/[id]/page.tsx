@@ -41,9 +41,9 @@ export default function AssetDetailPage() {
   const [retireReason, setRetireReason] = useState('');
 
   const { data: asset, isLoading } = useQuery({
-    queryKey: ['asset', params.id],
-    queryFn: () => apiGet<AssetDetail>(`/assets/${params.id}`),
-    enabled: !!params.id,
+    queryKey: ['asset', params?.id as string],
+    queryFn: () => apiGet<AssetDetail>(`/assets/${params!.id as string}`),
+    enabled: !!params?.id,
   });
 
   if (isLoading) return <div className="text-slate-500">Đang tải...</div>;

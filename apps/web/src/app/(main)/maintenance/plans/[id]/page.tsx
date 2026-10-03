@@ -33,18 +33,18 @@ export default function PlanDetailPage() {
   const qc = useQueryClient();
 
   const { data: plan, isLoading } = useQuery({
-    queryKey: ['plan', params.id],
-    queryFn: () => apiGet<PlanDetail>(`/maintenance-plans/${params.id}`),
-    enabled: !!params.id,
+    queryKey: ['plan', params?.id as string],
+    queryFn: () => apiGet<PlanDetail>(`/maintenance-plans/${params!.id as string}`),
+    enabled: !!params?.id,
   });
 
   const pause = useMutation({
-    mutationFn: () => apiPost(`/maintenance-plans/${params.id}/pause`, {}),
-    onSuccess: () => { toast.success('Đã tạm dừng'); void qc.invalidateQueries({ queryKey: ['plan', params.id] }); },
+    mutationFn: () => apiPost(`/maintenance-plans/${params!.id as string}/pause`, {}),
+    onSuccess: () => { toast.success('Đã tạm dừng'); void qc.invalidateQueries({ queryKey: ['plan', params?.id as string] }); },
   });
   const resume = useMutation({
-    mutationFn: () => apiPost(`/maintenance-plans/${params.id}/resume`, {}),
-    onSuccess: () => { toast.success('Đã tiếp tục'); void qc.invalidateQueries({ queryKey: ['plan', params.id] }); },
+    mutationFn: () => apiPost(`/maintenance-plans/${params!.id as string}/resume`, {}),
+    onSuccess: () => { toast.success('Đã tiếp tục'); void qc.invalidateQueries({ queryKey: ['plan', params?.id as string] }); },
   });
 
   if (isLoading) return <div className="text-slate-500">Đang tải...</div>;

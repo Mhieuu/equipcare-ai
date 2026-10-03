@@ -18,8 +18,11 @@
     ],
     "allowJs": true,
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "strictNullChecks": true
   },
   "include": [
     "src/**/*",

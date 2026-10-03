@@ -24,9 +24,9 @@ export default function UserDetailPage() {
   const qc = useQueryClient();
 
   const { data: user, isLoading } = useQuery({
-    queryKey: ['iam-user', params.id],
-    queryFn: () => apiGet<UserDetail>(`/iam/users/${params.id}`),
-    enabled: !!params.id,
+    queryKey: ['iam-user', params?.id as string],
+    queryFn: () => apiGet<UserDetail>(`/iam/users/${params!.id as string}`),
+    enabled: !!params?.id,
   });
   const { data: rolesRes } = useQuery({
     queryKey: ['iam-roles'],
@@ -34,18 +34,18 @@ export default function UserDetailPage() {
   });
 
   const grant = useMutation({
-    mutationFn: (roleCode: string) => apiPost(`/iam/users/${params.id}/roles`, { roleCode }),
+    mutationFn: (roleCode: string) => apiPost(`/iam/users/${params!.id as string}/roles`, { roleCode }),
     onSuccess: () => {
       toast.success('Đã cấp vai trò');
-      qc.invalidateQueries({ queryKey: ['iam-user', params.id] });
+      qc.invalidateQueries({ queryKey: ['iam-user', params?.id as string] });
     },
     onError: (e: Error) => toast.error('Lỗi', e.message),
   });
   const revoke = useMutation({
-    mutationFn: (roleId: string) => apiDelete(`/iam/users/${params.id}/roles/${roleId}`),
+    mutationFn: (roleId: string) => apiDelete(`/iam/users/${params!.id as string}/roles/${roleId}`),
     onSuccess: () => {
       toast.success('Đã thu hồi vai trò');
-      qc.invalidateQueries({ queryKey: ['iam-user', params.id] });
+      qc.invalidateQueries({ queryKey: ['iam-user', params?.id as string] });
     },
   });
 

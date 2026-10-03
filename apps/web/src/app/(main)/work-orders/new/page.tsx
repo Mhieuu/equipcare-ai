@@ -25,7 +25,7 @@ interface FormData {
 
 export default function NewWorkOrderPage() {
   const router = useRouter();
-  const search = useSearchParams();
+  const search = useSearchParams() ?? new URLSearchParams();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
 

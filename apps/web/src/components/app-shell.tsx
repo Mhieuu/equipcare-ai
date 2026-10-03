@@ -47,7 +47,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const { user, hasPermission, hasRole, logout, accessToken } = useAuth();
 
   useSocket();

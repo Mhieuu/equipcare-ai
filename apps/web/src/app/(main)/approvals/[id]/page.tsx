@@ -37,19 +37,19 @@ export default function ApprovalDetailPage() {
   const [note, setNote] = useState('');
 
   const { data: a, isLoading } = useQuery({
-    queryKey: ['approval', params.id],
-    queryFn: () => apiGet<ApprovalDetail>(`/approvals/${params.id}`),
-    enabled: !!params.id,
+    queryKey: ['approval', params?.id as string],
+    queryFn: () => apiGet<ApprovalDetail>(`/approvals/${params!.id as string}`),
+    enabled: !!params?.id,
   });
 
   const decide = useMutation({
     mutationFn: (vars: { action: 'APPROVED' | 'REJECTED' | 'INFO_REQUESTED'; note: string }) =>
-      apiPatch(`/approvals/${params.id}`, vars),
+      apiPatch(`/approvals/${params!.id as string}`, vars),
     onSuccess: () => {
       toast.success('Đã xử lý');
       setDecisionModal(null);
       setNote('');
-      void qc.invalidateQueries({ queryKey: ['approval', params.id] });
+      void qc.invalidateQueries({ queryKey: ['approval', params?.id as string] });
     },
     onError: (e: Error) => toast.error('Lỗi', e.message),
   });

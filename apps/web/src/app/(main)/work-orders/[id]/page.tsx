@@ -54,16 +54,16 @@ export default function WorkOrderDetailPage() {
   const [pauseReason, setPauseReason] = useState('');
 
   const { data: wo, isLoading } = useQuery({
-    queryKey: ['wo', params.id],
-    queryFn: () => apiGet<WODetail>(`/work-orders/${params.id}`),
-    enabled: !!params.id,
+    queryKey: ['wo', params?.id as string],
+    queryFn: () => apiGet<WODetail>(`/work-orders/${params!.id as string}`),
+    enabled: !!params?.id,
   });
 
-  const refetch = () => qc.invalidateQueries({ queryKey: ['wo', params.id] });
+  const refetch = () => qc.invalidateQueries({ queryKey: ['wo', params?.id as string] });
 
   const transitionMutation = useMutation({
     mutationFn: (vars: { to: WorkOrderStatus; payload?: Record<string, unknown> }) =>
-      apiPatch(`/work-orders/${params.id}/transition`, { to: vars.to, ...vars.payload }),
+      apiPatch(`/work-orders/${params!.id as string}/transition`, { to: vars.to, ...vars.payload }),
     onSuccess: () => {
       toast.success('Đã chuyển trạng thái');
       refetch();
@@ -72,7 +72,7 @@ export default function WorkOrderDetailPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () => apiPost(`/work-orders/${params.id}/cancel`, { reason: cancelReason }),
+    mutationFn: () => apiPost(`/work-orders/${params!.id as string}/cancel`, { reason: cancelReason }),
     onSuccess: () => {
       toast.success('Đã hủy phiếu');
       setConfirmCancel(false);
@@ -82,7 +82,7 @@ export default function WorkOrderDetailPage() {
   });
 
   const completeMutation = useMutation({
-    mutationFn: () => apiPost(`/work-orders/${params.id}/complete`, { resultSummary: completeSummary }),
+    mutationFn: () => apiPost(`/work-orders/${params!.id as string}/complete`, { resultSummary: completeSummary }),
     onSuccess: () => {
       toast.success('Đã hoàn thành phiếu');
       setCompleteModal(false);
@@ -93,7 +93,7 @@ export default function WorkOrderDetailPage() {
   });
 
   const assignMutation = useMutation({
-    mutationFn: () => apiPatch(`/work-orders/${params.id}/assign`, { assigneeId }),
+    mutationFn: () => apiPatch(`/work-orders/${params!.id as string}/assign`, { assigneeId }),
     onSuccess: () => {
       toast.success('Đã phân công');
       setAssignModal(false);
@@ -104,7 +104,7 @@ export default function WorkOrderDetailPage() {
 
   const noteMutation = useMutation({
     mutationFn: (vars: { noteType: WorkOrderNoteType; body: string }) =>
-      apiPost(`/work-orders/${params.id}/notes`, vars),
+      apiPost(`/work-orders/${params!.id as string}/notes`, vars),
     onSuccess: () => {
       toast.success('Đã thêm ghi chú');
       setPauseModal(false);

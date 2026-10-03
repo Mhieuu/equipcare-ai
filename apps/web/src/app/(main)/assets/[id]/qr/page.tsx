@@ -13,9 +13,9 @@ export default function AssetQrPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { data, isLoading } = useQuery({
-    queryKey: ['asset-qr', params.id],
-    queryFn: () => apiGet<QrData>(`/assets/${params.id}/qr`),
-    enabled: !!params.id,
+    queryKey: ['asset-qr', params?.id as string],
+    queryFn: () => apiGet<QrData>(`/assets/${params!.id as string}/qr`),
+    enabled: !!params?.id,
   });
 
   return (
