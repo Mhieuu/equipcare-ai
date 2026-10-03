@@ -12,7 +12,13 @@ interface UserDetail {
   fullName: string;
   email: string | null;
   isActive: boolean;
-  userRoles: Array<{ id: string; role: { code: string; name: string }; grantedAt: string }>;
+  roles: Array<{
+    userRoleId: string;
+    roleCode: string;
+    roleName: string;
+    isActive: boolean;
+    grantedAt: string | null;
+  }>;
 }
 
 interface RoleOption { id: string; code: string; name: string }
@@ -53,7 +59,7 @@ export default function UserDetailPage() {
   if (!user) return <div className="text-rose-600">Không tìm thấy</div>;
 
   const availableRoles = (rolesRes?.items ?? []).filter(
-    (r) => !user.userRoles.some((ur) => ur.role.code === r.code),
+    (r) => !user.roles.some((ur) => ur.roleCode === r.code),
   );
 
   return (
@@ -70,13 +76,13 @@ export default function UserDetailPage() {
       <div className="card p-4">
         <h2 className="font-semibold mb-3">Vai trò hiện tại</h2>
         <ul className="space-y-2">
-          {user.userRoles.map((ur) => (
-            <li key={ur.id} className="flex items-center justify-between">
+          {user.roles.map((ur) => (
+            <li key={ur.userRoleId} className="flex items-center justify-between">
               <span>
-                <span className="font-medium">{ur.role.name}</span>{' '}
-                <span className="text-xs text-slate-500 font-mono">({ur.role.code})</span>
+                <span className="font-medium">{ur.roleName}</span>{' '}
+                <span className="text-xs text-slate-500 font-mono">({ur.roleCode})</span>
               </span>
-              <button className="btn-danger text-xs" onClick={() => revoke.mutate(ur.id)}>
+              <button className="btn-danger text-xs" onClick={() => revoke.mutate(ur.userRoleId)}>
                 <X className="h-3 w-3" /> Thu hồi
               </button>
             </li>

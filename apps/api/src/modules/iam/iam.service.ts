@@ -73,12 +73,18 @@ export class IamService {
         orderBy: { created_at: 'desc' },
         take: limit,
         skip: offset,
+        include: {
+          user_roles: {
+            include: { role: true },
+            orderBy: { created_at: 'asc' },
+          },
+        },
       }),
       this.prisma.users.count({ where }),
     ]);
 
     return {
-      items: items.map(this.toSummary),
+      items: items.map((u) => this.toSummary(u)),
       total,
       limit,
       offset,
@@ -446,6 +452,11 @@ export class IamService {
     auth_version: number;
     created_at: Date;
     updated_at: Date;
+    user_roles?: Array<{
+      id: string;
+      is_active: boolean;
+      role: { code: string; name: string };
+    }>;
   }): UserSummaryDto {
     return {
       id: u.id,
@@ -454,8 +465,18 @@ export class IamService {
       email: u.email,
       departmentId: u.department_id,
       isLocked: u.is_locked,
+      // isActive is the inverse of isLocked; true means the user can log in.
+      isActive: !u.is_locked,
       mustChangePassword: u.must_change_password,
       authVersion: u.auth_version,
+      roles: (u.user_roles ?? []).map((ur) => ({
+        userRoleId: ur.id,
+        roleCode: ur.role.code,
+        roleName: ur.role.name,
+        isActive: ur.is_active,
+        grantedBy: null,
+        grantedAt: null,
+      })),
       createdAt: u.created_at.toISOString(),
       updatedAt: u.updated_at.toISOString(),
     };

@@ -7,13 +7,21 @@ import { apiGet } from '@/lib/api';
 import { DataTable } from '@/components/data-table';
 import { Search } from 'lucide-react';
 
+interface UserRole {
+  userRoleId: string;
+  roleCode: string;
+  roleName: string;
+  isActive: boolean;
+}
+
 interface User {
   id: string;
   loginName: string;
   fullName: string;
   email: string | null;
   isActive: boolean;
-  userRoles: Array<{ role: { code: string; name: string } }>;
+  isLocked: boolean;
+  roles?: UserRole[];
 }
 
 export default function UsersPage() {
@@ -55,7 +63,7 @@ export default function UsersPage() {
           { key: 'login', header: 'Login', render: (r) => <Link href={`/iam/users/${r.id}`} className="font-mono text-brand-700 hover:underline">{r.loginName}</Link>, width: '160px' },
           { key: 'name', header: 'Họ tên', render: (r) => r.fullName },
           { key: 'email', header: 'Email', render: (r) => r.email ?? '—' },
-          { key: 'roles', header: 'Vai trò', render: (r) => r.userRoles.map((ur) => ur.role.code).join(', ') || '—' },
+          { key: 'roles', header: 'Vai trò', render: (r) => r.roles && r.roles.length > 0 ? r.roles.map((ur) => ur.roleCode).join(', ') : '—' },
           { key: 'status', header: 'TT', render: (r) => r.isActive ? <span className="badge-green">Active</span> : <span className="badge-gray">Disabled</span>, width: '90px' },
         ]}
         rows={data?.items ?? []}

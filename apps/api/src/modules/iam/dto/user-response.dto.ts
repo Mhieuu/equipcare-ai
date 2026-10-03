@@ -28,20 +28,21 @@ export class UserSummaryDto {
   departmentId!: string | null;
   @ApiProperty()
   isLocked!: boolean;
+  @ApiProperty({ description: 'Inverse of isLocked — true nếu user có thể đăng nhập' })
+  isActive!: boolean;
   @ApiProperty()
   mustChangePassword!: boolean;
   @ApiProperty()
   authVersion!: number;
+  @ApiProperty({ type: [UserRoleInfoDto] })
+  roles!: UserRoleInfoDto[];
   @ApiProperty()
   createdAt!: string;
   @ApiProperty()
   updatedAt!: string;
 }
 
-export class UserDetailDto extends UserSummaryDto {
-  @ApiProperty({ type: [UserRoleInfoDto] })
-  roles!: UserRoleInfoDto[];
-}
+export class UserDetailDto extends UserSummaryDto {}
 
 export class UserListResponseDto {
   @ApiProperty({ type: [UserSummaryDto] })
