@@ -1061,9 +1061,6 @@ async function cleanDemoData(): Promise<void> {
     where: { work_order: { asset: { code: { startsWith: 'DEMO-AST-' } } } },
     data: { work_order_id: null },
   });
-  await prisma.attachment_links.deleteMany({
-    where: { work_order: { asset: { code: { startsWith: 'DEMO-AST-' } } } },
-  });
 
   // All WOs referencing demo assets (E2E test data)
   await prisma.work_orders.deleteMany({
@@ -1102,10 +1099,6 @@ async function cleanDemoData(): Promise<void> {
   await prisma.access_scopes.updateMany({
     where: { asset: { code: { startsWith: 'DEMO-AST-' } } },
     data: { asset_id: null },
-  });
-  // attachment_links has a CHECK that requires exactly one parent — delete demo ones instead.
-  await prisma.attachment_links.deleteMany({
-    where: { asset: { code: { startsWith: 'DEMO-AST-' } } },
   });
 
   // Assets

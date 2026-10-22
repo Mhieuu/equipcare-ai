@@ -23,6 +23,24 @@ import {
   ListIncidentsQueryDto,
 } from './dto/incident.dto';
 
+/** 1 tin nhan su co kem tac gia (doc cho DTO mapper). */
+interface IncidentMessageRow {
+  id: string;
+  body: string;
+  message_type: string;
+  author_id: string;
+  created_at: Date | string;
+  author?: { id: string; login_name: string; full_name: string } | null;
+}
+
+/** 1 phieu cong viec gan voi su co (doc cho DTO mapper). */
+interface IncidentWorkOrderRow {
+  id: string;
+  code: string;
+  status: string;
+  kind: string;
+}
+
 /**
  * IncidentService — quản lý lifecycle sự cố.
  *
@@ -113,12 +131,16 @@ export class IncidentService {
             author: { select: { id: true, login_name: true, full_name: true } },
           },
         },
+        work_orders: {
+          orderBy: { created_at: 'desc' },
+          select: { id: true, code: true, status: true, kind: true },
+        },
       },
     });
     if (!incident) {
       throw AppError.notFound('Không tìm thấy sự cố', { id });
     }
-    return incident;
+    return this.toDto(incident, true);
   }
 
   async list(query: ListIncidentsQueryDto) {
@@ -141,7 +163,103 @@ export class IncidentService {
       this.prisma.incidents.count({ where }),
     ]);
 
-    return { items, page: query.page, pageSize: query.pageSize, total };
+    return {
+      items: items.map((i) => this.toDto(i)),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
+
+  /**
+   * Map incident row -> camelCase DTO (Doc04 §5.5).
+   *
+   * Giu nguyen cac alias snake_case goc de test hien co (vd TC-INC-01 assert
+   * `messages[].message_type`) khong bi pha, dong thoi frontend doc duoc
+   * camelCase (`priority`, `impactDescription`, `createdAt`, `reporter.fullName`).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private toDto(i: any, withDetail = false) {
+    const base = {
+      id: i.id,
+      code: i.code,
+      status: i.status,
+      priority: i.priority_code ?? null,
+      description: i.description,
+      impactDescription: i.impact_description ?? null,
+      confirmedCategory: i.confirmed_category ?? null,
+      occurredAt: this.iso(i.occurred_at),
+      createdAt: this.iso(i.created_at) ?? null,
+      updatedAt: this.iso(i.updated_at) ?? null,
+      rowVersion: i.row_version,
+      cancelReason: i.cancel_reason ?? null,
+      resolvedAt: this.iso(i.resolved_at),
+      closedAt: this.iso(i.closed_at),
+      cancelledAt: this.iso(i.cancelled_at),
+      asset: i.asset ? { id: i.asset.id, code: i.asset.code, name: i.asset.name } : null,
+      reporter: this.toUserBrief(i.reporter),
+      closedBy: this.toUserBrief(i.closed_by_user),
+      cancelledBy: this.toUserBrief(i.cancelled_by_user),
+      // --- snake_case aliases (back-compat voi test + client cu) ---
+      priority_code: i.priority_code ?? null,
+      impact_description: i.impact_description ?? null,
+      confirmed_category: i.confirmed_category ?? null,
+      occurred_at: this.iso(i.occurred_at),
+      resolved_at: this.iso(i.resolved_at),
+      closed_at: this.iso(i.closed_at),
+      closed_by: i.closed_by ?? null,
+      cancelled_at: this.iso(i.cancelled_at),
+      cancelled_by: i.cancelled_by ?? null,
+      cancel_reason: i.cancel_reason ?? null,
+      department_id: i.department_id ?? null,
+      created_at: this.iso(i.created_at),
+      updated_at: this.iso(i.updated_at),
+      row_version: i.row_version,
+      asset_id: i.asset_id,
+      reporter_id: i.reporter_id,
+    };
+
+    if (!withDetail) return base;
+
+    return {
+      ...base,
+      messages: (i.messages ?? []).map((m: IncidentMessageRow) => ({
+        id: m.id,
+        body: m.body,
+        messageType: m.message_type,
+        authorName: m.author?.full_name ?? 'Hệ thống',
+        authorId: m.author_id,
+        createdAt: this.iso(m.created_at),
+        message_type: m.message_type,
+        author_id: m.author_id,
+        created_at: this.iso(m.created_at),
+      })),
+      workOrders: (i.work_orders ?? []).map((w: IncidentWorkOrderRow) => ({
+        id: w.id,
+        code: w.code,
+        status: w.status,
+        kind: w.kind,
+      })),
+    };
+  }
+
+  /** ISO string hoac null (neu Date) — dung chuan hoa timestamp trong DTO. */
+private iso(v: Date | string | null | undefined): string | null {
+  if (v === null || v === undefined) return null;
+  return v instanceof Date ? v.toISOString() : v;
+}
+
+/** User relation -> { id, loginName, fullName } (hoac null). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private toUserBrief(u: any) {
+    if (!u) return null;
+    return {
+      id: u.id,
+      loginName: u.login_name,
+      fullName: u.full_name,
+      login_name: u.login_name,
+      full_name: u.full_name,
+    };
   }
 
   /**

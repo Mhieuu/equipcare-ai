@@ -9,6 +9,15 @@ import type {
 } from './dto/part.dto';
 
 /**
+ * Part relations cho UI: don vi + vi tri (FE hien thi `part.department.name`,
+ * `part.location.name`).
+ */
+const PART_RELATIONS = {
+  department: { select: { id: true, code: true, name: true } },
+  location: { select: { id: true, code: true, name: true } },
+} as const;
+
+/**
  * PartService - M7 (Doc04 section 5.6).
  *
  * CRUD + list (filter isActive/lowStock) + low-stock alert.
@@ -54,6 +63,7 @@ export class PartService {
         supplier_name: dto.supplierName ?? null,
         requires_approval: dto.requiresApproval ?? false,
       },
+      include: PART_RELATIONS,
     });
     await writeAudit({
       actorId,
@@ -80,6 +90,7 @@ export class PartService {
       orderBy: [{ code: 'asc' }],
       take: query.take,
       skip: query.skip,
+      include: PART_RELATIONS,
     });
 
     const mapped = items.map((p) => this.toDto(p));
@@ -91,7 +102,10 @@ export class PartService {
   }
 
   async get(id: string) {
-    const p = await this.prisma.parts.findUnique({ where: { id } });
+    const p = await this.prisma.parts.findUnique({
+      where: { id },
+      include: PART_RELATIONS,
+    });
     if (!p) throw AppError.notFound('Khong tim thay linh kien', { id });
     return this.toDto(p);
   }
@@ -125,6 +139,7 @@ export class PartService {
     const updated = await this.prisma.parts.update({
       where: { id, row_version: p.row_version },
       data: patch,
+      include: PART_RELATIONS,
     });
 
     await writeAudit({
@@ -152,6 +167,9 @@ export class PartService {
       unit: p.unit,
       departmentId: p.department_id,
       locationId: p.location_id,
+      // Nested de FE hien thi ten don vi / vi tri (truoc day chi co ID -> UI in "undefined").
+      department: p.department ?? null,
+      location: p.location ?? null,
       onHand: p.on_hand?.toString() ?? '0',
       minimumStock: p.minimum_stock?.toString() ?? '0',
       referencePrice: p.reference_price?.toString() ?? '0',
@@ -159,6 +177,7 @@ export class PartService {
       requiresApproval: p.requires_approval,
       isActive: p.is_active,
       rowVersion: p.row_version,
+      createdAt: p.created_at instanceof Date ? p.created_at.toISOString() : null,
       updatedAt: p.updated_at instanceof Date ? p.updated_at.toISOString() : p.updated_at,
     };
   }

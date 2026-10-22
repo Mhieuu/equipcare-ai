@@ -15,29 +15,7 @@ services:
       timeout: 3s
       retries: 10
 
-  redis:
-    image: redis:7-alpine
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  minio:
-    image: minio/minio:latest
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  # Chạy Prisma migration 1 lần trước khi api/worker start
+  # Chạy Prisma migration 1 lần trước khi api start
   migrate:
     build:
       context: ..
@@ -65,31 +43,12 @@ services:
         condition: service_completed_successfully
     restart: "no"
 
-  # Tạo bucket MinIO 1 lần ở chế độ private
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-        until /usr/bin/mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin}; do sleep 1; done &&
-        /usr/bin/mc mb --ignore-existing -p local/${S3_BUCKET:-equipcare-files} &&
-        echo 'MinIO bucket ${S3_BUCKET:-equipcare-files} ready (private)'
-      "
-    restart: "no"
-
   api:
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
     environment:
       DATABASE_URL: postgresql://${DB_USER:-equipcare}:${DB_PASSWORD:-equipcare_pwd}@postgres:5432/${DB_NAME:-equipcare}
-      REDIS_URL: redis://redis:6379
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
-      S3_BUCKET: ${S3_BUCKET:-equipcare-files}
       AI_PROVIDER: ${AI_PROVIDER:-mock}
       API_PORT: 3001
       NODE_ENV: production
@@ -99,13 +58,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
       seed:
-        condition: service_completed_successfully
-      minio-init:
         condition: service_completed_successfully
 
   web:
@@ -122,31 +75,5 @@ services:
     depends_on:
       - api
 
-  worker:
-    build:
-      context: ..
-      dockerfile: apps/worker/Dockerfile
-    environment:
-      DATABASE_URL: postgresql://${DB_USER:-equipcare}:${DB_PASSWORD:-equipcare_pwd}@postgres:5432/${DB_NAME:-equipcare}
-      REDIS_URL: redis://redis:6379
-      AI_PROVIDER: ${AI_PROVIDER:-mock}
-      AI_REQUEST_TIMEOUT_MS: "45000"
-      NODE_ENV: production
-    env_file: ../.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      seed:
-        condition: service_completed_successfully
-      minio-init:
-        condition: service_completed_successfully
-    restart: unless-stopped
-
 volumes:
   pg_data:
-  redis_data:
-  minio_data:

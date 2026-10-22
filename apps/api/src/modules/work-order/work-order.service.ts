@@ -47,6 +47,17 @@ import type {
  *
  * Permission check do controller ap @Permissions().
  */
+/** 1 ghi chu/ghi chu pause tren phieu cong viec (doc cho DTO mapper). */
+interface WorkOrderNoteRow {
+  id: string;
+  note_type: string;
+  pause_reason: string | null;
+  note: string;
+  author_id: string;
+  created_at: Date | string;
+  author?: { id: string; login_name: string; full_name: string } | null;
+}
+
 @Injectable()
 export class WorkOrderService {
   private readonly logger = new Logger(WorkOrderService.name);
@@ -786,23 +797,37 @@ export class WorkOrderService {
       priorityCode: w.priority_code,
       dueAt: w.due_at instanceof Date ? w.due_at.toISOString() : w.due_at,
       asset: w.asset ?? null,
-      assignee: w.assignee ?? null,
+      assignee: this.toUserBrief(w.assignee),
       incident: w.incident ?? null,
       rowVersion: w.row_version,
       createdAt: w.created_at instanceof Date ? w.created_at.toISOString() : w.created_at,
     };
   }
 
+  /** User relation -> { id, loginName, fullName } (hoac null). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private toUserBrief(u: any) {
+    if (!u) return null;
+    return {
+      id: u.id,
+      loginName: u.login_name,
+      fullName: u.full_name,
+      login_name: u.login_name,
+      full_name: u.full_name,
+    };
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private toDetailDto(w: any) {
+    const base = this.toListDto(w);
     return {
-      ...this.toListDto(w),
+      ...base,
       creationMode: w.creation_mode as WorkOrderCreationMode,
       description: w.description,
       startedAt: w.started_at?.toISOString() ?? null,
       completedAt: w.completed_at?.toISOString() ?? null,
       cancelledAt: w.cancelled_at?.toISOString() ?? null,
-      cancelledBy: w.cancelled_by_user ?? null,
+      cancelledBy: this.toUserBrief(w.cancelled_by_user),
       cancelReason: w.cancel_reason ?? null,
       department: w.department_snapshot ?? null,
       confirmedCause: w.confirmed_cause ?? null,
@@ -812,15 +837,66 @@ export class WorkOrderService {
       checklistResults: w.checklist_results ?? [],
       downtimeStart: w.downtime_start?.toISOString() ?? null,
       downtimeEnd: w.downtime_end?.toISOString() ?? null,
-      createdBy: w.created_by_user ?? null,
-      notes: (w.notes ?? []).map((n: { note_type: string; pause_reason: string | null; created_at: Date; author: unknown; note: string; id: string }) => ({
+      createdBy: this.toUserBrief(w.created_by_user),
+      slaStatus: this.computeSlaStatus(w),
+      notes: (w.notes ?? []).map((n: WorkOrderNoteRow) => ({
         id: n.id,
         noteType: n.note_type,
         pauseReason: n.pause_reason,
-        note: n.note,
-        author: n.author,
+        // FE doc `body`; giu alias `note` cho client cu.
+        body: n.note,
+        authorName: n.author?.full_name ?? 'Hệ thống',
+        authorId: n.author_id,
         createdAt: n.created_at instanceof Date ? n.created_at.toISOString() : n.created_at,
+        note: n.note,
+        note_type: n.note_type,
       })),
+    };
+  }
+
+  /**
+   * SLA countdown cho UI (Doc02 FR-WO-04).
+   *
+   * - Chi dem trong trang thai "dang chay" (NEW/IN_PROGRESS/PAUSED/ON_HOLD).
+   * - `activeElapsedSeconds`: thoi gian da troi qua (khong ke thoi gian pause).
+   * - `remainingSeconds`: duoi 0 => qua han.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private computeSlaStatus(w: any) {
+    const active: string[] = [
+      WorkOrderStatus.NEW,
+      WorkOrderStatus.IN_PROGRESS,
+    ];
+    if (!active.includes(String(w.status))) return null;
+
+    const now = Date.now();
+    const started = w.started_at ? new Date(w.started_at).getTime() : new Date(w.created_at).getTime();
+    const due = w.due_at ? new Date(w.due_at).getTime() : null;
+
+    // Tong thoi gian pause tich luy tu cac note PAUSE_START/PAUSE_END.
+    const notes = (w.notes ?? []) as Array<{ note_type: string; created_at: Date | string }>;
+    let pauseMs = 0;
+    let pauseStartedAt: number | null = null;
+    for (const n of [...notes].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    )) {
+      if (n.note_type === WorkOrderNoteType.PAUSE_START) {
+        pauseStartedAt = new Date(n.created_at).getTime();
+      } else if (n.note_type === WorkOrderNoteType.PAUSE_END && pauseStartedAt !== null) {
+        pauseMs += new Date(n.created_at).getTime() - pauseStartedAt;
+        pauseStartedAt = null;
+      }
+    }
+    if (pauseStartedAt !== null) pauseMs += now - pauseStartedAt;
+
+    const activeElapsedSeconds = Math.max(0, Math.floor((now - started - pauseMs) / 1000));
+    const remainingSeconds = due === null ? 0 : Math.floor((due - now - pauseMs) / 1000);
+
+    return {
+      isOverdue: due !== null && remainingSeconds < 0,
+      activeElapsedSeconds,
+      remainingSeconds,
+      pauseSeconds: Math.floor(pauseMs / 1000),
     };
   }
 

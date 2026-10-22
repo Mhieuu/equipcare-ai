@@ -346,38 +346,9 @@ describe('Q-01: WO CANCEL side effects + Security edge cases', () => {
       { expiresIn: '-1h' },
     );
     const res = await request(app.getHttpServer())
-      .get('/notifications')
+      .get('/dashboard/kpis')
       .set('Authorization', `Bearer ${expToken}`);
     expect(res.status).toBe(401);
-  });
-
-  // TC-SEC-07: Endpoint admin-only voi token khong co quyen -> 403
-  it('TC-SEC-07: admin-only endpoint voi user khong co quyen -> 403', async () => {
-    if (!token) return;
-    // Tao user khong co quyen
-    const bcrypt = await import('bcryptjs');
-    const hash = await bcrypt.hash('ChangeMe@2026', 10);
-    const testUser = await prisma.users.upsert({
-      where: { login_name: 'sec07.user' },
-      create: {
-        login_name: 'sec07.user',
-        password_hash: hash,
-        full_name: 'Sec07 Test',
-        email: 'sec07@example.com',
-      },
-      update: {},
-    });
-    const loginRes = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ loginName: 'sec07.user', password: 'ChangeMe@2026' });
-    if (loginRes.status !== 201 && loginRes.status !== 200) return;
-    const userToken = loginRes.body.accessToken as string;
-    void testUser;
-    // Test truy cap endpoint chi admin (audit read all)
-    const res = await request(app.getHttpServer())
-      .get('/iam/audit-logs')
-      .set('Authorization', `Bearer ${userToken}`);
-    expect(res.status).toBe(403);
   });
 
   // TC-SEC-08: SQL injection prevention
@@ -391,41 +362,6 @@ describe('Q-01: WO CANCEL side effects + Security edge cases', () => {
     // Verify users table van ton tai
     const userCount = await prisma.users.count();
     expect(userCount).toBeGreaterThan(0);
-  });
-
-  // ===========================================================================
-  // AUDIT EDGE CASES (Doc04 §5.7)
-  // ===========================================================================
-
-  // TC-AUD-03: Audit log pagination
-  it('TC-AUD-03: audit log filter + pagination + limit', async () => {
-    if (!token) return;
-    const res = await request(app.getHttpServer())
-      .get('/iam/audit-logs?limit=10&offset=0&action=auth.login')
-      .set('Authorization', `Bearer ${token}`);
-    if (res.status === 200) {
-      expect(res.body.items.length).toBeLessThanOrEqual(10);
-    } else {
-      // Co the endpoint khong ton tai (404) hoac 403 tuy theo permission
-      expect([200, 403, 404]).toContain(res.status);
-    }
-  });
-
-  // TC-AUD-04: Audit log immutable - UPDATE/DELETE bi tu choi (Doc04 NFR-SEC)
-  it('TC-AUD-04: audit_logs khong the UPDATE/DELETE truc tiep (no exposed endpoint)', async () => {
-    if (!token) return;
-    // Verify khong co endpoint PUT/PATCH/DELETE audit-logs
-    const resUp = await request(app.getHttpServer())
-      .patch('/iam/audit-logs/some-id')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ action: 'hack' });
-    // PATCH endpoint khong ton tai -> 404
-    expect([404, 405]).toContain(resUp.status);
-
-    const resDel = await request(app.getHttpServer())
-      .delete('/iam/audit-logs/some-id')
-      .set('Authorization', `Bearer ${token}`);
-    expect([404, 405, 403]).toContain(resDel.status);
   });
 
   // ===========================================================================

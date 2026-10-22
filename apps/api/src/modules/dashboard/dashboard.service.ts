@@ -23,7 +23,17 @@ export class DashboardService {
   // /dashboard/kpis - tong quan counters
   // ---------------------------------------------------------------------------
   async getKpis() {
-    const [openWo, overdue, pendingApproval, lowStock, unreadNotif] = await Promise.all([
+    const [
+      openWo,
+      overdue,
+      pendingApproval,
+      lowStock,
+      unreadNotif,
+      totalAssets,
+      assetStatusCounts,
+      openIncidents,
+      criticalIncidents,
+    ] = await Promise.all([
       this.prisma.work_orders.count({
         where: { status: { in: ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_APPROVAL'] } },
       }),
@@ -40,9 +50,40 @@ export class DashboardService {
         return items.filter((p) => Number(p.on_hand) < Number(p.minimum_stock)).length;
       }),
       this.prisma.notifications.count({ where: { read_at: null } }),
+      this.prisma.assets.count(),
+      // Dem theo activity_status tu view v_asset_state (M10 JOIN work_orders).
+      this.prisma.$queryRaw<Array<{ activity_status: string; cnt: bigint }>>`
+        SELECT activity_status, COUNT(*)::bigint AS cnt
+        FROM v_asset_state
+        GROUP BY activity_status
+      `,
+      this.prisma.incidents.count({
+        where: { status: { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] } },
+      }),
+      this.prisma.incidents.count({
+        where: {
+          priority_code: 'CRITICAL',
+          status: { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] },
+        },
+      }),
     ]);
 
+    const statusMap = new Map(
+      assetStatusCounts.map((r) => [r.activity_status, Number(r.cnt)]),
+    );
+
     return {
+      // Asset KPIs
+      totalAssets,
+      operationalAssets: statusMap.get('OPERATIONAL') ?? 0,
+      repairAssets: statusMap.get('REPAIR') ?? 0,
+      maintenanceAssets: statusMap.get('MAINTENANCE') ?? 0,
+      suspendedAssets: statusMap.get('SUSPENDED') ?? 0,
+      retiredAssets: statusMap.get('RETIRED') ?? 0,
+      // Incident KPIs
+      openIncidents,
+      criticalIncidents,
+      // Work order / approval / stock KPIs
       openWorkOrders: openWo,
       overdueWorkOrders: overdue,
       pendingApprovals: pendingApproval,

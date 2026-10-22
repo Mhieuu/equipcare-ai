@@ -24,21 +24,10 @@ export const envValidationSchema = Joi.object({
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
 
-  // ---- Redis (BullMQ + cache) — required ở runtime, không fail bootstrap nếu thiếu
-  // (chỉ fail khi feature thực sự dùng).
-  REDIS_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }).optional(),
-
   // ---- Auth ----
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   REFRESH_TOKEN_PEPPER: Joi.string().min(32).required(),
   ACCESS_TOKEN_TTL: Joi.number().integer().positive().default(900), // 15 phút
-
-  // ---- Object storage ----
-  S3_ENDPOINT: Joi.string().uri().optional(),
-  S3_REGION: Joi.string().default('us-east-1'),
-  S3_BUCKET: Joi.string().default('equipcare-files'),
-  S3_ACCESS_KEY: Joi.string().optional(),
-  S3_SECRET_KEY: Joi.string().optional(),
 
   // ---- AI ----
   AI_PROVIDER: Joi.string().valid('mock', 'openai').default('mock'),
@@ -51,4 +40,7 @@ export const envValidationSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly')
     .default('info'),
+
+  // ---- Scheduler ----
+  SCHEDULER_INTERVAL_MS: Joi.number().integer().positive().default(60000),
 });

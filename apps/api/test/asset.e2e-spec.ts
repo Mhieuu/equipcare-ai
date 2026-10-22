@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
 import { disconnectPrisma } from '@equipcare/backend-core';
 
 /**
@@ -19,6 +20,7 @@ import { disconnectPrisma } from '@equipcare/backend-core';
  */
 describe('Asset E2E (TC-ASSET-01..05)', () => {
   let app: INestApplication | undefined;
+  let prisma: PrismaService | undefined;
   let server: ReturnType<INestApplication['getHttpServer']>;
   let adminAccessToken: string;
   let assetTypeId: string;
@@ -42,6 +44,7 @@ describe('Asset E2E (TC-ASSET-01..05)', () => {
       );
       await app.init();
       server = app.getHttpServer();
+      prisma = app.get(PrismaService);
 
       const loginRes = await request(server)
         .post('/auth/login')
@@ -51,9 +54,9 @@ describe('Asset E2E (TC-ASSET-01..05)', () => {
 
       // Lấy FK đầu tiên cho test (asset_type + department + location đã có seed).
       const [typeRes, deptRes, locRes] = await Promise.all([
-        request(server).get('/asset-types').set('Authorization', `Bearer ${adminAccessToken}`),
-        request(server).get('/departments').set('Authorization', `Bearer ${adminAccessToken}`),
-        request(server).get('/locations').set('Authorization', `Bearer ${adminAccessToken}`),
+        request(server).get('/iam/asset-types').set('Authorization', `Bearer ${adminAccessToken}`),
+        request(server).get('/iam/departments').set('Authorization', `Bearer ${adminAccessToken}`),
+        request(server).get('/iam/locations').set('Authorization', `Bearer ${adminAccessToken}`),
       ]);
       assetTypeId = typeRes.body[0]?.id ?? '';
       departmentId = deptRes.body[0]?.id ?? '';
@@ -133,12 +136,12 @@ describe('Asset E2E (TC-ASSET-01..05)', () => {
 
     await new Promise((r) => setTimeout(r, 100));
 
-    const auditRes = await request(server)
-      .get('/iam/audit-logs')
-      .query({ action: 'asset.update', limit: 5 })
-      .set('Authorization', `Bearer ${adminAccessToken}`)
-      .expect(200);
-    expect(auditRes.body.total).toBeGreaterThanOrEqual(1);
+    // Verify audit ghi trực tiếp (không dùng /iam/audit-logs — endpoint đã bị cắt khỏi scope).
+    const audit = await prisma!.audit_logs.findFirst({
+      where: { action: 'asset.update', object_key: created.body.id },
+      orderBy: { created_at: 'desc' },
+    });
+    expect(audit).not.toBeNull();
   });
 
   // -------------------------------------------------------------------------

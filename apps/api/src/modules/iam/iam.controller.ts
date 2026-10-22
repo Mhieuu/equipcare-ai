@@ -39,11 +39,10 @@ import {
   PermissionsListDto,
   RoleInfoDto,
 } from './dto/iam-response.dto.js';
-import {
-  AuditLogListResponseDto,
-  ListAuditLogsQueryDto,
-} from './dto/audit-log.dto.js';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
+import { ListDepartmentsQueryDto } from './dto/list-departments-query.dto.js';
+import { ListLocationsQueryDto } from './dto/list-locations-query.dto.js';
+import { ListAssetTypesQueryDto } from './dto/list-asset-types-query.dto.js';
 
 /**
  * IAM controller — Doc02 §FR-IAM + Doc03 RBAC matrix.
@@ -209,14 +208,25 @@ export class IamController {
   }
 
   // -------------------------------------------------------------------------
-  // Audit logs (Doc02 §NFR-AUDIT-02)
+  // Reference data (departments / locations / asset-types) — migrated from
+  // OrganizationModule. Read-only, anyone authenticated can list.
   // -------------------------------------------------------------------------
 
-  @Get('audit-logs')
-  @Permissions('audit:read:all')
-  @ApiOperation({ summary: 'Đọc audit_logs (filter: actorId, action, objectType, date range)' })
-  @ApiResponse({ status: 200, type: AuditLogListResponseDto })
-  listAuditLogs(@Query() query: ListAuditLogsQueryDto): Promise<AuditLogListResponseDto> {
-    return this.iam.listAuditLogs(query);
+  @Get('departments')
+  @ApiOperation({ summary: 'Danh sách phòng ban' })
+  listDepartments(@Query() q: ListDepartmentsQueryDto) {
+    return this.iam.listDepartments({ isActive: q.isActive });
+  }
+
+  @Get('locations')
+  @ApiOperation({ summary: 'Danh sách vị trí' })
+  listLocations(@Query() q: ListLocationsQueryDto) {
+    return this.iam.listLocations({ isActive: q.isActive });
+  }
+
+  @Get('asset-types')
+  @ApiOperation({ summary: 'Danh sách loại thiết bị' })
+  listAssetTypes(@Query() q: ListAssetTypesQueryDto) {
+    return this.iam.listAssetTypes({ isActive: q.isActive });
   }
 }

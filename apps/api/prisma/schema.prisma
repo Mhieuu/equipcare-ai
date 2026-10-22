@@ -82,17 +82,12 @@ model users {
   approval_events          approval_events[]
   assets_created           assets[]
   parts_created_by         maintenance_plans[]   @relation("plan_creator")
-  files_uploaded           files[]
-  technical_documents      technical_documents[]
-  document_versions        document_versions[]
-  attachment_links         attachment_links[]
   audit_logs               audit_logs[]
   notifications            notifications[]
   cost_entries             cost_entries[]
   stock_transactions       stock_transactions[]
   ai_requests              ai_requests[]
   system_settings          system_settings[]
-  documents_roles_granted  document_roles[]      @relation("doc_role_granted_by")
   role_permissions_granted role_permissions[]    @relation("rp_granted_by")
 
   @@index([department_id])
@@ -108,7 +103,6 @@ model roles {
 
   user_roles       user_roles[]
   role_permissions role_permissions[]
-  document_roles   document_roles[]
 }
 
 model user_roles {
@@ -210,7 +204,6 @@ model asset_types {
 
   assets              assets[]
   part_asset_types    part_asset_types[]
-  technical_documents technical_documents[]
 }
 
 model assets {
@@ -243,8 +236,6 @@ model assets {
   maintenance_plans       maintenance_plans[]
   maintenance_occurrences maintenance_occurrences[]
   access_scopes           access_scopes[]
-  technical_documents     technical_documents[]
-  attachment_links        attachment_links[]
   ai_requests             ai_requests[]
 
   @@unique([id, asset_type_id])
@@ -323,7 +314,6 @@ model incidents {
   department_id     String?             @db.Uuid
   messages          incident_messages[]
   work_orders       work_orders[]
-  attachment_links  attachment_links[]
   access_scopes     access_scopes[]
   ai_requests       ai_requests[]
 
@@ -342,7 +332,6 @@ model incident_messages {
 
   incident         incidents          @relation(fields: [incident_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   author           users              @relation(fields: [author_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  attachment_links attachment_links[]
 }
 
 model work_orders {
@@ -388,7 +377,6 @@ model work_orders {
   approvals           approvals[]
   stock_transactions  stock_transactions[]
   cost_entries        cost_entries[]
-  attachment_links    attachment_links[]
   ai_requests         ai_requests[]
 
   @@index([occurrence_id])
@@ -431,7 +419,6 @@ model approvals {
   proposer         users                @relation("approval_proposer", fields: [proposer_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   revisions        approval_revisions[]
   events           approval_events[]
-  attachment_links attachment_links[]
 
   @@index([work_order_id, status])
 }
@@ -454,7 +441,6 @@ model approval_revisions {
   events             approval_events[]
   stock_transactions stock_transactions[]
   cost_entries       cost_entries[]
-  attachment_links   attachment_links[]
 
   @@unique([approval_id, revision_no])
   @@index([approval_id])
@@ -603,106 +589,6 @@ model cost_entries {
 
   @@index([work_order_id, occurred_at])
   @@index([approval_revision_id])
-}
-
-// =================================================================
-// NHÓM E — Tệp đính kèm, tài liệu kỹ thuật (5 bảng)
-// =================================================================
-
-model files {
-  id            String   @id @default(uuid()) @db.Uuid
-  object_key    String   @unique @db.VarChar(500)
-  original_name String   @db.VarChar(255)
-  mime_type     String   @db.VarChar(100)
-  size_bytes    BigInt
-  sha256        String   @db.Char(64)
-  uploaded_by   String   @db.Uuid
-  storage_state String   @default("STAGED") @db.VarChar(20)
-  created_at    DateTime @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime @default(now()) @db.Timestamptz(6)
-  row_version   Int      @default(1)
-
-  uploaded_by_user  users               @relation(fields: [uploaded_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  document_versions document_versions[]
-  attachment_links  attachment_links[]
-}
-
-model technical_documents {
-  id            String   @id @default(uuid()) @db.Uuid
-  title         String   @db.VarChar(200)
-  document_type String   @db.VarChar(50)
-  description   String?
-  asset_id      String?  @db.Uuid
-  asset_type_id String?  @db.Uuid
-  is_active     Boolean  @default(true)
-  created_by    String   @db.Uuid
-  created_at    DateTime @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime @default(now()) @db.Timestamptz(6)
-  row_version   Int      @default(1)
-
-  asset           assets?             @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  asset_type      asset_types?        @relation(fields: [asset_type_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  created_by_user users               @relation(fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  versions        document_versions[]
-  roles           document_roles[]
-}
-
-model document_versions {
-  id          String   @id @default(uuid()) @db.Uuid
-  document_id String   @db.Uuid
-  version_no  Int
-  file_id     String   @db.Uuid
-  uploaded_by String   @db.Uuid
-  change_note String?
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-
-  document         technical_documents @relation(fields: [document_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  file             files               @relation(fields: [file_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  uploaded_by_user users               @relation(fields: [uploaded_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
-
-  @@unique([document_id, version_no])
-}
-
-model document_roles {
-  id          String   @id @default(uuid()) @db.Uuid
-  document_id String   @db.Uuid
-  role_id     String   @db.Uuid
-  is_active   Boolean  @default(true)
-  granted_by  String   @db.Uuid
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime @default(now()) @db.Timestamptz(6)
-  row_version Int      @default(1)
-
-  document        technical_documents @relation(fields: [document_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  role            roles               @relation(fields: [role_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  granted_by_user users               @relation("doc_role_granted_by", fields: [granted_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
-
-  @@unique([document_id, role_id])
-}
-
-model attachment_links {
-  id                   String   @id @default(uuid()) @db.Uuid
-  file_id              String   @db.Uuid
-  asset_id             String?  @db.Uuid
-  incident_id          String?  @db.Uuid
-  incident_message_id  String?  @db.Uuid
-  work_order_id        String?  @db.Uuid
-  approval_revision_id String?  @db.Uuid
-  linked_by            String   @db.Uuid
-  is_active            Boolean  @default(true)
-  created_at           DateTime @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime @default(now()) @db.Timestamptz(6)
-  row_version          Int      @default(1)
-
-  file              files               @relation(fields: [file_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  asset             assets?             @relation(fields: [asset_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  incident          incidents?          @relation(fields: [incident_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  incident_message  incident_messages?  @relation(fields: [incident_message_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  work_order        work_orders?        @relation(fields: [work_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  approval_revision approval_revisions? @relation(fields: [approval_revision_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  linked_by_user    users               @relation(fields: [linked_by], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  approvals         approvals?          @relation(fields: [approvalsId], references: [id])
-  approvalsId       String?             @db.Uuid
 }
 
 // =================================================================

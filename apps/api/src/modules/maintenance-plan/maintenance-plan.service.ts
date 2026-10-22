@@ -15,6 +15,14 @@ import type {
 } from './dto/maintenance-plan.dto';
 
 /**
+ * Plan relations cho UI: FE hien thi `plan.asset.code - plan.asset.name`
+ * (truoc day chi co `assetId` -> cot "Thiết bị" in "undefined").
+ */
+const PLAN_RELATIONS = {
+  asset: { select: { id: true, code: true, name: true } },
+} as const;
+
+/**
  * MaintenancePlanService - M8 (Doc04 section 5.10).
  *
  * CRUD plan (asset_id + interval + start_on -> next_due_on),
@@ -50,6 +58,7 @@ export class MaintenancePlanService {
         checklist: (dto.checklist ?? []) as Prisma.InputJsonValue,
         created_by: actorId,
       },
+      include: PLAN_RELATIONS,
     });
     await writeAudit({
       actorId,
@@ -72,17 +81,24 @@ export class MaintenancePlanService {
     if (query.assetId) where.asset_id = query.assetId;
     if (query.isActive === 'true') where.is_active = true;
     if (query.isActive === 'false') where.is_active = false;
-    const items = await this.prisma.maintenance_plans.findMany({
-      where,
-      orderBy: [{ next_due_on: 'asc' }],
-      take: query.take,
-      skip: query.skip,
-    });
-    return { items: items.map((p) => this.toDto(p)), total: items.length };
+    const [items, total] = await Promise.all([
+      this.prisma.maintenance_plans.findMany({
+        where,
+        orderBy: [{ next_due_on: 'asc' }],
+        take: query.take,
+        skip: query.skip,
+        include: PLAN_RELATIONS,
+      }),
+      this.prisma.maintenance_plans.count({ where }),
+    ]);
+    return { items: items.map((p) => this.toDto(p)), total };
   }
 
   async get(id: string) {
-    const p = await this.prisma.maintenance_plans.findUnique({ where: { id } });
+    const p = await this.prisma.maintenance_plans.findUnique({
+      where: { id },
+      include: PLAN_RELATIONS,
+    });
     if (!p) throw AppError.notFound('Khong tim thay ke hoach', { id });
     return this.toDto(p);
   }
@@ -106,6 +122,7 @@ export class MaintenancePlanService {
     const updated = await this.prisma.maintenance_plans.update({
       where: { id, row_version: p.row_version },
       data: patch,
+      include: PLAN_RELATIONS,
     });
     await writeAudit({
       actorId,
@@ -130,6 +147,7 @@ export class MaintenancePlanService {
     const updated = await this.prisma.maintenance_plans.update({
       where: { id, row_version: p.row_version },
       data: { is_active: false, row_version: { increment: 1 } },
+      include: PLAN_RELATIONS,
     });
     await writeAudit({
       actorId,
@@ -150,6 +168,7 @@ export class MaintenancePlanService {
     const updated = await this.prisma.maintenance_plans.update({
       where: { id, row_version: p.row_version },
       data: { is_active: true, row_version: { increment: 1 } },
+      include: PLAN_RELATIONS,
     });
     await writeAudit({
       actorId,
@@ -169,6 +188,9 @@ export class MaintenancePlanService {
     const items = await this.prisma.maintenance_occurrences.findMany({
       where: { plan_id: planId },
       orderBy: [{ due_on: 'asc' }],
+      include: {
+        work_orders: { select: { id: true, code: true, status: true } },
+      },
     });
     return items.map((o) => this.occurrenceToDto(o));
   }
@@ -187,7 +209,11 @@ export class MaintenancePlanService {
     return {
       id: p.id,
       assetId: p.asset_id,
+      // Schema khong co cot `code` -> FE dung `asset.code` lam ma hien thi.
+      code: p.asset?.code ?? null,
       name: p.name,
+      // Nested asset (FE: `plan.asset.code - plan.asset.name`).
+      asset: p.asset ?? null,
       intervalUnit: p.interval_unit,
       intervalValue: p.interval_value,
       startOn: p.start_on instanceof Date ? toDateOnly(p.start_on) : p.start_on,
@@ -208,6 +234,9 @@ export class MaintenancePlanService {
       assetId: o.asset_id,
       dueOn: o.due_on instanceof Date ? toDateOnly(o.due_on) : o.due_on,
       status: o.status,
+      skippedReason: o.skipped_reason ?? null,
+      // Schema: 1 occurrence co the sinh nhieu work_orders -> FE lay phieu dau tien.
+      workOrder: o.work_orders?.[0] ?? null,
       planVersion: o.plan_version,
       createdAt: o.created_at instanceof Date ? o.created_at.toISOString() : o.created_at,
     };

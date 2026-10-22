@@ -7,11 +7,8 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { IamModule } from './modules/iam/iam.module.js';
-import { OrganizationModule } from './modules/organization/organization.module.js';
 import { SystemConfigModule } from './modules/config/config.module.js';
 import { AssetModule } from './modules/asset/asset.module.js';
-import { AttachmentModule } from './modules/attachment/attachment.module.js';
-import { TechnicalDocumentModule } from './modules/technical-documents/technical-documents.module.js';
 import { IncidentModule } from './modules/incident/incident.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { WorkOrderModule } from './modules/work-order/work-order.module.js';
@@ -20,10 +17,9 @@ import { ApprovalModule } from './modules/approval/approval.module.js';
 import { PartModule } from './modules/part/part.module.js';
 import { StockTransactionModule } from './modules/stock-transaction/stock-transaction.module.js';
 import { MaintenancePlanModule } from './modules/maintenance-plan/maintenance-plan.module.js';
-import { NotificationModule } from './modules/notification/notification.module.js';
+import { SchedulerModule } from './modules/scheduler/scheduler.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { ReportModule } from './modules/report/report.module.js';
-import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 
 /**
@@ -52,11 +48,8 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     HealthModule,
     AuthModule,
     IamModule,
-    OrganizationModule,
     SystemConfigModule,
     AssetModule,
-    AttachmentModule,
-    TechnicalDocumentModule,
     IncidentModule,
     AiModule,
     WorkOrderModule,
@@ -65,10 +58,9 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     PartModule,
     StockTransactionModule,
     MaintenancePlanModule,
-    NotificationModule,
+    SchedulerModule,
     DashboardModule,
     ReportModule,
-    RealtimeModule,
   ],
   providers: [
     {

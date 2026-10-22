@@ -22,6 +22,46 @@ import {
   ListApprovalsQueryDto,
 } from './dto/approval.dto';
 
+/** Input dong yeu xuat kho cho 1 revision (Q-06). */
+interface ApprovalRevisionPartInput {
+  partId: string;
+  quantity?: number;
+  unitPrice?: number;
+  requiresApproval?: boolean;
+}
+
+/** Shape 1 dong `approval_revision_parts` + part lien quan (doc cho DTO mapper). */
+interface ApprovalRevisionPartRow {
+  part_id: string;
+  quantity: { toString(): string };
+  unit_price: { toString(): string };
+  part_name_snapshot: string;
+  requires_approval_snapshot: boolean;
+  part?: { id: string; code: string; name: string } | null;
+}
+
+/** Shape 1 revision kem danh sach parts. */
+interface ApprovalRevisionRow {
+  id: string;
+  revision_no: number;
+  reason: string;
+  action_plan: string;
+  other_estimated_cost: { toString(): string } | null;
+  submitted_at: Date | string | null;
+  created_at: Date | string;
+  parts?: ApprovalRevisionPartRow[];
+}
+
+/** Shape 1 approval event kem actor. */
+interface ApprovalEventRow {
+  id: string;
+  event_type: string;
+  note: string | null;
+  actor_id: string;
+  created_at: Date | string;
+  actor?: { id: string; login_name: string; full_name: string } | null;
+}
+
 /**
  * ApprovalService - M6 (Doc04 section 5.7).
  *
@@ -55,29 +95,33 @@ export class ApprovalService {
   async list(query: ListApprovalsQueryDto) {
     const where: Prisma.approvalsWhereInput = {};
     if (query.status) where.status = query.status;
-    const items = await this.prisma.approvals.findMany({
-      where,
-      orderBy: [{ updated_at: 'desc' }],
-      take: query.getTake(),
-      skip: query.getSkip(),
-      include: {
-        proposer: { select: { id: true, login_name: true, full_name: true } },
-        work_order: {
-          select: { id: true, code: true, priority_code: true, status: true },
-        },
-        revisions: {
-          orderBy: { revision_no: 'desc' },
-          take: 1,
-          select: {
-            id: true,
-            revision_no: true,
-            submitted_at: true,
-            other_estimated_cost: true,
+    const [items, total] = await Promise.all([
+      this.prisma.approvals.findMany({
+        where,
+        orderBy: [{ updated_at: 'desc' }],
+        take: query.getTake(),
+        skip: query.getSkip(),
+        include: {
+          proposer: { select: { id: true, login_name: true, full_name: true } },
+          work_order: {
+            select: { id: true, code: true, priority_code: true, status: true, description: true },
+          },
+          revisions: {
+            orderBy: { revision_no: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              revision_no: true,
+              reason: true,
+              submitted_at: true,
+              other_estimated_cost: true,
+            },
           },
         },
-      },
-    });
-    return { items: items.map((a) => this.toListDto(a)), total: items.length };
+      }),
+      this.prisma.approvals.count({ where }),
+    ]);
+    return { items: items.map((a) => this.toListDto(a)), total };
   }
 
   async get(id: string) {
@@ -85,7 +129,9 @@ export class ApprovalService {
       where: { id },
       include: {
         proposer: { select: { id: true, login_name: true, full_name: true } },
-        work_order: { select: { id: true, code: true, status: true } },
+        work_order: {
+          select: { id: true, code: true, status: true, description: true, asset: { select: { id: true, code: true, name: true } } },
+        },
         revisions: {
           orderBy: { revision_no: 'desc' },
           include: {
@@ -168,6 +214,9 @@ export class ApprovalService {
           policy_snapshot: {} as Prisma.InputJsonValue,
         },
       });
+      // Q-06: luu ngan sach linh kien cho revision 1. Neu DTO khong gui `parts`,
+      // nap tu `work_order_parts` cua WO (so luong keo hoach).
+      await this.persistRevisionParts(tx, revision.id, dto.parts, dto.workOrderId);
       return { approval, revision };
     });
 
@@ -217,6 +266,10 @@ export class ApprovalService {
         other_estimated_cost: new Prisma.Decimal(dto.otherEstimatedCost ?? 0),
       },
     });
+    // Q-06: cap nhat ngan sach linh kien cua revision hien tai.
+    if (dto.parts !== undefined) {
+      await this.persistRevisionParts(this.prisma, latest.id, dto.parts, a.work_order_id);
+    }
 
     await writeAudit({
       actorId,
@@ -448,6 +501,9 @@ export class ApprovalService {
       });
       // WO tiep tuc WAITING_APPROVAL (cho revision moi)
       await this.enterWaitingApproval(actorId, tx, a.work_order_id);
+      // Q-06: carry ngan sach linh kien sang revision moi (tu revision truoc,
+      // fallback nap lai tu work_order_parts neu revision truoc chua co parts).
+      await this.copyRevisionParts(tx, newRev.id, latest?.id ?? null, a.work_order_id);
       return updated;
     });
 
@@ -473,6 +529,131 @@ export class ApprovalService {
       where: { approval_id: approvalId },
       orderBy: { revision_no: 'desc' },
     });
+  }
+
+  /**
+   * Luu ngan sach linh kien cho 1 revision (Q-06).
+   *
+   * Day la noi DUY Nhat de `approval_revision_parts` duoc ghi tu API — truoc do
+   * chi co the ghi truc tiep qua Prisma nen UI khong the mo duong xuat linh kien
+   * ma van cho phep `assertWithinIssuedBudget` kiem soat so luong xuat.
+   *
+   * - `parts` (tu DTO) uu tien; neu undefined/rong -> nap tu `work_order_parts`
+   *   cua WO (so luong keo hoach cua ky sua chua).
+   * - Snapshot `part_name_snapshot` + `requires_approval_snapshot` de audit trail
+   *   khong doi khi danh muc part bi sua doi sau do.
+   */
+  private async persistRevisionParts(
+    tx: Prisma.TransactionClient | PrismaService,
+    revisionId: string,
+    parts: ApprovalRevisionPartInput[] | undefined,
+    workOrderId: string | null,
+  ) {
+    let requested = parts ?? [];
+
+    if (requested.length === 0 && workOrderId) {
+      const planned = await tx.work_order_parts.findMany({
+        where: { work_order_id: workOrderId },
+        include: { part: { select: { name: true, requires_approval: true } } },
+      });
+      requested = planned.map((p: {
+        part_id: string;
+        planned_quantity: { toString(): string } | number;
+        part: { name: string; requires_approval: boolean };
+      }) => ({
+        partId: p.part_id,
+        quantity: Number(p.planned_quantity),
+        requiresApproval: p.part.requires_approval,
+      }));
+    }
+
+    if (requested.length === 0) return;
+
+    // Resolve thong tin part (gia + ten + co can approval hay khong).
+    const partIds = [...new Set(requested.map((p) => p.partId))];
+    const partRows = await tx.parts.findMany({
+      where: { id: { in: partIds } },
+      select: { id: true, name: true, reference_price: true, requires_approval: true, is_active: true },
+    });
+    type PartRow = (typeof partRows)[number];
+    const partMap = new Map<string, PartRow>(partRows.map((p) => [p.id, p]));
+
+    const missing = partIds.filter((id) => !partMap.has(id));
+    if (missing.length > 0) {
+      throw AppError.unprocessable(
+        'APR_PART_NOT_FOUND',
+        'Linh kien khong ton tai',
+        { partIds: missing },
+      );
+    }
+    const inactive = partIds.filter((id) => !partMap.get(id)!.is_active);
+    if (inactive.length > 0) {
+      throw AppError.unprocessable(
+        'APR_PART_INACTIVE',
+        'Linh kien da ngung hoat dong, khong the xin cap',
+        { partIds: inactive },
+      );
+    }
+
+    // Ghi lai toan bo ngan sach revision (thay the ban cu).
+    await tx.approval_revision_parts.deleteMany({ where: { revision_id: revisionId } });
+
+    const data = requested.map((p) => {
+      const part = partMap.get(p.partId)!;
+      const qty = new Prisma.Decimal(p.quantity ?? 0);
+      if (qty.lte(0)) {
+        throw AppError.unprocessable(
+          'APR_PART_QTY_MUST_BE_POSITIVE',
+          'So luong linh kien xin cap phai > 0',
+          { partId: p.partId, quantity: p.quantity ?? 0 },
+        );
+      }
+      return {
+        revision_id: revisionId,
+        part_id: part.id,
+        quantity: qty,
+        unit_price: new Prisma.Decimal(p.unitPrice ?? part.reference_price ?? 0),
+        part_name_snapshot: part.name,
+        requires_approval_snapshot: p.requiresApproval ?? part.requires_approval,
+      };
+    });
+
+    await tx.approval_revision_parts.createMany({ data, skipDuplicates: true });
+  }
+
+  /**
+   * Copy ngan sach linh kien tu revision cu sang revision moi (REVISION_CREATED).
+   *
+   * Revision moi ke thua so luong da duyet truoc do; proposer chinh sua them o
+   * `PATCH /approvals/:id/draft`. Neu revision cu chua co parts -> nap tu
+   * `work_order_parts` qua `persistRevisionParts`.
+   */
+  private async copyRevisionParts(
+    tx: Prisma.TransactionClient,
+    newRevisionId: string,
+    previousRevisionId: string | null,
+    workOrderId: string | null,
+  ) {
+    if (previousRevisionId) {
+      const prev = await tx.approval_revision_parts.findMany({
+        where: { revision_id: previousRevisionId },
+      });
+      if (prev.length > 0) {
+        await this.persistRevisionParts(
+          tx,
+          newRevisionId,
+          prev.map((p: { part_id: string; quantity: { toString(): string }; unit_price: { toString(): string }; requires_approval_snapshot: boolean }) => ({
+            partId: p.part_id,
+            quantity: Number(p.quantity),
+            unitPrice: Number(p.unit_price),
+            requiresApproval: p.requires_approval_snapshot,
+          })),
+          null,
+        );
+        return;
+      }
+    }
+    await this.persistRevisionParts(tx, newRevisionId, undefined, workOrderId);
   }
 
   private async enterWaitingApproval(
@@ -584,15 +765,37 @@ export class ApprovalService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private toListDto(a: any) {
     const latest = a.revisions?.[0];
+    const wo = a.work_order
+      ? {
+          id: a.work_order.id,
+          code: a.work_order.code,
+          description: a.work_order.description ?? null,
+          status: a.work_order.status,
+          priorityCode: a.work_order.priority_code ?? null,
+          priority_code: a.work_order.priority_code ?? null,
+          asset: a.work_order.asset ?? null,
+        }
+      : null;
     return {
       id: a.id,
       code: a.code,
       status: a.status,
-      proposer: a.proposer,
-      workOrder: a.work_order,
+      // Frontend doc `reason` (ly do cua revision moi nhat).
+      reason: latest?.reason ?? '',
+      proposer: this.toUserBrief(a.proposer),
+      workOrder: wo,
+      currentRevision: latest
+        ? {
+            id: latest.id,
+            revisionNo: latest.revision_no,
+            netCost: latest.other_estimated_cost?.toString() ?? '0',
+            submittedAt: latest.submitted_at instanceof Date ? latest.submitted_at.toISOString() : latest.submitted_at ?? null,
+          }
+        : null,
       latestRevisionNo: latest?.revision_no ?? 1,
       latestSubmittedAt: latest?.submitted_at ?? null,
       latestBudget: latest?.other_estimated_cost?.toString() ?? '0',
+      createdAt: a.created_at instanceof Date ? a.created_at.toISOString() : a.created_at,
       rowVersion: a.row_version,
       updatedAt: a.updated_at instanceof Date ? a.updated_at.toISOString() : a.updated_at,
     };
@@ -602,34 +805,56 @@ export class ApprovalService {
   private toDetailDto(a: any) {
     return {
       ...this.toListDto(a),
-      createdAt: a.created_at instanceof Date ? a.created_at.toISOString() : a.created_at,
-      revisions: (a.revisions ?? []).map((r: { id: string; revision_no: number; reason: string; action_plan: string; other_estimated_cost: { toString(): string } | null; submitted_at: Date | null; created_at: Date; parts: unknown[] }) => ({
-        id: r.id,
-        revisionNo: r.revision_no,
-        reason: r.reason,
-        actionPlan: r.action_plan,
-        otherEstimatedCost: r.other_estimated_cost?.toString() ?? '0',
-        submittedAt: r.submitted_at instanceof Date ? r.submitted_at.toISOString() : r.submitted_at,
-        createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
-        parts: (r.parts ?? []).map((p: unknown) => {
-          const pp = p as { part_id: string; quantity: { toString(): string }; unit_price: { toString(): string }; part_name_snapshot: string; requires_approval_snapshot: boolean; part: unknown };
-          return {
-            partId: pp.part_id,
-            partNameSnapshot: pp.part_name_snapshot,
-            quantity: pp.quantity.toString(),
-            unitPrice: pp.unit_price.toString(),
-            requiresApprovalSnapshot: pp.requires_approval_snapshot,
-            part: pp.part,
-          };
-        }),
-      })),
-      events: (a.events ?? []).map((e: { id: string; event_type: string; note: string; actor: unknown; created_at: Date }) => ({
+      // Revision hien tai: lay `parts` da map de FE hien thi bang linh kien.
+      currentRevision: this.toRevisionDto(a.revisions?.[0]),
+      revisions: (a.revisions ?? []).map((r: ApprovalRevisionRow) => this.toRevisionDto(r)),
+      events: (a.events ?? []).map((e: ApprovalEventRow) => ({
         id: e.id,
         eventType: e.event_type,
         note: e.note,
-        actor: e.actor,
+        actorName: e.actor?.full_name ?? 'Hệ thống',
+        actorId: e.actor_id,
         createdAt: e.created_at instanceof Date ? e.created_at.toISOString() : e.created_at,
+        event_type: e.event_type,
       })),
+    };
+  }
+
+  /** Revision -> camelCase, kem `parts` cho UI. */
+  private toRevisionDto(r: ApprovalRevisionRow | null | undefined) {
+    if (!r) return null;
+    return {
+      id: r.id,
+      revisionNo: r.revision_no,
+      reason: r.reason,
+      actionPlan: r.action_plan,
+      otherEstimatedCost: r.other_estimated_cost?.toString() ?? '0',
+      netCost: r.other_estimated_cost?.toString() ?? '0',
+      submittedAt: r.submitted_at instanceof Date ? r.submitted_at.toISOString() : r.submitted_at ?? null,
+      createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+      parts: (r.parts ?? []).map((p: ApprovalRevisionPartRow) => ({
+        partId: p.part_id,
+        partCode: p.part?.code ?? null,
+        partName: p.part?.name ?? p.part_name_snapshot,
+        partNameSnapshot: p.part_name_snapshot,
+        quantity: p.quantity?.toString() ?? '0',
+        unitPrice: p.unit_price?.toString() ?? '0',
+        requiresApprovalSnapshot: p.requires_approval_snapshot,
+        part: p.part ?? null,
+      })),
+    };
+  }
+
+  /** User relation -> { id, loginName, fullName }. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private toUserBrief(u: any) {
+    if (!u) return null;
+    return {
+      id: u.id,
+      loginName: u.login_name,
+      fullName: u.full_name,
+      login_name: u.login_name,
+      full_name: u.full_name,
     };
   }
 }

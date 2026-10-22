@@ -11,20 +11,23 @@
  *
  * Pass criteria:
  *   - All HTTP steps status match
- *   - Audit logs cho tung action xuat hien
- *   - Notifications: reporter nhan notification when incident auto-resolve
- *   - Realtime WS: notification:updated emit when mark read
+ *   - Audit logs cho tung action xuat hien (verify truc tiep qua prisma.audit_logs —
+ *     endpoint GET /iam/audit-logs đã bị cắt khỏi scope cùng notifications/WS)
+ *   - Incident auto-resolve ghi incident_messages('SYSTEM')
  *   - CSV export line count > 0
  *   - SLA status of WO complete
+ *
+ * Lưu ý: realtime WS (socket.io) và module notifications đã bị cắt khỏi scope —
+ * các assertion tương ứng đã bỏ. Xem apps/api/src/modules (không có notification/gateway).
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import request from 'supertest';
-import { io as Client, Socket } from 'socket.io-client';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { disconnectPrisma } from '@equipcare/backend-core';
 
 interface Step {
   name: string;
@@ -113,7 +116,6 @@ describe('DEMO §15 — end-to-end incident workflow', () => {
   let app: INestApplication;
   let moduleRef: TestingModule;
   let prisma: PrismaService;
-  let port: number;
   const steps: Step[] = [];
   const push = (s: Step) => {
     steps.push(s);
@@ -143,17 +145,13 @@ describe('DEMO §15 — end-to-end incident workflow', () => {
   let workOrderId = '';
   let approvalId = '';
 
-  // WS state
-  let wsReporter: Socket | null = null;
-  const wsEvents: Array<{ event: string; payload: unknown }> = [];
+  // WS state — realtime socket.io đã bị cắt khỏi scope (không có gateway trong src/).
 
   beforeAll(async () => {
     const booted = await bootstrap();
     app = booted.app;
     moduleRef = booted.moduleRef;
     prisma = app.get(PrismaService);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    port = (app.getHttpServer() as any).address()?.port ?? 3000;
 
     // Admin login (de tao role + departments/locations/asset types)
     const adminRes = await request(app.getHttpServer())
@@ -270,29 +268,15 @@ describe('DEMO §15 — end-to-end incident workflow', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ partId: part2Id, quantity: 50, sourceNote: 'Initial stock' });
     push({ name: 'Setup: receipt part B (50)', pass: r2.status === 201, httpStatus: r2.status });
-
-    // Connect WS cho reporter (de verify realtime notif)
-    wsReporter = Client(`http://127.0.0.1:${port}/ws`, {
-      auth: { token: reporterToken },
-      transports: ['websocket', 'polling'],
-      reconnection: false,
-      forceNew: true,
-    });
-    await new Promise<void>((resolve) => {
-      const t = setTimeout(() => resolve(), 3000);
-      wsReporter!.on('connected', () => {
-        clearTimeout(t);
-        resolve();
-      });
-    });
-    wsReporter.onAny((event, payload) => {
-      wsEvents.push({ event, payload });
-    });
   });
 
   afterAll(async () => {
-    if (wsReporter) wsReporter.disconnect();
-    if (moduleRef) await moduleRef.close();
+    // `app.listen(0)` đã mở HTTP server → phải `app.close()` (moduleRef.close()
+    // một mình KHÔNG đóng server, khiến Jest treo với "did not exit").
+    if (app) await app.close();
+    else if (moduleRef) await moduleRef.close();
+    // Đóng Prisma pool để connection không giữ process sống.
+    await disconnectPrisma();
     const fail = steps.filter((s) => !s.pass).length;
     // eslint-disable-next-line no-console
     console.log(`\n[demo] ====== TỔNG KẾT: ${steps.length - fail}/${steps.length} PASS ======`);
@@ -653,82 +637,79 @@ describe('DEMO §15 — end-to-end incident workflow', () => {
     });
   });
 
-  // --- Notification list + realtime ---
-  it('(14) Notification list + realtime push', async () => {
-    const list = await request(app.getHttpServer())
-      .get('/notifications')
-      .set('Authorization', `Bearer ${reporterToken}`);
+  // --- Incident audit trail (thay cho notifications đã bị cắt khỏi scope) ---
+  it('(14) Incident auto-resolve ghi incident_messages SYSTEM event', async () => {
+    // Module notifications + realtime WS đã bị cắt khỏi scope. Thay bằng verify
+    // audit trail in-scope: incident_messages('SYSTEM') ghi lại mỗi transition.
+    const messages = await prisma.incident_messages.findMany({
+      where: { incident_id: incidentId },
+      orderBy: { created_at: 'asc' },
+    });
     push({
-      name: '(14a) Reporter notification list',
-      pass: list.status === 200 && Array.isArray(list.body?.items),
-      httpStatus: list.status,
-      bodySnippet: { count: list.body?.items?.length },
+      name: '(14a) Incident messages SYSTEM trail',
+      pass: messages.length > 0 && messages.some((m) => m.message_type === 'SYSTEM'),
+      bodySnippet: { count: messages.length },
     });
 
-    const unread = await request(app.getHttpServer())
-      .get('/notifications/unread-count')
+    // Reporter vẫn đọc được incident sau khi manager đóng.
+    const detail = await request(app.getHttpServer())
+      .get(`/incidents/${incidentId}`)
       .set('Authorization', `Bearer ${reporterToken}`);
     push({
-      name: '(14b) Unread count',
-      pass: unread.status === 200,
-      httpStatus: unread.status,
-      bodySnippet: unread.body,
+      name: '(14b) Reporter reads closed incident',
+      pass: detail.status === 200,
+      httpStatus: detail.status,
+      bodySnippet: { status: detail.body?.status },
     });
-
-    // Mark first as read (should emit realtime event)
-    if (list.body?.items?.[0]) {
-      const firstId = list.body.items[0].id;
-      const mark = await request(app.getHttpServer())
-        .patch(`/notifications/${firstId}/read`)
-        .set('Authorization', `Bearer ${reporterToken}`);
-      push({
-        name: '(14c) Mark notification read (realtime emit)',
-        pass: mark.status === 200,
-        httpStatus: mark.status,
-      });
-      // Wait briefly for WS event
-      await new Promise((r) => setTimeout(r, 500));
-      const realtimeEvent = wsEvents.find((e) => e.event === 'notification:updated');
-      push({
-        name: '(14d) WS notification:updated received',
-        pass: Boolean(realtimeEvent),
-        detail: realtimeEvent ? `payloadId=${(realtimeEvent.payload as { id?: string }).id ?? 'batch'}` : 'no event',
-      });
-    }
+    expect(detail.status).toBe(200);
   });
 
-  // --- Audit logs ---
+  // --- Audit logs (verify trực tiếp — endpoint /iam/audit-logs đã bị cắt) ---
   it('(15) Audit logs captured all critical actions', async () => {
     expect(approvalId).not.toBe(''); // precondition
-    // Lay toan bo audit logs (limit 500, sort by created_at desc)
-    const res = await request(app.getHttpServer())
-      .get('/iam/audit-logs?limit=200')
-      .set('Authorization', `Bearer ${adminToken}`);
-    expect(res.status).toBe(200);
-    const items = (res.body?.items ?? []) as Array<{
-      action: string;
-      object_key: string;
-    }>;
-    // Lay recent audit logs (limit 200) - chi can chung loai action
-    const res2 = await request(app.getHttpServer())
-      .get('/iam/audit-logs?limit=200')
-      .set('Authorization', `Bearer ${adminToken}`);
-    const items2 = res2.status === 200 ? (res2.body?.items ?? []) as Array<{ action: string; object_key: string }> : [];
+
+    // GET /iam/audit-logs đã bị cắt khỏi scope → query trực tiếp audit_logs
+    // (cùng convention với q01-sec-aud.e2e-spec.ts).
+    // Lưu ý: stock.* dùng objectKey = stock_transactions.id (không phải workOrderId),
+    // nên phải filter theo `action` chứ không theo object_key.
+    const rows = await prisma.audit_logs.findMany({
+      where: {
+        action: {
+          in: [
+            'incident.create',
+            'incident.transition',
+            'work_order.create',
+            'work_order.complete',
+            'stock.issue',
+            'stock.receipt',
+          ],
+        },
+      },
+      orderBy: { created_at: 'desc' },
+      take: 200,
+    });
+    const approvalRows = await prisma.audit_logs.findMany({
+      where: { action: { startsWith: 'approval.' } },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+    });
+    const all = [...rows, ...approvalRows];
+
     const finds = {
-      incidentCreateActionPresent: items2.some((a) => a.action === 'incident.create'),
-      workOrderCreateActionPresent: items2.some((a) => a.action === 'work_order.create'),
-      approvalAnyActionPresent: items2.some((a) => a.action.startsWith('approval.')),
-      stockIssuePresent: items2.some((a) => a.action === 'stock.issue'),
-      stockReceiptPresent: items2.some((a) => a.action === 'stock.receipt'),
-      incidentTransition: items2.some((a) => a.action === 'incident.transition'),
-      workOrderComplete: items2.some((a) => a.action === 'work_order.complete'),
+      incidentCreateActionPresent: all.some((a) => a.action === 'incident.create'),
+      workOrderCreateActionPresent: all.some((a) => a.action === 'work_order.create'),
+      approvalAnyActionPresent: all.some((a) => a.action.startsWith('approval.')),
+      stockIssuePresent: all.some((a) => a.action === 'stock.issue'),
+      stockReceiptPresent: all.some((a) => a.action === 'stock.receipt'),
+      incidentTransition: all.some((a) => a.action === 'incident.transition'),
+      workOrderComplete: all.some((a) => a.action === 'work_order.complete'),
     };
     const allOk = Object.values(finds).every(Boolean);
     // In ra action counts de debug
     const counts: Record<string, number> = {};
-    for (const a of items2) counts[a.action] = (counts[a.action] ?? 0) + 1;
-    const incidentCreateCount = items2.filter((a) => a.action === 'incident.create').length;
-    const incidentCreateForObj = items2.filter(
+    for (const a of rows) counts[a.action] = (counts[a.action] ?? 0) + 1;
+    const incidentCreateCount = rows.filter((a) => a.action === 'incident.create').length;
+    const incidentCreateForObj = rows.filter(
       (a) => a.action === 'incident.create' && a.object_key === incidentId,
     ).length;
     push({
@@ -736,10 +717,10 @@ describe('DEMO §15 — end-to-end incident workflow', () => {
       pass: allOk,
       detail: JSON.stringify({
         ...finds,
-        totalItems: items2.length,
+        totalItems: rows.length,
         incidentCreateCount,
         incidentCreateForObj,
-        incidentCreateObjectsList: items2
+        incidentCreateObjectsList: rows
           .filter((a) => a.action === 'incident.create')
           .map((a) => a.object_key)
           .slice(0, 3),

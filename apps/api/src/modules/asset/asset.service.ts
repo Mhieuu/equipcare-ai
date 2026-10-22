@@ -21,6 +21,15 @@ import type {
   UpdateAssetDto,
 } from './dto/asset.dto.js';
 
+/** Phieu cong viec dang mo cua 1 thiet bi (doc cho DTO mapper). */
+interface AssetWorkOrderRow {
+  id: string;
+  code: string;
+  status: string;
+  kind: string;
+  due_at: Date | string | null;
+}
+
 /**
  * AssetService — M2 (Doc02 §FR-ASSET-01..09).
  *
@@ -114,6 +123,12 @@ export class AssetService {
         department: { select: { id: true, code: true, name: true } },
         location: { select: { id: true, code: true, name: true } },
         created_by_user: { select: { id: true, login_name: true, full_name: true } },
+        // FE hien thi danh sach phieu cong viec dang mo cua thiet bi.
+        work_orders: {
+          where: { status: { in: ['NEW', 'IN_PROGRESS', 'PAUSED', 'WAITING_APPROVAL'] } },
+          orderBy: { due_at: 'asc' },
+          select: { id: true, code: true, status: true, kind: true, due_at: true },
+        },
       },
     });
     if (!asset) throw AppError.notFound('Không tìm thấy thiết bị');
@@ -347,7 +362,28 @@ export class AssetService {
         : null,
       specifications: a.specifications ?? {},
       stateReason: a.state_reason ?? null,
-      createdBy: a.created_by_user ?? null,
+      createdBy: this.toUserBrief(a.created_by_user),
+      // Phieu cong viec dang mo (FE asset detail).
+      activeWorkOrders: (a.work_orders ?? []).map((w: AssetWorkOrderRow) => ({
+        id: w.id,
+        code: w.code,
+        status: w.status,
+        kind: w.kind,
+        dueAt: w.due_at instanceof Date ? w.due_at.toISOString() : w.due_at ?? null,
+      })),
+    };
+  }
+
+  /** User relation -> { id, loginName, fullName }. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private toUserBrief(u: any) {
+    if (!u) return null;
+    return {
+      id: u.id,
+      loginName: u.login_name,
+      fullName: u.full_name,
+      login_name: u.login_name,
+      full_name: u.full_name,
     };
   }
 }

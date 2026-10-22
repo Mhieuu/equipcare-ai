@@ -368,22 +368,53 @@ export class StockTransactionService {
     approvalRevisionId: string,
     additionalQty: Prisma.Decimal | number,
   ) {
-    // Lay entries cua revision (co the ISSUE khac part)
-    const entries = await tx.stock_transactions.findMany({
-      where: { approval_revision_id: approvalRevisionId },
-      select: { movement_type: true, quantity: true },
+    // Net issued quantity cua RIENG part nay (Doc04 §5.6 + Q-06):
+    //   net(part) = SUM(ISSUE cua part trong revision)
+    //              - SUM(RETURN tro ve cac ISSUE do)
+    //   budget(part) = approval_revision_parts.quantity cua part trong revision
+    //
+    // Luu y: phai scope theo part. Revision co the chua nhieu part, moi part
+    // co limit rieng trong approval_revision_parts — neu gom tat ca ISSUE cua
+    // revision vao 1 tong thi se so sanh tong cua part A voi limit cua part B
+    // va reject sai (false positive).
+    const issueRows = await tx.stock_transactions.findMany({
+      where: {
+        approval_revision_id: approvalRevisionId,
+        movement_type: 'ISSUE',
+        part_id: partId,
+      },
+      select: { id: true, quantity: true },
     });
-    let issued = new Prisma.Decimal(0);
-    let returned = new Prisma.Decimal(0);
-    for (const e of entries) {
-      const q = new Prisma.Decimal(e.quantity);
-      if (e.movement_type === 'ISSUE') issued = issued.plus(q);
-      else if (e.movement_type === 'RETURN') returned = returned.plus(q);
-    }
+
+    const issued = issueRows.reduce(
+      (acc: Prisma.Decimal, r: { quantity: Prisma.Decimal | number }) =>
+        acc.plus(new Prisma.Decimal(r.quantity)),
+      new Prisma.Decimal(0),
+    );
+
+    // RETURN khong ghi approval_revision_id — lien ket qua original_stock_tx_id
+    // tro ve ISSUE goc (xem returnForWorkOrder).
+    const issueIds = issueRows.map((r: { id: string }) => r.id);
+    const returned = issueIds.length
+      ? (
+          await tx.stock_transactions.findMany({
+            where: { movement_type: 'RETURN', original_stock_tx_id: { in: issueIds } },
+            select: { quantity: true },
+          })
+        ).reduce(
+          (acc: Prisma.Decimal, r: { quantity: Prisma.Decimal | number }) =>
+            acc.plus(new Prisma.Decimal(r.quantity)),
+          new Prisma.Decimal(0),
+        )
+      : new Prisma.Decimal(0);
+
     const net = issued.minus(returned).plus(new Prisma.Decimal(additionalQty));
-    // Lay budget cua revision (parts list). Q-06 simplified: budget = sum qty cua cac parts.
+
+    // Lay budget cua revision cho part nay.
+    // NOTE: field la `revision_id` (khong phai `approval_revision_id`) — day la
+    // khoa cua bang approval_revision_parts trong schema.prisma.
     const revisionParts = await tx.approval_revision_parts.findMany({
-      where: { approval_revision_id: approvalRevisionId, part_id: partId },
+      where: { revision_id: approvalRevisionId, part_id: partId },
     });
     if (revisionParts.length === 0) {
       throw AppError.unprocessable(

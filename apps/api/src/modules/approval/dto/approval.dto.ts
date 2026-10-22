@@ -7,10 +7,33 @@ import {
   IsUUID,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApprovalEventType, type ApprovalStatus } from '@equipcare/shared';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto.js';
+
+/**
+ * 1 dong y nghia xuat linh kien cho revision (Q-06).
+ *
+ * `quantity` > 0 va don gia mac dinh lay tu `parts.reference_price`.
+ */
+export class ApprovalRevisionPartDto {
+  @IsUUID()
+  partId!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  quantity?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  unitPrice?: number;
+}
 
 /**
  * POST /approvals: create draft approval (Doc04 section 5.7).
@@ -31,6 +54,16 @@ export class CreateApprovalDto {
   @IsNumber()
   @Min(0)
   otherEstimatedCost?: number;
+
+  /**
+   * Linh kien xin cap trong revision (Q-06). Neu bo trong, service tu nap
+   * tu `work_order_parts` cua WO (so luong keo hoach).
+   */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ApprovalRevisionPartDto)
+  parts?: ApprovalRevisionPartDto[];
 }
 
 /**
@@ -49,6 +82,13 @@ export class UpdateDraftApprovalDto {
   @IsNumber()
   @Min(0)
   otherEstimatedCost?: number;
+
+  /** Cap nhat danh sach linh kien xin cap (Q-06). */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ApprovalRevisionPartDto)
+  parts?: ApprovalRevisionPartDto[];
 }
 
 export class ApprovalActionDto {

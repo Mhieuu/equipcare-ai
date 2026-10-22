@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { AppError, listAuditLogs, writeAudit, type AuditLogRecord } from '@equipcare/backend-core';
+import { AppError, writeAudit } from '@equipcare/backend-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CreateUserDto } from './dto/create-user.dto.js';
 import type { UpdateUserDto } from './dto/update-user.dto.js';
@@ -13,10 +13,6 @@ import type {
 } from './dto/user-response.dto.js';
 import type { MePermissionsDto, RoleInfoDto } from './dto/iam-response.dto.js';
 import type { ListUsersQueryDto } from './dto/list-users-query.dto.js';
-import type {
-  AuditLogDto,
-  AuditLogListResponseDto,
-} from './dto/audit-log.dto.js';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
 
 const BCRYPT_COST = 10;
@@ -325,6 +321,57 @@ export class IamService {
   // Permissions / Roles (read-only)
   // -------------------------------------------------------------------------
 
+  async listDepartments(opts: { isActive?: boolean }): Promise<
+    Array<{ id: string; code: string; name: string; isActive: boolean }>
+  > {
+    const where: Prisma.departmentsWhereInput = {};
+    if (opts.isActive === true) where.is_active = true;
+    else if (opts.isActive === false) where.is_active = false;
+    const rows = await this.prisma.departments.findMany({
+      where,
+      orderBy: { code: 'asc' },
+    });
+    return rows.map((r) => ({ id: r.id, code: r.code, name: r.name, isActive: r.is_active }));
+  }
+
+  async listLocations(opts: { isActive?: boolean }): Promise<
+    Array<{ id: string; code: string; name: string; parentId: string | null; isActive: boolean }>
+  > {
+    const where: Prisma.locationsWhereInput = {};
+    if (opts.isActive === true) where.is_active = true;
+    else if (opts.isActive === false) where.is_active = false;
+    const rows = await this.prisma.locations.findMany({
+      where,
+      orderBy: { code: 'asc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      code: r.code,
+      name: r.name,
+      parentId: r.parent_id,
+      isActive: r.is_active,
+    }));
+  }
+
+  async listAssetTypes(opts: { isActive?: boolean }): Promise<
+    Array<{ id: string; code: string; name: string; description: string | null; isActive: boolean }>
+  > {
+    const where: Prisma.asset_typesWhereInput = {};
+    if (opts.isActive === true) where.is_active = true;
+    else if (opts.isActive === false) where.is_active = false;
+    const rows = await this.prisma.asset_types.findMany({
+      where,
+      orderBy: { code: 'asc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      code: r.code,
+      name: r.name,
+      description: r.description,
+      isActive: r.is_active,
+    }));
+  }
+
   async listRoles(): Promise<RoleInfoDto[]> {
     const roles = await this.prisma.roles.findMany({ orderBy: { code: 'asc' } });
     return roles.map((r) => ({ id: r.id, code: r.code, name: r.name }));
@@ -356,52 +403,9 @@ export class IamService {
   }
 
   /**
-   * listAuditLogs — Doc02 §NFR-AUDIT-02.
-   * Wrapper quanh backend-core listAuditLogs để format response.
+   * listAuditLogs — removed in cut. Write operations still call writeAudit().
+   * Audit logs can be queried directly from DB or via a future dedicated service.
    */
-  async listAuditLogs(filter: {
-    actorId?: string;
-    action?: string;
-    objectType?: string;
-    objectKey?: string;
-    from?: Date;
-    to?: Date;
-    limit?: number;
-    offset?: number;
-  }): Promise<AuditLogListResponseDto> {
-    const result = await listAuditLogs({
-      actorId: filter.actorId,
-      action: filter.action,
-      objectType: filter.objectType,
-      objectKey: filter.objectKey,
-      from: filter.from,
-      to: filter.to,
-      limit: filter.limit ?? 50,
-      offset: filter.offset ?? 0,
-    });
-    return {
-      items: result.items.map(this.toAuditDto),
-      total: result.total,
-      limit: filter.limit ?? 50,
-      offset: filter.offset ?? 0,
-    };
-  }
-
-  private toAuditDto(r: AuditLogRecord): AuditLogDto {
-    return {
-      id: r.id,
-      actorId: r.actorId,
-      actorType: r.actorType,
-      action: r.action,
-      objectType: r.objectType,
-      objectKey: r.objectKey,
-      oldValue: r.oldValue,
-      newValue: r.newValue,
-      note: r.note,
-      correlationKey: r.correlationKey,
-      createdAt: r.createdAt.toISOString(),
-    };
-  }
 
   // -------------------------------------------------------------------------
   // Internal helpers
