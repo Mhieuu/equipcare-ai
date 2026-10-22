@@ -32,15 +32,15 @@ export default function NewAssetPage() {
 
   const { data: assetTypes } = useQuery({
     queryKey: ['asset-types'],
-    queryFn: () => apiGet<{ items: Option[] }>('/organization/asset-types'),
+    queryFn: () => apiGet<Array<{ id: string; code: string; name: string }>>('/iam/asset-types'),
   });
   const { data: depts } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => apiGet<{ items: Option[] }>('/organization/departments'),
+    queryFn: () => apiGet<Array<{ id: string; code: string; name: string }>>('/iam/departments'),
   });
   const { data: locs } = useQuery({
     queryKey: ['locations'],
-    queryFn: () => apiGet<{ items: Option[] }>('/organization/locations'),
+    queryFn: () => apiGet<Array<{ id: string; code: string; name: string }>>('/iam/locations'),
   });
 
   const {
@@ -94,7 +94,7 @@ export default function NewAssetPage() {
             <label className="label">Loại thiết bị *</label>
             <select {...register('assetTypeId', { required: 'Bắt buộc' })} className="input">
               <option value="">-- Chọn --</option>
-              {assetTypes?.items?.map((t) => (
+              {(assetTypes ?? []).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
@@ -105,7 +105,7 @@ export default function NewAssetPage() {
             <label className="label">Phòng ban *</label>
             <select {...register('departmentId', { required: 'Bắt buộc' })} className="input">
               <option value="">-- Chọn --</option>
-              {depts?.items?.map((d) => (
+              {(depts ?? []).map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
@@ -116,7 +116,7 @@ export default function NewAssetPage() {
             <label className="label">Vị trí *</label>
             <select {...register('locationId', { required: 'Bắt buộc' })} className="input">
               <option value="">-- Chọn --</option>
-              {locs?.items?.map((l) => (
+              {(locs ?? []).map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
                 </option>

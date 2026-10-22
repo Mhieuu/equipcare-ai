@@ -8,19 +8,13 @@ import {
   Wrench,
   ClipboardList,
   Package,
-  Bell,
   Calendar,
-  Settings,
   Users,
   LogOut,
   Boxes,
   FileText,
-  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { useSocket } from '@/lib/socket';
-import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '@/lib/api';
 import { clsx } from 'clsx';
 
 interface NavItem {
@@ -39,25 +33,13 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/assets', label: 'Thiết bị', icon: Boxes },
   { href: '/inventory/parts', label: 'Linh kiện', icon: Package },
   { href: '/maintenance/plans', label: 'Bảo trì', icon: Calendar },
-  { href: '/notifications', label: 'Thông báo', icon: Bell, roles: ['USER', 'TECHNICIAN', 'MANAGER', 'ADMIN'] },
   { href: '/reports', label: 'Báo cáo', icon: FileText, permission: 'report:export' },
   { href: '/iam/users', label: 'Người dùng', icon: Users, permission: 'iam:user:read' },
-  { href: '/iam/audit-logs', label: 'Audit log', icon: ShieldCheck, permission: 'audit:read:all' },
-  { href: '/organization', label: 'Tổ chức', icon: Settings, permission: 'org:read' },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
-  const { user, hasPermission, hasRole, logout, accessToken } = useAuth();
-
-  useSocket();
-
-  const { data: unread } = useQuery({
-    queryKey: ['notifications', 'unread'],
-    queryFn: () => apiGet<{ count: number }>('/notifications/unread-count'),
-    enabled: !!accessToken,
-    refetchInterval: 30_000,
-  });
+  const { user, hasPermission, hasRole, logout } = useAuth();
 
   if (!user) {
     // Token exists but user profile is still being fetched (or AuthGuard is
@@ -95,11 +77,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <Icon className="h-4 w-4" />
                 <span className="flex-1">{item.label}</span>
-                {item.href === '/notifications' && (unread?.count ?? 0) > 0 && (
-                  <span className="bg-rose-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                    {unread?.count ?? 0}
-                  </span>
-                )}
               </Link>
             );
           })}

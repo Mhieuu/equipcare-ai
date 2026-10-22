@@ -7,23 +7,23 @@ import { formatDate } from '@/lib/format';
 import { apiGet, apiPost } from '@/lib/api';
 import { useToast } from '@/components/toast';
 
+interface Occurrence {
+  id: string;
+  dueOn: string;
+  status: string;
+  skippedReason: string | null;
+  workOrder: { id: string; code: string; status: string } | null;
+}
+
 interface PlanDetail {
   id: string;
-  code: string;
+  code: string | null;
   name: string;
-  description: string | null;
-  asset: { id: string; code: string; name: string };
+  asset: { id: string; code: string; name: string } | null;
   intervalValue: number;
   intervalUnit: string;
   scheduleBasis: string;
   isActive: boolean;
-  occurrences: Array<{
-    id: string;
-    dueOn: string;
-    status: string;
-    skippedReason: string | null;
-    workOrder: { id: string; code: string; status: string } | null;
-  }>;
 }
 
 export default function PlanDetailPage() {
@@ -37,6 +37,15 @@ export default function PlanDetailPage() {
     queryFn: () => apiGet<PlanDetail>(`/maintenance-plans/${params!.id as string}`),
     enabled: !!params?.id,
   });
+
+  // Occurrences nam o endpoint rieng (`/maintenance-plans/:id/occurrences`),
+  // khong nằm trong payload cua plan -> phai fetch rieng.
+  const { data: occurrences } = useQuery({
+    queryKey: ['plan-occurrences', params?.id as string],
+    queryFn: () => apiGet<Occurrence[]>(`/maintenance-plans/${params!.id as string}/occurrences`),
+    enabled: !!params?.id,
+  });
+  const occurrenceList = occurrences ?? [];
 
   const pause = useMutation({
     mutationFn: () => apiPost(`/maintenance-plans/${params!.id as string}/pause`, {}),
@@ -59,8 +68,8 @@ export default function PlanDetailPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{plan.name}</h1>
-          <p className="text-sm text-slate-500">Mã: <span className="font-mono">{plan.code}</span></p>
-          <p className="text-sm">Thiết bị: <span className="font-medium">{plan.asset.code} - {plan.asset.name}</span></p>
+          <p className="text-sm text-slate-500">Mã: <span className="font-mono">{plan.code ?? plan.asset?.code ?? '—'}</span></p>
+          <p className="text-sm">Thiết bị: <span className="font-medium">{plan.asset ? `${plan.asset.code} - ${plan.asset.name}` : '—'}</span></p>
         </div>
         <div className="flex gap-2">
           {plan.isActive ? (
@@ -83,7 +92,7 @@ export default function PlanDetailPage() {
       </div>
 
       <div className="card p-4">
-        <h2 className="font-semibold mb-3">Lịch sử kỳ ({plan.occurrences.length})</h2>
+        <h2 className="font-semibold mb-3">Lịch sử kỳ ({occurrenceList.length})</h2>
         <table className="table">
           <thead>
             <tr>
@@ -94,20 +103,28 @@ export default function PlanDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {plan.occurrences.map((o) => (
-              <tr key={o.id}>
-                <td>{formatDate(o.dueOn, 'dd/MM/yyyy')}</td>
-                <td>
-                  <span className={
-                    o.status === 'COMPLETED' ? 'badge-green' :
-                    o.status === 'OVERDUE' ? 'badge-red' :
-                    o.status === 'SKIPPED' ? 'badge-gray' : 'badge-blue'
-                  }>{o.status}</span>
+            {occurrenceList.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-center text-slate-500 py-4">
+                  Chưa có kỳ bảo trì nào
                 </td>
-                <td>{o.workOrder ? <a className="text-brand-700 hover:underline" href={`/work-orders/${o.workOrder.id}`}>{o.workOrder.code}</a> : '—'}</td>
-                <td className="text-xs text-slate-500">{o.skippedReason ?? '—'}</td>
               </tr>
-            ))}
+            ) : (
+              occurrenceList.map((o) => (
+                <tr key={o.id}>
+                  <td>{formatDate(o.dueOn, 'dd/MM/yyyy')}</td>
+                  <td>
+                    <span className={
+                      o.status === 'COMPLETED' ? 'badge-green' :
+                      o.status === 'OVERDUE' ? 'badge-red' :
+                      o.status === 'SKIPPED' ? 'badge-gray' : 'badge-blue'
+                    }>{o.status}</span>
+                  </td>
+                  <td>{o.workOrder ? <a className="text-brand-700 hover:underline" href={`/work-orders/${o.workOrder.id}`}>{o.workOrder.code}</a> : '—'}</td>
+                  <td className="text-xs text-slate-500">{o.skippedReason ?? '—'}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

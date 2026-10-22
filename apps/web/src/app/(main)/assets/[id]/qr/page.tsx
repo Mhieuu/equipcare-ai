@@ -6,13 +6,15 @@ import { ArrowLeft, Printer } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 
 interface QrData {
-  qrPngBase64: string;
+  /** API tra ve `{ qrKey, dataUrl }` — dataUrl la PNG data URL san dung cho <img src>. */
+  qrKey: string;
+  dataUrl: string;
 }
 
 export default function AssetQrPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['asset-qr', params?.id as string],
     queryFn: () => apiGet<QrData>(`/assets/${params!.id as string}/qr`),
     enabled: !!params?.id,
@@ -27,9 +29,12 @@ export default function AssetQrPage() {
       <div className="card p-8 flex flex-col items-center gap-4">
         {isLoading ? (
           <div className="text-slate-500">Đang tải...</div>
-        ) : data?.qrPngBase64 ? (
+        ) : error ? (
+          <div className="text-rose-600">Không tải được QR</div>
+        ) : data?.dataUrl ? (
           <>
-            <img src={data.qrPngBase64} alt="Asset QR" className="h-64 w-64" />
+            <img src={data.dataUrl} alt="Asset QR" className="h-64 w-64" />
+            <p className="text-xs text-slate-500 font-mono">{data.qrKey}</p>
             <button onClick={() => window.print()} className="btn-secondary">
               <Printer className="h-4 w-4" /> In QR
             </button>
