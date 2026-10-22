@@ -38,14 +38,14 @@
 
 1. **Identity & Org**: `org_unit`, `users`, `sessions`, `login_attempts`, `password_reset_tokens`.
 2. **Master**: `departments`, `locations`, `asset_types`, `incident_categories`, `vendors`, `sla_policies`.
-3. **Asset**: `assets`, `asset_status_history`, `asset_qr_tokens`, `technical_documents`, `document_versions`, `document_roles`.
+3. **Asset**: `assets`, `asset_status_history`, `asset_qr_tokens`.
 4. **Maintenance**: `maintenance_plans`, `plan_occurrences`, `plan_generation_log`.
 5. **Incident**: `incidents`, `incident_messages`, `incident_history`.
 6. **Work Order**: `work_orders`, `work_order_tasks`, `work_order_status_history`, `work_order_collaborators`, `work_order_checklist_items`, `work_logs`.
 7. **Inventory**: `spare_parts`, `part_balances` (`UNIQUE(spare_part_id)`), `stock_transactions` (`operation_key UNIQUE`), `low_stock_alerts`, `part_movements`.
 8. **Approval & Cost**: `approval_requests`, `approval_items`, `approval_history`, `approval_revisions`, `cost_entries`.
-9. **Notification**: `notifications`, `notification_jobs`, `outbox_events`.
-10. **File**: `files` (STAGED/READY/EXPIRED), `attachment_links`.
+9. **Notification**: `notifications` (bảng có trong DB nhưng service/controller/gateway đã bị xóa).
+10. **File**: <!-- Bảng `files` và `attachment_links` đã bị xóa (Attachment module bị cắt hoàn toàn) -->
 11. **AI**: `ai_requests`, `ai_suggestions`, `ai_jobs`.
 12. **Catalog**: `role_permissions`, `user_role_scopes`, `audit_logs`, `thresholds`, `reports`, `dashboards`.
 

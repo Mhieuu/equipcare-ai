@@ -12,8 +12,7 @@ Tài liệu này trình bày kết quả khảo sát nghiệp vụ, phân tích 
 > Toàn bộ nội dung chi tiết xem file gốc `.docx`. Tóm tắt các quyết định chốt:
 
 - Phạm vi: 1 tổ chức, 4 vai trò (Admin, Manager, Technician, Reporter/Requester).
-- Module nghiệp vụ: Asset, Incident, Work Order, Maintenance Plan, Spare Parts, Cost & Approval, Notification, Dashboard, AI hỗ trợ.
+- Module nghiệp vụ: Asset, Incident, Work Order, Maintenance Plan, Spare Parts, Cost & Approval, Dashboard, AI hỗ trợ.
 - Mã hiển thị thống nhất theo format `AST-YYYY-NNNN`, `INC-YYYYMM-NNNN`, `WO-YYYYMM-NNNN`.
 - Ngưỡng phê duyệt chi phí cấu hình theo tổ chức, mặc định 2.000.000 VND (theo `thresholds`/`approval_revisions`).
-- File đính kèm ở S3-compatible storage; database chỉ lưu metadata.
 - AI là tùy chọn có feature flag; workflow vẫn chạy khi AI down.

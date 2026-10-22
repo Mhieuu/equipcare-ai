@@ -10,45 +10,35 @@
 ```
 ┌────────────────────────────────────────────────────────────────────┐
 │                          Frontend (Next.js 14)                     │
-│                       Apps: web  ·  worker (no)                    │
 └──────────────────────────────┬─────────────────────────────────────┘
-                               │ REST + WebSocket (JWT + Cookies)
+                               │ REST (JWT + Cookies)
 ┌──────────────────────────────┴─────────────────────────────────────┐
 │                       NestJS API (modular monolith)                │
-│  modules: auth · iam · org-unit · asset · incident · work-order ·  │
-│           maintenance · inventory · cost · approval ·             │
-│           notification · dashboard · ai · attachment · audit ·     │
-│           report · health                                          │
+│  modules: auth · iam · asset · incident · work-order ·              │
+│           maintenance · inventory · cost · approval ·              │
+│           dashboard · ai · health · scheduler                       │
 │  common: filters, pipes, guards, AppError, RBAC chain              │
-│  infra: prisma, storage (S3/MinIO), mail (log-only), realtime WS   │
+│  infra: prisma, mail (log-only)                                   │
+│  scheduler: tự sinh kỳ bảo trì định kỳ (trong API, không BullMQ)│
 │                                                                    │
-│  shared: packages/backend-core (PrismaService + domain policy)     │
-└──────┬──────────────────────────┬─────────────────────────┬───────┘
-       │                          │                         │
-       ▼                          ▼                         ▼
-┌──────────────┐         ┌──────────────────┐      ┌──────────────────┐
-│ PostgreSQL16 │         │ Redis 7 (BullMQ) │      │   MinIO (S3)     │
-│              │         │                  │      │  equipcare-files │
-└──────────────┘         └────────┬─────────┘      └──────────────────┘
-                                 │
-                                 ▼
-                        ┌──────────────────┐
-                        │ apps/worker      │
-                        │ BullMQ processors│
-                        │  ai, notification│
-                        │  scheduler, outbox│
-                        └──────────────────┘
+│  shared: packages/backend-core (PrismaService + domain policy)    │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               │
+                               ▼
+                      ┌──────────────────┐
+                      │   PostgreSQL 17  │
+                      └──────────────────┘
 ```
 
-### Worker tách process nhưng dùng chung logic
+### Scheduler trong API, không Worker tách process
 
-- `apps/api` và `apps/worker` cùng import `packages/backend-core`.
+- `apps/api/src/modules/scheduler/` chịu trách nhiệm tự sinh kỳ bảo trì định kỳ (gọi hàm `generateOccurrences` định kỳ, ví dụ mỗi giờ).
 - Backend-core chứa:
-  - `PrismaService` (singleton trong từng process; **không** HTTP)
+  - `PrismaService` (singleton; **không** HTTP)
   - Domain: `incident.state-machine`, `work-order.state-machine`, `approval.state-machine`
   - Policy: RBAC, scope check, self-approval check
   - SLA, Inventory domain (issue/return Q-06 logic)
-- **Không có circular dependency** api → worker.
+- **Không có circular dependency**.
 
 ## API conventions
 
@@ -64,18 +54,18 @@
 |---|---|
 | Auth | `/auth/{login,logout,refresh,change-password,forgot-password,reset-password}` · `/me` · `/admin/users/{id}/reset-password` |
 | IAM | `/admin/users`, `/admin/roles`, `/admin/permissions`, `/admin/users/{id}/roles/{userRoleId}`, `/admin/users/{id}/roles/{userRoleId}/scopes` |
-| Org/CFG | `/departments`, `/locations`, `/asset-types`, `/incident-categories`, `/thresholds` |
-| Asset | `/assets`, `/assets/{id}`, `/assets/{id}/lifecycle`, `/assets/{id}/qr`, `/assets/{id}/qr-label`, `/technical-documents` |
+| Org/CFG | `GET /iam/departments`, `GET /iam/locations`, `GET /iam/asset-types` (read-only); `/thresholds` |
+| Asset | `/assets`, `/assets/{id}`, `/assets/{id}/lifecycle`, `/assets/{id}/qr`, `/assets/{id}/qr-label` |
 | Incident | `/incidents`, `/incidents/{id}`, `/incidents/{id}/transition`, `/incidents/{id}/messages`, `/incidents/{id}/ai-classify` |
 | WO | `/work-orders`, `/work-orders/{id}`, `/work-orders/{id}/assign`, `/work-orders/{id}/transition`, `/work-orders/{id}/pause`, `/work-orders/{id}/resume`, `/work-orders/{id}/complete`, `/work-orders/{id}/cancel`, `/work-orders/{id}/cost-entries`, `/work-orders/{id}/parts/{issue,return}` |
 | Maintenance | `/maintenance-plans`, `/maintenance-plans/{id}`, `/maintenance-plans/{id}/occurrences`, `.../pause`, `.../resume`, `/maintenance-occurrences`, `.../{id}/skip`, `.../{id}/generate-now` |
 | Inventory | `/spare-parts`, `/spare-parts/{id}/adjust`, `/stock-transactions`, `/low-stock-alerts` |
 | Approval | `/approvals`, `/approvals/{id}`, `/approvals/{id}/submit`, `/approvals/{id}/decision`, `/approvals/{id}/cancel`, `/approvals/{id}/revisions` |
 | Cost | `/work-orders/{id}/cost-entries`, `/costs/summary`, `/costs/export` |
-| Notification | `/notifications`, `/notifications/{id}/read`, `/notifications/read-all`, `WS /ws` |
+| Notification | <!-- Module Notification đã bị xóa; chỉ còn notification service ghi vào DB và hàm writeAudit(). Không có REST endpoint cho notification UI --> | <!-- N/A --> |
 | AI | `POST /ai/suggest/{category,priority,solution}` · `POST /ai/propose-plan` · `GET /ai/requests/{id}` |
-| Attachment | `POST /files`, `GET /files/{fileId}/download` |
-| Audit | `/audit-logs` |
+| Attachment | <!-- Module Attachment đã bị cắt hoàn toàn --> | <!-- N/A --> |
+| Audit | <!-- Bảng audit_logs và hàm writeAudit() vẫn còn trong DB và code, nhưng endpoint GET /audit-logs đã bị xóa --> | <!-- N/A --> |
 | Dashboard | `/dashboard/{kpis,overdue,workload,cost-trend,action-items}`, `/reports/{type}.csv` |
 
 ## State machine — Incident (không REOPENED)
@@ -148,8 +138,8 @@ Gửi **ngữ cảnh nghiệp vụ tối thiểu đã làm sạch**, không PII.
 
 ## Realtime
 
-- Socket.IO gateway: room theo `org:{id}`, `user:{id}`, `entity:{type}:{id}`.
-- Event payload chuẩn `{eventId, type, organizationId, entityId, occurredAt, version, data}`.
-- Server enforce quyền trước khi join entity room.
+<!-- Socket.IO/Realtime module đã bị xóa hoàn toàn khỏi codebase. -->
+<!-- Không có WebSocket endpoint trong hệ thống hiện tại. -->
+<!-- Thông báo vẫn được ghi vào bảng notifications nhưng không có push realtime. -->
 
 > Toàn bộ sequence diagram, request/response chi tiết, error codes xem file gốc `.docx`.

@@ -28,9 +28,9 @@
 | TC-PART-01..07 | 7 | Inventory |
 | TC-COST-01..04 | 4 | Cost |
 | TC-APR-01..07 | 7 | Approval |
-| TC-NOT-01..06 | 6 | Notification |
+| TC-NOT-01..06 | 6 | Notification | <!-- N/A — Notification module/service/gateway đã bị xóa --> |
 | TC-AI-01..06 | 6 | AI |
-| TC-DOC-01..05 | 5 | Attachment |
+| TC-DOC-01..05 | 5 | Attachment | <!-- N/A — Attachment module đã bị cắt hoàn toàn --> |
 | TC-AUD-01..04 | 4 | Audit |
 | TC-REP-01..04 | 4 | Dashboard/Report |
 | TC-UX-01..08 | 8 | UX |
@@ -50,17 +50,16 @@
   - Assign/start/complete/verify WO.
   - Concurrent issue stock: balance **không âm** (TC-PART, TC-DATA).
   - Approval separation of duties.
-  - Scheduler không tạo PM trùng.
-  - File permission và presign.
-- **E2E critical paths** (8):
+  - Scheduler (tự sinh kỳ bảo trì) nằm trong `apps/api/src/modules/scheduler/`, không cần BullMQ.
+  <!-- File permission và presign: N/A — Attachment module đã bị cắt -->
+- **E2E critical paths** (7 — đã loại bỏ 2 path liên quan notification realtime):
   1. Requester login → quét QR → báo sự cố → theo dõi.
   2. Manager triage → assign → technician nhận việc.
   3. Technician start → log → issue part → complete.
-  4. Manager verify/close → requester nhận notification.
+  4. Manager verify/close.
   5. Cost vượt ngưỡng → approval → tiếp tục WO.
   6. Maintenance plan đến hạn → tự sinh WO đúng một lần.
-  7. Low stock → notification.
-  8. AI lỗi/timeout → người dùng vẫn tạo và xử lý incident thủ công.
+  7. AI lỗi/timeout → người dùng vẫn tạo và xử lý incident thủ công.
 
 ## Non-functional
 

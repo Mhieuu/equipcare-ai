@@ -54,8 +54,12 @@
 ├── /approvals · /approvals/:approvalId
 ├── /costs
 ├── /reports
-├── /notifications
-└── /admin/{users,departments,locations,asset-categories,incident-categories,vendors,sla-policies,notification-settings,audit-logs}
+└── /admin/{users,departments,locations,asset-categories,incident-categories,vendors,sla-policies,system-settings}
 ```
+
+> **Thay đổi so với baseline:**
+> - `/notifications` đã bị xóa (Notification UI module bị cắt).
+> - `/admin/audit-logs` đã bị xóa (audit-logs endpoint bị cắt).
+> - `/admin/notification-settings` đã bị xóa.
 
 > Toàn bộ wireframe, screen design, user flow chi tiết xem file gốc `.docx`.

@@ -34,12 +34,12 @@
 | **assets.activity_status (view `v_asset_state`)** | `OPERATIONAL`, `MAINTENANCE`, `REPAIR`, `SUSPENDED`, `RETIRED` | Đang hoạt động; Đang bảo trì; Đang sửa chữa; Tạm ngừng; Ngừng sử dụng |
 | **approval_events.event_type** | `SUBMIT`, `REQUEST_INFO`, `APPROVE`, `REJECT`, `CANCEL` | — |
 | **stock_transactions.movement_type** | `RECEIPT`, `ISSUE`, `ADJUST_IN`, `ADJUST_OUT` | — |
-| **files.storage_state** | `STAGED`, `READY`, `REJECTED` | — |
-| **ai_requests.status** | `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, `TIMED_OUT` | — |
 | **audit_logs.actor_type** | `USER`, `SYSTEM` | — |
 
 > "Quá hạn" (`is_overdue`) là giá trị dẫn xuất (Doc04 §7.2), **không** thuộc enum `work_orders.status`.
 > `work_orders.status` không có `PAUSED`/`WAITING_PARTS` — pause lưu qua `work_order_notes.note_type`.
+
+> **Lưu ý (2026-10-18):** Enum `files.storage_state` đã bị xóa (Attachment module đã bị cắt).
 
 ---
 
@@ -216,7 +216,7 @@
 - UNIQUE `(id, asset_type_id)` hỗ trợ FK ghép (Doc04 §6.2)
 - CHECK `manual_state IN ('NORMAL','SUSPENDED','RETIRED')`
 - View `v_asset_state` tính `activity_status` từ `manual_state` + WO đang hoạt động (Doc04 §7.2)
-- Tệp/hình ảnh qua `attachment_links`
+- Tệp/hình ảnh: <!-- Attachment module đã bị cắt — không còn attachment_links -->
 - RETIRED không phát sinh WO mới theo luồng thông thường (Doc02 FR-ASSET-07)
 
 ### 3.3. `maintenance_plans` — Kế hoạch bảo trì
@@ -306,7 +306,7 @@
 - FK: `incident_id`, `author_id`
 - CHECK `message_type IN ('REQUEST_INFO','SUPPLEMENT')`
 - Manager tạo `REQUEST_INFO`; người báo tạo `SUPPLEMENT`
-- Bổ sung theo thời gian; tệp kèm theo qua `attachment_links`
+- Bổ sung theo thời gian; <!-- tệp kèm: N/A — Attachment module đã bị cắt -->
 
 ### 3.7. `work_orders` — Phiếu công việc
 
@@ -587,6 +587,18 @@
 
 ---
 
+## 6. Nhóm E — Tệp đính kèm, tài liệu kỹ thuật (ĐÃ CẮT — Attachment Module)
+
+> **Lưu ý (2026-10-18):** Toàn bộ nhóm bảng E đã bị xóa khỏi codebase. Module Attachment và Technical Documents đã bị cắt hoàn toàn. Các bảng sau KHÔNG còn tồn tại:
+> - `files`
+> - `technical_documents`
+> - `document_versions`
+> - `document_roles`
+> - `attachment_links`
+>
+> Tham chiếu đến các bảng này trong tài liệu này chỉ mang tính lịch sử.
+
+<!--
 ## 6. Nhóm E — Tệp đính kèm, tài liệu kỹ thuật (5 bảng)
 
 ### 6.1. `files` — Thông tin tệp lưu trữ
@@ -687,6 +699,8 @@
 - Tài liệu kỹ thuật dùng `document_versions` — **không** dùng `attachment_links` cho cùng mục đích
 - Không gắn trùng cùng tệp với cùng đối tượng
 
+-->
+
 ---
 
 ## 7. Nhóm F — Nhật ký, thông báo, AI, cấu hình (4 bảng)
@@ -715,7 +729,9 @@
 - Không log: token, password, API key, nội dung nhạy cảm đầy đủ (Doc05 §8.3)
 - Chỉ Admin tra cứu đầy đủ `old_value`/`new_value`; vai trò khác chỉ xem history filtered
 
-### 7.2. `notifications` — Thông báo của người dùng
+### 7.2. `notifications` — Thông báo của người dùng (đã cắt service/controller)
+
+> **Lưu ý (2026-10-18):** Bảng `notifications` vẫn còn trong schema để hàm `writeAudit()` và các notification service ghi vào DB. Tuy nhiên, Notification Gateway (Socket.IO), NotificationController, và NotificationService đã bị xóa. Không có REST endpoint cho Notification UI.
 
 | Cột | Kiểu | NULL | Ghi chú |
 |---|---|---|---|
@@ -733,8 +749,9 @@
 - UNIQUE `(recipient_id, event_key)` (Doc04 §5.8)
 - FK `recipient_id`
 - Ghi cùng transaction nghiệp vụ; xử lý lại an toàn theo `event_key`
-- Mở liên kết: kiểm tra lại quyền hiện tại (Doc04 §5.8 + Doc05 §8.3)
 - Mất kết nối realtime: danh sách vẫn khôi phục đầy đủ qua REST
+
+> **Lưu ý:** Bảng `notification_jobs` và `outbox_events` đã bị xóa khỏi schema (BullMQ/Worker đã bị cắt).
 
 ### 7.3. `ai_requests` — Yêu cầu AI & kết quả gợi ý
 
@@ -843,7 +860,7 @@ Doc04 §2 TK-06 nói "ma trận quyền được hiện thực có phiên bản 
 | **DB-06** | Phiên đề xuất & quyết định không ghi đè | UNIQUE `(approval_id, revision_no)`, tối đa 1 revision unsent, revision đã gửi khóa nội dung, decision chỉ ghi thêm | `approval_revisions`, `approval_events` |
 | **DB-07** | Không âm kho + không xuất trùng | CHECK `on_hand >= 0`, `quantity > 0`, `operation_key UNIQUE`, tx | `parts`, `stock_transactions` |
 | **DB-08** | Chi phí không tính 2 lần | UNIQUE `(stock_tx_id)` partial, `PART` bắt buộc có giao dịch | `cost_entries` |
-| **DB-09** | Đúng đối tượng tệp & đúng phạm vi | CHECK `num_nonnulls = 1`, FK có thật, service check scope | `attachment_links` |
+| **DB-09** | Đúng đối tượng tệp & đúng phạm vi | CHECK `num_nonnulls = 1`, FK có thật, service check scope | `attachment_links` (đã xóa) |
 | **DB-10** | Bảo toàn lịch sử khi hủy/ngừng | RESTRICT FK nghiệp vụ, không xóa vật lý | toàn schema |
 | **DB-11** | Trạng thái kết thúc có đủ thông tin truy vết | CHECK cho điều kiện nội bộ + service check | `work_orders`, `approvals`, `incidents` |
 | **DB-12** | Không ghép chéo quyền và phạm vi | Service: check trên cùng `user_role_id` | `access_scopes` |
@@ -866,7 +883,7 @@ Doc04 §2 TK-06 nói "ma trận quyền được hiện thực có phiên bản 
 | `approval_events` | `(approval_id, created_at)` | Lịch sử quyết định |
 | `stock_transactions` | `(part_id, occurred_at)`, `(work_order_id)` | Sổ kho + lần xuất theo WO |
 | `cost_entries` | `(work_order_id, occurred_at)` | Chi phí theo WO + thời gian |
-| `notifications` | `(recipient_id, created_at)`, `(recipient_id) WHERE read_at IS NULL` partial | Cá nhân + chưa đọc |
+| `notifications` | `(recipient_id, created_at)`, `(recipient_id) WHERE read_at IS NULL` partial | Cá nhân + chưa đọc (service/controller đã xóa, chỉ còn DB) |
 | `audit_logs` | `(object_type, object_key, created_at)` | Truy vết đối tượng |
 | `ai_requests` | `(requested_by, created_at)`, `(asset_id, created_at)` | Tra cứu gợi ý |
 
@@ -878,17 +895,17 @@ Bổ sung chỉ mục cho FK chưa được bao phủ bởi chỉ mục có cộ
 
 | NV (Doc01) | FR/UC | Dữ liệu/cơ chế |
 |---|---|---|
-| NV-01, 02 (Thiết bị + QR) | FR-ASSET-01..05, 09; UC-ASSET-01..03 | `assets`, `asset_types`, `attachment_links`, view `v_asset_state` |
+| NV-01, 02 (Thiết bị + QR) | FR-ASSET-01..05, 09; UC-ASSET-01..03 | `assets`, `asset_types`, view `v_asset_state` <!-- `attachment_links`: đã xóa (Attachment module bị cắt) --> |
 | NV-19 (Lịch sử + ngừng SD) | FR-ASSET-06..08; DR-03 | `assets.manual_state`, FK RESTRICT, `audit_logs`, không xóa vật lý |
-| NV-03 (Sự cố) | FR-INC-01..09; UC-INC-01..06 | `incidents`, `incident_messages`, `attachment_links`, `audit_logs` |
+| NV-03 (Sự cố) | FR-INC-01..09; UC-INC-01..06 | `incidents`, `incident_messages`, `audit_logs` <!-- `attachment_links`: đã xóa --> |
 | NV-04, 05 (Phân công, hủy WO) | FR-INC-05; FR-WO-01..03, 09; AC-13 | `work_orders`, `work_order_notes`, DB-01..DB-03, fields hủy |
 | NV-06, 07 (Bảo trì) | FR-MNT-01..08; UC-MNT-01..03 | `maintenance_plans`, `maintenance_occurrences`, `work_orders`, DB-04 |
 | NV-08, 09 (Linh kiện theo WO + tồn thấp) | FR-PART-01..08; DR-10 | `parts`, `work_order_parts`, `stock_transactions`, `part_asset_types`, DB-07 |
 | NV-10 (Phê duyệt) | FR-APR-01..09; AC-07, AC-14 | `approvals`, `approval_revisions`, `approval_revision_parts`, `approval_events`, DB-05, DB-06 |
 | NV-11 (Chi phí) | FR-COST-01..04 | `cost_entries`, `stock_transactions`; đơn giá chốt, không cộng dự toán |
-| NV-12 (Tài liệu/tệp) | FR-DOC-01..04 | `files`, `technical_documents`, `document_versions`, `document_roles`, `attachment_links` |
+| NV-12 (Tài liệu/tệp) | FR-DOC-01..04 | <!-- N/A — Attachment module đã bị cắt hoàn toàn --> |
 | NV-13 (Dashboard) | FR-REP-01..05 | Query/view trên `assets`, `incidents`, `work_orders`, `cost_entries` |
-| NV-14 (Thông báo) | FR-NOT-01..06 | `notifications`, khóa `(recipient_id, event_key)` |
+| NV-14 (Thông báo) | FR-NOT-01..06 | `notifications` (service/controller/gateway đã xóa, chỉ còn DB + writeAudit) |
 | NV-15 (Audit) | FR-AUD-01..03 | `audit_logs` |
 | NV-16, 17 (AI) | FR-AI-01..05 | `ai_requests`; ngữ cảnh lọc quyền, output_payload gợi ý |
 | NV-18 (Auth + RBAC) | FR-AUTH-01..07 | `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `access_scopes`, `sessions` |
@@ -935,7 +952,9 @@ Bổ sung chỉ mục cho FK chưa được bao phủ bởi chỉ mục có cộ
 
 ---
 
-## 14. Phụ lục: Sơ đồ tổng quan (Doc04 §4.1–§4.6)
+## 14. Phụ lục: Sơ đồ tổng quan (Doc04 §4.1–§4.6) — ĐÃ CẮT: Attachment
+
+> **Lưu ý (2026-10-18):** Sơ đồ ERD sau đây đã được cắt bớt. Các bảng `files`, `technical_documents`, `document_versions`, `document_roles`, `attachment_links` đã bị xóa.
 
 ```mermaid
 erDiagram
@@ -946,7 +965,6 @@ erDiagram
   locations ||--o{ assets : located_at
   locations ||--o{ parts : stored_at
   asset_types ||--o{ assets : classifies
-  asset_types ||--o{ technical_documents : documents
   parts ||--o{ part_asset_types : compatible
   asset_types ||--o{ part_asset_types : compatible
   users ||--o{ sessions : logs_in
@@ -988,18 +1006,19 @@ erDiagram
   work_orders ||--o{ cost_entries : incurs
   stock_transactions ||--o{ cost_entries : debit
   cost_entries ||--o{ cost_entries : reverses
-  files ||--o{ attachment_links : links
-  attachment_links }o--|| assets : image
-  attachment_links }o--|| incidents : evidence
-  attachment_links }o--|| incident_messages : evidence
-  attachment_links }o--|| work_orders : evidence
-  attachment_links }o--|| approval_revisions : evidence
-  technical_documents ||--o{ document_versions : versions
-  files ||--o{ document_versions : file
-  technical_documents ||--o{ document_roles : readable_by
-  roles ||--o{ document_roles : reads
-  technical_documents }o--|| assets : for
-  technical_documents }o--|| asset_types : for_type
+  <!-- Attachment/Technical Document relations — đã xóa (Attachment module đã bị cắt) -->
+  <!-- files ||--o{ attachment_links : links -->
+  <!-- attachment_links }o--|| assets : image -->
+  <!-- attachment_links }o--|| incidents : evidence -->
+  <!-- attachment_links }o--|| incident_messages : evidence -->
+  <!-- attachment_links }o--|| work_orders : evidence -->
+  <!-- attachment_links }o--|| approval_revisions : evidence -->
+  <!-- technical_documents ||--o{ document_versions : versions -->
+  <!-- files ||--o{ document_versions : file -->
+  <!-- technical_documents ||--o{ document_roles : readable_by -->
+  <!-- roles ||--o{ document_roles : reads -->
+  <!-- technical_documents }o--|| assets : for -->
+  <!-- technical_documents }o--|| asset_types : for_type -->
   users ||--o{ audit_logs : actor
   users ||--o{ notifications : receives
   users ||--o{ ai_requests : requested_by

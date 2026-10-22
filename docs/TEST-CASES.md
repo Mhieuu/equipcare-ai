@@ -31,13 +31,13 @@
 8. [Assets](#8-assets)
 9. [Inventory (Parts)](#9-inventory-parts)
 10. [Maintenance Plans](#10-maintenance-plans)
-11. [Notifications](#11-notifications)
-12. [Dashboard & Reports](#12-dashboard--reports)
-13. [AI Triage](#13-ai-triage-m6)
-14. [Attachments](#14-attachments)
-15. [Organization](#15-organization)
-16. [Realtime (Socket.IO)](#16-realtime-socketio)
-17. [System Config & Health](#17-system-config--health)
+<!-- 11. Notifications — N/A (Notification module đã bị xóa) -->
+<!-- 14. Attachments — N/A (Attachment module đã bị cắt hoàn toàn) -->
+<!-- 15. Organization CRUD — N/A (Organization CRUD endpoint đã bị cắt) -->
+<!-- 16. Realtime (Socket.IO) — N/A (Socket.IO đã bị xóa) -->
+11. [Dashboard & Reports](#12-dashboard--reports)
+12. [AI Triage](#13-ai-triage-m6)
+13. [System Config & Health](#17-system-config--health)
 18. [Frontend UI](#18-frontend-ui)
 19. [Bảo mật & Phân quyền](#19-bảo-mật--phân-quyền)
 20. [Performance & Edge cases](#20-performance--edge-cases)
@@ -58,7 +58,7 @@
 - 🟡 **P2** — Có thể delay
 
 ### Tiêu chí Pass/Fail
-- **API**: Status code đúng + Schema response khớp + Side-effect (audit log, notification) xảy ra
+- **API**: Status code đúng + Schema response khớp + Side-effect (audit log <!-- , notification: N/A — module đã xóa -->) xảy ra
 - **UI**: Hiển thị đúng + không crash + flow nghiệp vụ hoàn chỉnh
 
 ### Setup trước khi test
@@ -153,12 +153,12 @@ curl http://localhost:3000/login          # 200, HTML
 
 | ID | Test case | Bước | Kỳvọng | Ưu tiên |
 |----|-----------|------|--------|---------|
-| AUDIT-01 | List audit logs | `GET /iam/audit-logs` admin | 200, phân trang | 🟠 P1 |
-| AUDIT-02 | Filter theo actor | `?actorId=…` | Lọc đúng | 🟡 P2 |
-| AUDIT-03 | Filter theo action | `?action=incident.create` | Lọc đúng | 🟡 P2 |
-| AUDIT-04 | Date range | `?from=2026-05-01&to=2026-05-31` | Lọc đúng | 🟡 P2 |
-| AUDIT-05 | RBAC | USER gọi audit-logs | 403, `audit:read:all` | 🟠 P1 |
-| AUDIT-06 | Audit integrity | Thực hiện transition incident | Có audit entry `incident.transition` | 🟠 P1 |
+| AUDIT-01 | <!-- List audit logs endpoint — N/A (GET /iam/audit-logs đã bị xóa) --> | | | |
+| AUDIT-02 | <!-- Filter theo actor — N/A --> | | | |
+| AUDIT-03 | <!-- Filter theo action — N/A --> | | | |
+| AUDIT-04 | <!-- Date range — N/A --> | | | |
+| AUDIT-05 | <!-- RBAC audit-logs endpoint — N/A --> | | | |
+| AUDIT-06 | Audit integrity | Thực hiện transition incident | Có audit entry `incident.transition` (hàm writeAudit() vẫn còn) | 🟠 P1 |
 
 ---
 
@@ -313,7 +313,7 @@ curl http://localhost:3000/login          # 200, HTML
 | APR-C-06 | Update draft | `PATCH /approvals/{id}/draft` | 200 | 🟠 P1 |
 | APR-C-07 | Update non-draft | Update approval SUBMITTED | 400, `APR_NOT_DRAFT` | 🟠 P1 |
 | APR-C-08 | Create với amount âm | amount=-100 | 400 | 🟠 P1 |
-| APR-C-09 | Auto trigger from WO | WO COMPLETED vượt budget | Approval auto-create + notification | 🔴 P0 |
+| APR-C-09 | Auto trigger from WO | WO COMPLETED vượt budget | Approval auto-create <!-- + notification: N/A — module đã xóa --> | 🔴 P0 |
 
 ### 7.2 Revision Flow
 
@@ -448,21 +448,21 @@ curl http://localhost:3000/login          # 200, HTML
 | MP-O-04 | Skip sau khi COMPLETED | COMPLETED → skip | 400 | 🟠 P1 |
 | MP-O-05 | Tick cron manually | `POST /maintenance-plans/tick` | 200; scheduler chạy | 🟠 P1 |
 
----
-
+<!--
 ## 11. Notifications
 
 | ID | Test case | Bước | Kỳvọng | Ưu tiên |
 |----|-----------|------|--------|---------|
-| NTF-01 | List notifications | `GET /notifications` | 200, items[] | 🔴 P0 |
-| NTF-02 | Filter unread | `?unread=true` | Lọc đúng | 🟠 P1 |
-| NTF-03 | Unread count | `GET /notifications/unread-count` | 200, `{ count }` | 🔴 P0 |
-| NTF-04 | Mark one as read | `PATCH /notifications/{id}/read` | 200, read=true | 🟠 P1 |
-| NTF-05 | Mark all as read | `PATCH /notifications/read-all` | 200; count=0 | 🟠 P1 |
-| NTF-06 | Auto-create on incident assign | Assign incident | User nhận notification | 🔴 P0 |
-| NTF-07 | Auto-create on WO complete | Complete WO của user | Reporter nhận notification | 🟠 P1 |
-| NTF-08 | Auto-create on approval decision | Approve 1 approval | Proposer nhận notification | 🔴 P0 |
-| NTF-09 | Notification RBAC | Chỉ xem notification của mình | Không thấy của user khác | 🔴 P0 |
+| NTF-01 | <!-- N/A — notification endpoint đã xóa --> | | | |
+| NTF-02 | <!-- N/A --> | | | |
+| NTF-03 | <!-- N/A --> | | | |
+| NTF-04 | <!-- N/A --> | | | |
+| NTF-05 | <!-- N/A --> | | | |
+| NTF-06 | <!-- N/A — notification endpoint đã xóa --> | | | |
+| NTF-07 | <!-- N/A --> | | | |
+| NTF-08 | <!-- N/A --> | | | |
+| NTF-09 | <!-- N/A --> | | | |
+-->
 
 ---
 
@@ -515,6 +515,7 @@ curl http://localhost:3000/login          # 200, HTML
 
 ---
 
+<!--
 ## 14. Attachments
 
 | ID | Test case | Bước | Kỳvọng | Ưu tiên |
@@ -573,7 +574,7 @@ curl http://localhost:3000/login          # 200, HTML
 | RT-05 | Disconnect/reconnect | Tắt mạng, bật lại | Tự động reconnect với token mới | 🟠 P1 |
 | RT-06 | Multi-tab sync | Mở 2 tab, action 1 tab | Cả 2 nhận event | 🟡 P2 |
 
----
+-->
 
 ## 17. System Config & Health
 
@@ -621,11 +622,11 @@ curl http://localhost:3000/login          # 200, HTML
 | UI-16 | `/inventory/parts` | Bảng parts + stock | 🟠 P1 |
 | UI-17 | `/maintenance/plans` | Bảng plans | 🟠 P1 |
 | UI-18 | `/maintenance/plans/[id]` | Detail + occurrences | 🟠 P1 |
-| UI-19 | `/notifications` | List notifications | 🟠 P1 |
+| UI-19 | `/notifications` | <!-- N/A — notifications page đã bị xóa --> | 🟠 P1 |
 | UI-20 | `/reports` | List report templates | 🟠 P1 |
 | UI-21 | `/iam/users` | Bảng users + roles | 🟠 P1 |
 | UI-22 | `/iam/users/[id]` | Detail + role management | 🟠 P1 |
-| UI-23 | `/iam/audit-logs` | Audit log view | 🟡 P2 |
+| UI-23 | `/iam/audit-logs` | <!-- N/A — audit-logs page/endpoint đã bị xóa --> | 🟡 P2 |
 
 ### 18.2 Components
 
@@ -635,7 +636,7 @@ curl http://localhost:3000/login          # 200, HTML
 | UI-C-02 | AppShellSkeleton | Khi user chưa load | 🟠 P1 |
 | UI-C-03 | AuthGuard redirect | Chưa login → /login | 🔴 P0 |
 | UI-C-04 | Sidebar nav theo role | Ẩn menu nếu không có permission | 🟠 P1 |
-| UI-C-05 | Notification badge | Hiển thị unread count | 🟠 P1 |
+| UI-C-05 | Notification badge | <!-- N/A — notifications page đã xóa --> | 🟠 P1 |
 | UI-C-06 | Toast notifications | success/error/info variants | 🟠 P1 |
 | UI-C-07 | DataTable pagination | Hoạt động đúng | 🟠 P1 |
 | UI-C-08 | DataTable refresh | Refetch data | 🟠 P1 |
@@ -730,12 +731,12 @@ curl http://localhost:3000/login          # 200, HTML
 | Assets | 18 | 5 | 11 | 2 |
 | Inventory | 14 | 4 | 9 | 1 |
 | Maintenance | 14 | 2 | 9 | 3 |
-| Notifications | 9 | 4 | 5 | 0 |
+| Notifications | 9 | <!-- N/A — module đã bị xóa --> | | |
 | Dashboard & Reports | 14 | 2 | 9 | 3 |
 | AI Triage | 12 | 5 | 6 | 1 |
-| Attachments | 9 | 4 | 5 | 0 |
-| Organization | 11 | 0 | 10 | 1 |
-| Realtime | 6 | 2 | 3 | 1 |
+| Attachments | 9 | <!-- N/A — module đã bị cắt --> | | |
+| Organization | 11 | <!-- N/A — CRUD endpoint đã bị cắt --> | | |
+| Realtime | 6 | <!-- N/A — Socket.IO đã bị xóa --> | | |
 | Config & Health | 8 | 3 | 3 | 2 |
 | Frontend UI | 50 | 4 | 28 | 18 |
 | Bảo mật | 15 | 5 | 8 | 2 |
@@ -787,8 +788,8 @@ Invoke-RestMethod -Uri "http://localhost:3001/ai/requests/$($req.requestId)" `
 6. Click vào 1 incident → detail page với chat + **AI panel**
 7. Click "Phân tích AI" → status: QUEUED → RUNNING → SUCCEEDED
 8. Verify output có `category`, `priority`, `summary`, `actions`
-9. Check `/notifications` → unread count badge cập nhật
-10. Check `/audit-logs` → có entry `incident.ai.analyze`
+9. Check DB `notifications` table — bản ghi được tạo (service vẫn ghi)
+10. Check DB `audit_logs` table — có entry `incident.ai.analyze` (hàm writeAudit() vẫn còn)
 
 ### Test report template
 

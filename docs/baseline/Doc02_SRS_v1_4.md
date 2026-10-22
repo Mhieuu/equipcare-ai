@@ -37,9 +37,9 @@
 | Inventory | FR-PART-01..08, AC-06 | parts + ledger + issue/return/adjust + low-stock |
 | Cost | FR-COST-01..04, AC-08 | cost_entries per WO |
 | Approval | FR-APR-01..09, AC-07/14 | request + decision + revision chain |
-| Notification | FR-NOT-01..06, AC-09 | list + realtime WS + retry-safe |
+| Notification | <!-- FR-NOT-01..06 đã cắt: Notification module/service đã bị xóa, chỉ giữ lại bảng `notifications` và hàm writeAudit() trong codebase --> | <!-- N/A --> |
 | AI | FR-AI-01..06, NFR-AI-01..05, AC-10 | 100% async, 202 + requestId |
-| Attachment | FR-DOC-01..04 | STAGED → READY, magic bytes + MIME + size |
+| Attachment <!-- FR-DOC-01..04 --> | <!-- Attachment module đã được cắt khỏi codebase --> | <!-- N/A --> |
 | Audit | FR-AUD-01..03, AC-12 | immutable |
 | Dashboard/Report | FR-REP-01..05, AC-11 | KPI + CSV |
 | Bảo mật | NFR-SEC-01..06, DR-* | across modules |
@@ -65,9 +65,9 @@
 | Inventory | TC-PART-01..07 |
 | Cost | TC-COST-01..04 |
 | Approval | TC-APR-01..07 |
-| Notification | TC-NOT-01..06 |
+| Notification | <!-- TC-NOT-01..06 — Notification module đã bị xóa, chỉ giữ lại hàm writeAudit() và bảng notifications trong DB --> | <!-- N/A -->
 | AI | TC-AI-01..06 |
-| Attachment | TC-DOC-01..05 |
+| Attachment | <!-- TC-DOC-01..05 — Attachment module đã bị cắt hoàn toàn --> | <!-- N/A -->
 | Audit | TC-AUD-01..04 |
 | Dashboard/Report | TC-REP-01..04 |
 | Bảo mật | TC-SEC-01..08 |

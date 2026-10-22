@@ -54,7 +54,9 @@ Phiên bản: 1.0 — Ngày phát hành: 13/09/2026
 | **Dashboard & Báo cáo** | KPI theo thời gian thực, xuất CSV |
 | **IAM** | Quản lý người dùng, phân vai trò, scope dữ liệu |
 | **Audit Log** | Ghi nhận mọi hành động quan trọng |
-| **Realtime** | WebSocket đẩy thông báo tức thì |
+| **AI Hỗ trợ** | Phân loại sự cố, gợi ý mức độ ưu tiên |
+
+<!-- Realtime module đã bị xóa: bỏ dòng "Realtime | WebSocket đẩy thông báo tức thì" -->
 
 ### 1.4. Đối tượng sử dụng
 
@@ -81,24 +83,21 @@ Phiên bản: 1.0 — Ngày phát hành: 13/09/2026
            ▼                  ▼                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                          API Gateway                              │
-│              NestJS 10 — REST + WebSocket                         │
+│              NestJS 10 — REST                                     │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  Modules: Auth, IAM, Asset, Incident, WO, Approval,       │  │
-│  │           Inventory, Maintenance, Notification, AI, ...    │  │
+│  │           Inventory, Maintenance, AI, ...                    │  │
+│  │  Scheduler: tự sinh kỳ bảo trì (trong API, không BullMQ)  │  │
 │  └────────────────────────────────────────────────────────────┘  │
 └──────────┬──────────────────┬──────────────────┬─────────────────┘
            │                  │                  │
            ▼                  ▼                  ▼
 ┌──────────────────┐  ┌──────────────┐  ┌─────────────────┐
-│   PostgreSQL 17  │  │    Redis     │  │  AI Provider    │
-│  (Prisma ORM)    │  │   (Queue)    │  │  (Mock/OpenAI)  │
+│   PostgreSQL 17  │  │  AI Provider │  │                 │
+│  (Prisma ORM)    │  │  (Mock/OpenAI)│  │                 │
 └──────────────────┘  └──────────────┘  └─────────────────┘
-           ▲                  ▲                  ▲
-           │                  │                  │
-┌──────────┴──────────────────┴──────────────────┴─────────────────┐
-│                      Worker (BullMQ)                              │
-│         Scheduler | AI Processor | Email | Notification          │
-└──────────────────────────────────────────────────────────────────┘
+
+<!-- Redis, MinIO, Worker đã bị xóa -->
 ```
 
 ### 2.2. Clean Architecture (Backend)
@@ -132,7 +131,6 @@ apps/web/src/
 │   │   ├── approvals/
 │   │   ├── inventory/
 │   │   ├── maintenance/
-│   │   ├── notifications/
 │   │   ├── reports/
 │   │   └── iam/
 │   ├── login/
@@ -140,10 +138,11 @@ apps/web/src/
 ├── components/             ← Shared UI (DataTable, Modal, Badges...)
 ├── lib/
 │   ├── api.ts              ← API client với auto refresh token
-│   ├── auth.ts             ← Zustand store (persisted)
-│   └── socket.ts           ← Socket.IO client
+│   └── auth.ts             ← Zustand store (persisted)
 └── hooks/
 ```
+
+> **Lưu ý (2026-10-18):** `/notifications` page đã bị xóa (Notification UI module bị cắt). File `lib/socket.ts` đã bị xóa (Socket.IO module bị cắt).
 
 **Nguyên tắc**:
 - Tách presentation (jsx) và logic (hooks/functions)
@@ -166,8 +165,6 @@ apps/web/src/
 | **bcryptjs** | Hash password | Đơn giản, đủ tốt |
 | **Joi** | Validation env | Schema validation |
 | **class-validator** | Validation DTO | Tích hợp NestJS |
-| **Socket.IO** | Realtime | Fallback, rooms |
-| **BullMQ** | Job queue | Retry, schedule, dashboard |
 | **Helmet** | Security headers | Best practice |
 | **Passport.js** | Auth strategy | JWT strategy |
 
@@ -185,7 +182,7 @@ apps/web/src/
 | **Zod** | Schema validation | Type-safe runtime |
 | **date-fns** | Date utils | Tree-shakeable |
 | **lucide-react** | Icons | Nhẹ, đẹp |
-| **socket.io-client** | Realtime | Đồng bộ với backend |
+| **socket.io-client** | <!-- Đã xóa — Socket.IO module bị cắt --> | <!-- N/A --> |
 
 ### 3.3. Shared Packages
 
@@ -198,7 +195,8 @@ Cả hai hỗ trợ **dual ESM/CJS** để vừa dùng cho Next.js (ESM) vừa N
 
 ### 3.4. DevOps
 
-- **Docker Compose**: PostgreSQL + Redis + MinIO (S3-compatible) cho local
+<!-- Redis và MinIO đã bị xóa khỏi hệ thống -->
+- **Docker Compose**: PostgreSQL cho local
 - **pnpm workspaces**: Monorepo
 - **ESLint + Prettier**: Code style
 - **Jest + Supertest**: E2E tests
@@ -227,10 +225,10 @@ equipcare-ai/
 │   │   │   │   ├── inventory/
 │   │   │   │   ├── cost-entry/
 │   │   │   │   ├── maintenance-plan/
-│   │   │   │   ├── notification/
 │   │   │   │   ├── ai/
 │   │   │   │   ├── dashboard/
 │   │   │   │   ├── report/
+│   │   │   │   └── scheduler/  <!-- Scheduler trong API, không Worker riêng -->
 │   │   │   │   ├── attachment/
 │   │   │   │   ├── organization/
 │   │   │   │   ├── realtime/
@@ -242,7 +240,7 @@ equipcare-ai/
 │   │       ├── seed.ts              ← bootstrap
 │   │       └── demo-seed.ts         ← rich demo data
 │   ├── web/                          ← Next.js 14 frontend
-│   └── worker/                       ← BullMQ workers (scheduler, AI)
+│   └── worker/                       ← <!-- Đã xóa — BullMQ/Worker module bị cắt -->
 │
 ├── packages/
 │   ├── shared/                       ← enums + labels (VI)
@@ -450,7 +448,7 @@ Hệ thống có **4 vai trò** chính và **48 quyền** (permission). Mỗi va
 | **Report** | `report:export` | Xuất báo cáo |
 | **IAM** | `iam:user:read`, `iam:user:manage`, `iam:role:read`, `iam:role:manage` | Quản lý người dùng |
 | **Threshold** | `threshold:manage` | Ngưỡng phê duyệt |
-| **Attachment** | `attachment:upload`, `attachment:read` | Tệp đính kèm |
+| **Attachment** | <!-- N/A — Attachment module đã bị cắt hoàn toàn --> |
 | **Queue** | `incident:queue:read`, `approval:queue:read` | Hàng đợi |
 | **Audit** | `audit:read:all` | Audit log |
 | **System** | `system-config:update` | Cấu hình hệ thống |
@@ -687,12 +685,11 @@ Tài khoản: demo.tech1 / Demo@2026
 
 #### Xem thông báo
 
-1. Click icon 🔔 ở sidebar → xem notification
-2. Notification theo event:
-   - `WORK_ORDER_ASSIGNED`: được gán WO mới
-   - `APPROVAL_DECIDED`: đề xuất được duyệt/từ chối
-   - `INVENTORY_LOW_STOCK` (cho Manager)
-3. Realtime: socket tự push khi có event mới → toast hiển thị
+> **Lưu ý (2026-10-18):** Notification UI page đã bị xóa. Bảng `notifications` vẫn còn trong DB và được ghi bởi `writeAudit()`, nhưng không có REST endpoint cho Notification UI.
+
+1. <!-- Notification UI đã bị xóa -->
+2. <!-- Notification theo event vẫn được ghi vào DB -->
+3. <!-- Realtime push: N/A — Socket.IO đã bị xóa -->
 
 ---
 
@@ -716,9 +713,9 @@ Sidebar tối giản: Dashboard, Thiết bị (chỉ xem), Sự cố.
    - **Thiết bị**: chọn từ dropdown (search theo mã hoặc tên)
    - **Mô tả**: chi tiết hiện tượng (tiếng kêu, rò rỉ, rung...)
    - **Tác động đến sản xuất**: ảnh hưởng bao nhiêu % công suất, có dừng chuyền không
-   - **Tệp đính kèm**: ảnh/video clip (tối đa 25MB, định dạng cho phép)
+   - Tệp đính kèm: <!-- N/A — Attachment module đã bị cắt hoàn toàn -->
 3. Click **Gửi** → status `NEW`, chờ Manager phân loại
-4. Hệ thống gửi notification cho Manager
+4. Hệ thống ghi notification cho Manager <!-- realtime push: N/A — Socket.IO đã bị xóa -->
 
 #### Theo dõi sự cố của tôi
 
@@ -1089,7 +1086,9 @@ cd equipcare-ai
 pnpm install
 
 # 3. Khởi động infra
-docker-compose up -d postgres redis minio
+docker-compose up -d postgres
+
+<!-- Redis và MinIO đã bị xóa khỏi hệ thống -->
 
 # 4. Copy env
 cp apps/api/.env.example apps/api/.env
@@ -1105,7 +1104,7 @@ pnpm --filter @equipcare/api db:seed
 pnpm --filter @equipcare/api db:demo-seed
 
 # 8. Chạy dev
-pnpm dev   # chạy song song api + web + worker
+pnpm dev   # chạy api + web
 ```
 
 ### 13.3. Build production
@@ -1142,8 +1141,8 @@ SCHEDULER_INTERVAL_MS=60000
 
 File `docker-compose.yml` định nghĩa:
 - `postgres`: PostgreSQL 17
-- `redis`: Redis 7
-- `minio`: S3-compatible storage (cho attachment production)
+
+<!-- Redis và MinIO đã bị xóa khỏi docker-compose -->
 
 Có thể chạy full stack: `docker-compose -f docker-compose.full.yml up`
 
@@ -1268,9 +1267,12 @@ GET    /maintenance-plans/:id
 POST   /maintenance-plans/:id/pause
 POST   /maintenance-plans/:id/resume
 
+<!-- Notification endpoints đã bị xóa -->
+<!--
 GET    /notifications
 PATCH  /notifications/:id/read
 POST   /notifications/mark-all-read
+-->
 
 GET    /dashboard/kpis
 GET    /dashboard/overdue
