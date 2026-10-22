@@ -64,10 +64,6 @@ export const Permission = {
   IAM_ROLE_MANAGE: 'iam:role:manage',
   THRESHOLD_MANAGE: 'threshold:manage',
 
-  // Attachment
-  ATTACHMENT_UPLOAD: 'attachment:upload',
-  ATTACHMENT_READ: 'attachment:read',
-
   // Figma v1.1 (plan rev. 6.1 §10.1)
   WORK_ORDER_DISPATCH_READ: 'work-order:dispatch:read',
   INCIDENT_QUEUE_READ: 'incident:queue:read',
