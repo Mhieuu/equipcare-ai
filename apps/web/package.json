@@ -2,13 +2,12 @@
   "name": "@equipcare/web",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "lint": "eslint src --no-warn-ignored || echo \"web has no .ts to lint\"",
     "typecheck": "tsc --noEmit",
     "build": "next build",
     "start": "next start",
-    "dev": "next dev -p ${WEB_PORT:-3000}",
+    "dev": "next dev -p 3000",
     "test": "echo \"no tests yet\" && exit 0"
   },
   "dependencies": {
