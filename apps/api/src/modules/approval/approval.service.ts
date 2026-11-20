@@ -115,6 +115,9 @@ export class ApprovalService {
               reason: true,
               submitted_at: true,
               other_estimated_cost: true,
+              parts: {
+                select: { quantity: true, unit_price: true },
+              },
             },
           },
         },
@@ -793,7 +796,7 @@ export class ApprovalService {
         ? {
             id: latest.id,
             revisionNo: latest.revision_no,
-            netCost: latest.other_estimated_cost?.toString() ?? '0',
+            netCost: this.toRevisionDto(latest)?.netCost ?? '0',
             submittedAt:
               latest.submitted_at instanceof Date
                 ? latest.submitted_at.toISOString()
@@ -831,13 +834,19 @@ export class ApprovalService {
   /** Revision -> camelCase, kem `parts` cho UI. */
   private toRevisionDto(r: ApprovalRevisionRow | null | undefined) {
     if (!r) return null;
+    const partsTotal = (r.parts ?? []).reduce((sum: number, p: ApprovalRevisionPartRow) => {
+      const qty = Number(p.quantity ?? 0);
+      const price = Number(p.unit_price ?? 0);
+      return sum + qty * price;
+    }, 0);
+    const otherCost = Number(r.other_estimated_cost ?? 0);
     return {
       id: r.id,
       revisionNo: r.revision_no,
       reason: r.reason,
       actionPlan: r.action_plan,
       otherEstimatedCost: r.other_estimated_cost?.toString() ?? '0',
-      netCost: r.other_estimated_cost?.toString() ?? '0',
+      netCost: (partsTotal + otherCost).toString(),
       submittedAt:
         r.submitted_at instanceof Date ? r.submitted_at.toISOString() : (r.submitted_at ?? null),
       createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,

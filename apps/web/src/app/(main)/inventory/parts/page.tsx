@@ -44,6 +44,7 @@ export default function PartsPage() {
     supplierName: '',
   });
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState('');
 
   const { data: depts } = useQuery({
     queryKey: ['departments'],
@@ -55,10 +56,11 @@ export default function PartsPage() {
   });
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['parts', filter],
+    queryKey: ['parts', filter, search],
     queryFn: () =>
       apiGet<{ items: Part[]; total: number }>('/parts', {
         lowStock: filter === 'low' ? 'true' : undefined,
+        search: search.trim() || undefined,
         limit: 100,
       }),
   });
@@ -151,6 +153,12 @@ export default function PartsPage() {
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           Sắp hết ({lowStockCount})
         </button>
+        <input
+          className="input ml-auto w-64"
+          placeholder="Tìm theo mã hoặc tên linh kiện..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       <DataTable

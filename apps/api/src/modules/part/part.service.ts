@@ -77,6 +77,12 @@ export class PartService {
     if (query.isActive === 'true') where.is_active = true;
     if (query.isActive === 'false') where.is_active = false;
     if (query.departmentId) where.department_id = query.departmentId;
+    if (query.search) {
+      where.OR = [
+        { code: { contains: query.search, mode: 'insensitive' } },
+        { name: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
     if (query.lowStock === 'true') {
       where.on_hand = { lt: new Prisma.Decimal(0) }; // placeholder; filter bo sung o JS
     }

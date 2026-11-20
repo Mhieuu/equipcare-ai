@@ -149,4 +149,9 @@ export class ListPartsQueryDto {
   @IsOptional()
   @IsUUID()
   departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
 }

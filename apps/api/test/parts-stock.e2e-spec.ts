@@ -103,7 +103,7 @@ describe('Parts + Stock Transactions E2E (M7 - TC-PART-01..07)', () => {
 
     // LIST
     const listRes = await request(app.getHttpServer())
-      .get(`/parts?isActive=true&departmentId=${deptId}`)
+      .get(`/parts?isActive=true&departmentId=${deptId}&search=${unique}`)
       .set('Authorization', `Bearer ${token}`);
     expect(listRes.status).toBe(200);
     expect(Array.isArray(listRes.body.items)).toBe(true);
