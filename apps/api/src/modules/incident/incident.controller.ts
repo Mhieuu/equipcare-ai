@@ -12,10 +12,7 @@ import {
 import { JwtAuthGuard } from '../../modules/auth/jwt-auth.guard.js';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { PermissionGuard } from '../../common/guards/permission.guard';
-import {
-  IncidentMessageType,
-  Permission,
-} from '@equipcare/shared';
+import { IncidentMessageType, Permission } from '@equipcare/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
 import { IncidentService } from './incident.service';
@@ -54,10 +51,7 @@ export class IncidentController {
 
   @Post()
   @Permissions(Permission.INCIDENT_CREATE)
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateIncidentDto,
-  ) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateIncidentDto) {
     return this.service.create(user.sub, dto);
   }
 
@@ -80,11 +74,6 @@ export class IncidentController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: CreateIncidentMessageDto,
   ) {
-    return this.service.addMessage(
-      user.sub,
-      id,
-      dto.body ?? '',
-      IncidentMessageType.STAFF,
-    );
+    return this.service.addMessage(user.sub, id, dto.body ?? '', IncidentMessageType.STAFF);
   }
 }

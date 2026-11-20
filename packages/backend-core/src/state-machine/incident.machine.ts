@@ -1,7 +1,4 @@
-import {
-  IncidentStatus,
-  type IncidentStatus as Status,
-} from '@equipcare/shared';
+import { IncidentStatus, type IncidentStatus as Status } from '@equipcare/shared';
 import { AppError } from '../errors/app-error.js';
 
 /**

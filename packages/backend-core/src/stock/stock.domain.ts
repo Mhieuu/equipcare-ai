@@ -105,10 +105,7 @@ export function isOutbound(movement: Movement): boolean {
 }
 
 /** Sign: +1 inbound, -1 outbound, ADJUSTMENT tuy theo quantity sign. */
-export function movementSign(
-  movement: Movement,
-  quantity: Prisma.Decimal | number,
-): number {
+export function movementSign(movement: Movement, quantity: Prisma.Decimal | number): number {
   if (movement === StockTransactionType.ADJUSTMENT) {
     return new Prisma.Decimal(quantity).isNegative() ? -1 : 1;
   }
@@ -131,7 +128,11 @@ export function assertReturnHasOriginal(
 
 /** Lay issue goc (khi RETURN). Service tra ve null neu khong ton tai. */
 export async function findOriginalIssue(
-  prisma: { stock_transactions: { findUnique: (args: { where: { id: string } }) => Promise<stock_transactions | null> } },
+  prisma: {
+    stock_transactions: {
+      findUnique: (args: { where: { id: string } }) => Promise<stock_transactions | null>;
+    };
+  },
   originalStockTxId: string,
 ) {
   const tx = await prisma.stock_transactions.findUnique({
@@ -163,7 +164,14 @@ export async function findOriginalIssue(
  * Tinh tong RETURN con lai cua ISSUE goc (cho validation RETURN khong vuot).
  */
 export async function sumReturnsForIssue(
-  prisma: { stock_transactions: { aggregate: (args: { where: { original_stock_tx_id: string; movement_type: Movement }; _sum: { quantity: true } }) => Promise<{ _sum: { quantity: Prisma.Decimal | null } }> } },
+  prisma: {
+    stock_transactions: {
+      aggregate: (args: {
+        where: { original_stock_tx_id: string; movement_type: Movement };
+        _sum: { quantity: true };
+      }) => Promise<{ _sum: { quantity: Prisma.Decimal | null } }>;
+    };
+  },
   originalIssueId: string,
 ): Promise<Prisma.Decimal> {
   const r = await prisma.stock_transactions.aggregate({

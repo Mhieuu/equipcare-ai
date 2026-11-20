@@ -1,11 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import { prisma as defaultPrisma } from '../prisma/prisma.service.js';
-import type {
-  AuditLogRecord,
-  ListAuditLogsFilter,
-  WriteAuditInput,
-} from './audit.types.js';
+import type { AuditLogRecord, ListAuditLogsFilter, WriteAuditInput } from './audit.types.js';
 
 /**
  * writeAudit — ghi 1 record vào audit_logs (Doc04 §5.7).

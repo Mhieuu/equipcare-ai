@@ -40,8 +40,7 @@ export const ApprovalEventType = {
   CANCELLED: 'CANCELLED',
   REVOKED: 'REVOKED',
 } as const;
-export type ApprovalEventType =
-  (typeof ApprovalEventType)[keyof typeof ApprovalEventType];
+export type ApprovalEventType = (typeof ApprovalEventType)[keyof typeof ApprovalEventType];
 
 /**
  * Cost entry category (Doc04 section 5.6).
@@ -62,5 +61,4 @@ export const CostDirection = {
   DEBIT: 'DEBIT',
   CREDIT: 'CREDIT',
 } as const;
-export type CostDirection =
-  (typeof CostDirection)[keyof typeof CostDirection];
+export type CostDirection = (typeof CostDirection)[keyof typeof CostDirection];

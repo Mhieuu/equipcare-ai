@@ -49,11 +49,17 @@ export default function PlanDetailPage() {
 
   const pause = useMutation({
     mutationFn: () => apiPost(`/maintenance-plans/${params!.id as string}/pause`, {}),
-    onSuccess: () => { toast.success('Đã tạm dừng'); void qc.invalidateQueries({ queryKey: ['plan', params?.id as string] }); },
+    onSuccess: () => {
+      toast.success('Đã tạm dừng');
+      void qc.invalidateQueries({ queryKey: ['plan', params?.id as string] });
+    },
   });
   const resume = useMutation({
     mutationFn: () => apiPost(`/maintenance-plans/${params!.id as string}/resume`, {}),
-    onSuccess: () => { toast.success('Đã tiếp tục'); void qc.invalidateQueries({ queryKey: ['plan', params?.id as string] }); },
+    onSuccess: () => {
+      toast.success('Đã tiếp tục');
+      void qc.invalidateQueries({ queryKey: ['plan', params?.id as string] });
+    },
   });
 
   if (isLoading) return <div className="text-slate-500">Đang tải...</div>;
@@ -68,14 +74,25 @@ export default function PlanDetailPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{plan.name}</h1>
-          <p className="text-sm text-slate-500">Mã: <span className="font-mono">{plan.code ?? plan.asset?.code ?? '—'}</span></p>
-          <p className="text-sm">Thiết bị: <span className="font-medium">{plan.asset ? `${plan.asset.code} - ${plan.asset.name}` : '—'}</span></p>
+          <p className="text-sm text-slate-500">
+            Mã: <span className="font-mono">{plan.code ?? plan.asset?.code ?? '—'}</span>
+          </p>
+          <p className="text-sm">
+            Thiết bị:{' '}
+            <span className="font-medium">
+              {plan.asset ? `${plan.asset.code} - ${plan.asset.name}` : '—'}
+            </span>
+          </p>
         </div>
         <div className="flex gap-2">
           {plan.isActive ? (
-            <button className="btn-secondary" onClick={() => pause.mutate()}><Pause className="h-4 w-4" /> Tạm dừng</button>
+            <button className="btn-secondary" onClick={() => pause.mutate()}>
+              <Pause className="h-4 w-4" /> Tạm dừng
+            </button>
           ) : (
-            <button className="btn-primary" onClick={() => resume.mutate()}><Play className="h-4 w-4" /> Tiếp tục</button>
+            <button className="btn-primary" onClick={() => resume.mutate()}>
+              <Play className="h-4 w-4" /> Tiếp tục
+            </button>
           )}
         </div>
       </div>
@@ -83,7 +100,9 @@ export default function PlanDetailPage() {
       <div className="card p-4 grid grid-cols-2 gap-4 text-sm">
         <div>
           <dt className="text-slate-500">Chu kỳ</dt>
-          <dd className="font-medium">{plan.intervalValue} {plan.intervalUnit}</dd>
+          <dd className="font-medium">
+            {plan.intervalValue} {plan.intervalUnit}
+          </dd>
         </div>
         <div>
           <dt className="text-slate-500">Cơ sở lịch</dt>
@@ -114,13 +133,32 @@ export default function PlanDetailPage() {
                 <tr key={o.id}>
                   <td>{formatDate(o.dueOn, 'dd/MM/yyyy')}</td>
                   <td>
-                    <span className={
-                      o.status === 'COMPLETED' ? 'badge-green' :
-                      o.status === 'OVERDUE' ? 'badge-red' :
-                      o.status === 'SKIPPED' ? 'badge-gray' : 'badge-blue'
-                    }>{o.status}</span>
+                    <span
+                      className={
+                        o.status === 'COMPLETED'
+                          ? 'badge-green'
+                          : o.status === 'OVERDUE'
+                            ? 'badge-red'
+                            : o.status === 'SKIPPED'
+                              ? 'badge-gray'
+                              : 'badge-blue'
+                      }
+                    >
+                      {o.status}
+                    </span>
                   </td>
-                  <td>{o.workOrder ? <a className="text-brand-700 hover:underline" href={`/work-orders/${o.workOrder.id}`}>{o.workOrder.code}</a> : '—'}</td>
+                  <td>
+                    {o.workOrder ? (
+                      <a
+                        className="text-brand-700 hover:underline"
+                        href={`/work-orders/${o.workOrder.id}`}
+                      >
+                        {o.workOrder.code}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td className="text-xs text-slate-500">{o.skippedReason ?? '—'}</td>
                 </tr>
               ))

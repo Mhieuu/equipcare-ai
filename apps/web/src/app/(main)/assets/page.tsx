@@ -76,7 +76,11 @@ export default function AssetsPage() {
           {
             key: 'code',
             header: 'Mã',
-            render: (r) => <Link href={`/assets/${r.id}`} className="font-medium text-brand-700 hover:underline">{r.code}</Link>,
+            render: (r) => (
+              <Link href={`/assets/${r.id}`} className="font-medium text-brand-700 hover:underline">
+                {r.code}
+              </Link>
+            ),
             width: '140px',
           },
           {
@@ -91,7 +95,11 @@ export default function AssetsPage() {
           },
           { key: 'department', header: 'Phòng ban', render: (r) => r.department?.name },
           { key: 'location', header: 'Vị trí', render: (r) => r.location?.name },
-          { key: 'status', header: 'Trạng thái', render: (r) => <AssetStatusBadge status={r.activityStatus as never} /> },
+          {
+            key: 'status',
+            header: 'Trạng thái',
+            render: (r) => <AssetStatusBadge status={r.activityStatus as never} />,
+          },
           { key: 'serial', header: 'Serial', render: (r) => r.serialNumber ?? '—' },
         ]}
         rows={data?.items ?? []}

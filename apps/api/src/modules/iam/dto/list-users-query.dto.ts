@@ -29,6 +29,10 @@ export class ListUsersQueryDto {
   @IsOptional()
   departmentId?: string;
 
+  @ApiPropertyOptional({ description: 'Lọc theo mã vai trò (role code), ví dụ TECHNICIAN' })
+  @IsOptional()
+  roleCode?: string;
+
   @ApiPropertyOptional({ description: 'Tìm theo login_name / full_name / email (LIKE)' })
   @IsOptional()
   search?: string;

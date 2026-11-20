@@ -49,7 +49,14 @@ export default function IncidentsPage() {
       </div>
 
       <div className="card p-3 flex gap-2">
-        <select className="input max-w-xs" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+        <select
+          className="input max-w-xs"
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(1);
+          }}
+        >
           <option value="">Tất cả trạng thái</option>
           {Object.values(IncidentStatus).map((s) => (
             <option key={s} value={s}>
@@ -69,21 +76,40 @@ export default function IncidentsPage() {
             key: 'code',
             header: 'Mã',
             render: (r) => (
-              <Link href={`/incidents/${r.id}`} className="font-medium text-brand-700 hover:underline">
+              <Link
+                href={`/incidents/${r.id}`}
+                className="font-medium text-brand-700 hover:underline"
+              >
                 {r.code}
               </Link>
             ),
             width: '180px',
           },
-          { key: 'asset', header: 'Thiết bị', render: (r) => r.asset ? `${r.asset.code} - ${r.asset.name}` : '—' },
+          {
+            key: 'asset',
+            header: 'Thiết bị',
+            render: (r) => (r.asset ? `${r.asset.code} - ${r.asset.name}` : '—'),
+          },
           { key: 'reporter', header: 'Người báo', render: (r) => r.reporter?.fullName ?? '—' },
           {
             key: 'desc',
             header: 'Mô tả',
-            render: (r) => <div className="truncate max-w-md" title={r.description}>{r.description}</div>,
+            render: (r) => (
+              <div className="truncate max-w-md" title={r.description}>
+                {r.description}
+              </div>
+            ),
           },
-          { key: 'priority', header: 'Ưu tiên', render: (r) => <PriorityBadge priority={r.priority} /> },
-          { key: 'status', header: 'Trạng thái', render: (r) => <IncidentStatusBadge status={r.status} /> },
+          {
+            key: 'priority',
+            header: 'Ưu tiên',
+            render: (r) => <PriorityBadge priority={r.priority} />,
+          },
+          {
+            key: 'status',
+            header: 'Trạng thái',
+            render: (r) => <IncidentStatusBadge status={r.status} />,
+          },
           {
             key: 'created',
             header: 'Ngày tạo',

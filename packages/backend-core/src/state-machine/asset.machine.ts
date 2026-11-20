@@ -60,12 +60,7 @@ export function assertAssetCanHaveWorkOrder(manualState: State): void {
  *
  * Tham số `activeWoKinds` mặc định undefined (= M2 chỉ dùng manual_state).
  */
-export type ActivityStatus =
-  | 'OPERATIONAL'
-  | 'MAINTENANCE'
-  | 'REPAIR'
-  | 'SUSPENDED'
-  | 'RETIRED';
+export type ActivityStatus = 'OPERATIONAL' | 'MAINTENANCE' | 'REPAIR' | 'SUSPENDED' | 'RETIRED';
 
 export function deriveActivityStatus(
   manualState: State,

@@ -8,12 +8,6 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 import { useToast } from '@/components/toast';
 
-interface Option {
-  id: string;
-  code: string;
-  name: string;
-}
-
 interface FormData {
   code: string;
   name: string;
@@ -81,8 +75,14 @@ export default function NewAssetPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="card p-5 space-y-4">
         <div>
           <label className="label">Mã thiết bị *</label>
-          <input {...register('code', { required: 'Bắt buộc', pattern: /^[A-Z0-9][A-Z0-9._-]{1,49}$/ })} className="input" placeholder="PUMP-A-001" />
-          {errors.code && <p className="text-xs text-rose-600 mt-1">{errors.code.message ?? 'Mã không hợp lệ'}</p>}
+          <input
+            {...register('code', { required: 'Bắt buộc', pattern: /^[A-Z0-9][A-Z0-9._-]{1,49}$/ })}
+            className="input"
+            placeholder="PUMP-A-001"
+          />
+          {errors.code && (
+            <p className="text-xs text-rose-600 mt-1">{errors.code.message ?? 'Mã không hợp lệ'}</p>
+          )}
         </div>
         <div>
           <label className="label">Tên *</label>

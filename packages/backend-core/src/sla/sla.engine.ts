@@ -14,10 +14,7 @@ import { WorkOrderStatus, type WorkOrderStatus as WOStatus } from '@equipcare/sh
  * IN_PROGRESS khi pause. WAITING_APPROVAL se them vao OPEN_STATUSES o M6.
  */
 
-const OPEN_STATUSES: WOStatus[] = [
-  WorkOrderStatus.ASSIGNED,
-  WorkOrderStatus.IN_PROGRESS,
-];
+const OPEN_STATUSES: WOStatus[] = [WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS];
 
 export interface SlaInterval {
   startedAt: Date;
@@ -73,14 +70,8 @@ export interface ActiveElapsedInput {
 
 export function computeActiveElapsed(input: ActiveElapsedInput): number {
   const now = input.now ?? new Date();
-  const total = durationSeconds(
-    { startedAt: input.slaStartedAt, endedAt: now },
-    now,
-  );
-  const excluded = unionDuration(
-    [...input.pauseIntervals, ...input.waitingApprovalIntervals],
-    now,
-  );
+  const total = durationSeconds({ startedAt: input.slaStartedAt, endedAt: now }, now);
+  const excluded = unionDuration([...input.pauseIntervals, ...input.waitingApprovalIntervals], now);
   return Math.max(0, total - excluded);
 }
 

@@ -19,6 +19,7 @@ import {
   WorkOrderType,
   WorkOrderCreationMode,
   WorkOrderNoteType,
+  PauseReason,
   IncidentStatus,
   IncidentMessageType,
 } from '@equipcare/shared';
@@ -197,10 +198,9 @@ export class WorkOrderService {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2002' && dto.incidentId) {
           // Partial unique uniq_open_repair_per_incident
-          throw AppError.conflict(
-            'Incident da co Work Order REPAIR dang mo',
-            { incidentId: dto.incidentId },
-          );
+          throw AppError.conflict('Incident da co Work Order REPAIR dang mo', {
+            incidentId: dto.incidentId,
+          });
         }
       }
       throw e;
@@ -220,10 +220,10 @@ export class WorkOrderService {
 
     // Optimistic lock (R-04)
     if (dto.rowVersion !== undefined && Number(dto.rowVersion) !== wo.row_version) {
-      throw AppError.conflict(
-        'Work Order da duoc cap nhat boi nguoi khac',
-        { currentVersion: wo.row_version, providedVersion: Number(dto.rowVersion) },
-      );
+      throw AppError.conflict('Work Order da duoc cap nhat boi nguoi khac', {
+        currentVersion: wo.row_version,
+        providedVersion: Number(dto.rowVersion),
+      });
     }
 
     // State machine
@@ -266,11 +266,7 @@ export class WorkOrderService {
 
     // Side-effect: neu COMPLETED + REPAIR va incident con IN_PROGRESS/NEW/...
     // -> incident tu chuyen RESOLVED (Doc04 section 5.5 + M5 plan section 12.2).
-    if (
-      to === WorkOrderStatus.COMPLETED &&
-      wo.kind === WorkOrderType.REPAIR &&
-      wo.incident_id
-    ) {
+    if (to === WorkOrderStatus.COMPLETED && wo.kind === WorkOrderType.REPAIR && wo.incident_id) {
       await this.tryResolveIncidentOnComplete(actorId, wo.incident_id);
     }
 
@@ -346,11 +342,10 @@ export class WorkOrderService {
       // Cho phep NEW/ASSIGNED -> COMPLETED neu co result summary (FR-WO-08)?
       // Theo state machine: chi IN_PROGRESS -> COMPLETED. Neu can shortcut, caller
       // phai transition truoc.
-      throw AppError.unprocessable(
-        'WO_INVALID_TRANSITION',
-        'Chi COMPLETED tu IN_PROGRESS',
-        { from, to: WorkOrderStatus.COMPLETED },
-      );
+      throw AppError.unprocessable('WO_INVALID_TRANSITION', 'Chi COMPLETED tu IN_PROGRESS', {
+        from,
+        to: WorkOrderStatus.COMPLETED,
+      });
     }
 
     const patch: Prisma.work_ordersUpdateInput = {
@@ -403,8 +398,24 @@ export class WorkOrderService {
     const wo = await this.prisma.work_orders.findUnique({ where: { id } });
     if (!wo) throw AppError.notFound('Khong tim thay Work Order', { id });
 
+    // Alias: frontend co the gui `body` thay cho `note`.
+    const noteText = dto.note ?? dto.body;
+    if (!noteText) {
+      throw AppError.unprocessable('WO_NOTE_REQUIRED', 'Ghi chu khong duoc de trong', {
+        field: 'note',
+      });
+    }
+
+    // `pauseReason` co the duoc suy ra tu `body` neu body la mot PauseReason hop le.
+    const pauseReason =
+      dto.pauseReason ??
+      (dto.noteType === WorkOrderNoteType.PAUSE_START &&
+      Object.values(PauseReason).includes(noteText as PauseReason)
+        ? (noteText as PauseReason)
+        : undefined);
+
     // PAUSE_START bat buoc co pause_reason
-    if (dto.noteType === WorkOrderNoteType.PAUSE_START && !dto.pauseReason) {
+    if (dto.noteType === WorkOrderNoteType.PAUSE_START && !pauseReason) {
       throw AppError.unprocessable(
         'WO_PAUSE_REQUIRES_REASON',
         'PAUSE_START can nhap ly do tam dung',
@@ -419,11 +430,9 @@ export class WorkOrderService {
         orderBy: { created_at: 'desc' },
       });
       if (!openPause) {
-        throw AppError.unprocessable(
-          'WO_RESUME_WITHOUT_PAUSE',
-          'Khong co PAUSE_START de thoat',
-          { workOrderId: id },
-        );
+        throw AppError.unprocessable('WO_RESUME_WITHOUT_PAUSE', 'Khong co PAUSE_START de thoat', {
+          workOrderId: id,
+        });
       }
       // Co PAUSE_END sau PAUSE_START gan nhat -> khong can check ordered (UI flow).
     }
@@ -433,8 +442,8 @@ export class WorkOrderService {
         work_order_id: id,
         author_id: actorId,
         note_type: dto.noteType,
-        note: dto.note,
-        pause_reason: dto.pauseReason ?? null,
+        note: noteText,
+        pause_reason: pauseReason ?? null,
       },
       include: {
         author: { select: { id: true, login_name: true, full_name: true } },
@@ -448,7 +457,7 @@ export class WorkOrderService {
       objectType: 'WorkOrder',
       objectKey: id,
       correlationKey: id,
-      newValue: { noteType: dto.noteType, pauseReason: dto.pauseReason ?? null },
+      newValue: { noteType: dto.noteType, pauseReason: pauseReason ?? null },
     });
 
     return created;
@@ -480,8 +489,7 @@ export class WorkOrderService {
     if (!wo) throw AppError.notFound('Khong tim thay Work Order', { id });
 
     const slaSeconds = await this.getSlaSeconds(wo.priority_code);
-    const { pauseIntervals, waitingApprovalIntervals } =
-      this.buildSlaIntervals(wo.notes);
+    const { pauseIntervals, waitingApprovalIntervals } = this.buildSlaIntervals(wo.notes);
 
     const slaStartedAt = wo.started_at ?? wo.created_at;
     const activeElapsed = computeActiveElapsed({
@@ -505,9 +513,7 @@ export class WorkOrderService {
       isOverdue: overdue,
       pauseSeconds: pauseIntervals.length > 0 ? this.sumSeconds(pauseIntervals) : 0,
       waitingApprovalSeconds:
-        waitingApprovalIntervals.length > 0
-          ? this.sumSeconds(waitingApprovalIntervals)
-          : 0,
+        waitingApprovalIntervals.length > 0 ? this.sumSeconds(waitingApprovalIntervals) : 0,
     };
   }
 
@@ -529,7 +535,9 @@ export class WorkOrderService {
       where: {
         incident_id: incidentId,
         kind: WorkOrderType.REPAIR,
-        status: { in: [WorkOrderStatus.NEW, WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS] },
+        status: {
+          in: [WorkOrderStatus.NEW, WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS],
+        },
       },
     });
     if (openRepairCount > 0) {
@@ -542,8 +550,11 @@ export class WorkOrderService {
     const inc = await this.prisma.incidents.findUnique({ where: { id: incidentId } });
     if (!inc) return;
     const incStatus = inc.status as IncidentStatus;
-    if (incStatus === IncidentStatus.RESOLVED || incStatus === IncidentStatus.CLOSED ||
-        incStatus === IncidentStatus.CANCELLED) {
+    if (
+      incStatus === IncidentStatus.RESOLVED ||
+      incStatus === IncidentStatus.CLOSED ||
+      incStatus === IncidentStatus.CANCELLED
+    ) {
       return; // Da dong, khong can
     }
 
@@ -671,9 +682,7 @@ export class WorkOrderService {
         ) {
           const reasonLower = (cancelReason ?? '').toLowerCase();
           const isNeedInfo = reasonLower.includes('need_info_from_reporter');
-          const nextStatus = isNeedInfo
-            ? IncidentStatus.AWAITING_INFO
-            : IncidentStatus.NEW;
+          const nextStatus = isNeedInfo ? IncidentStatus.AWAITING_INFO : IncidentStatus.NEW;
           await this.prisma.$transaction(async (tx) => {
             await tx.incidents.update({
               where: { id: inc.id },
@@ -863,14 +872,13 @@ export class WorkOrderService {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private computeSlaStatus(w: any) {
-    const active: string[] = [
-      WorkOrderStatus.NEW,
-      WorkOrderStatus.IN_PROGRESS,
-    ];
+    const active: string[] = [WorkOrderStatus.NEW, WorkOrderStatus.IN_PROGRESS];
     if (!active.includes(String(w.status))) return null;
 
     const now = Date.now();
-    const started = w.started_at ? new Date(w.started_at).getTime() : new Date(w.created_at).getTime();
+    const started = w.started_at
+      ? new Date(w.started_at).getTime()
+      : new Date(w.created_at).getTime();
     const due = w.due_at ? new Date(w.due_at).getTime() : null;
 
     // Tong thoi gian pause tich luy tu cac note PAUSE_START/PAUSE_END.
@@ -915,11 +923,9 @@ export class WorkOrderService {
     note?: string | null,
   ) {
     if (!Number.isFinite(plannedQuantity) || plannedQuantity < 0) {
-      throw AppError.unprocessable(
-        'WO_PART_INVALID_QTY',
-        'planned_quantity phai >= 0',
-        { plannedQuantity },
-      );
+      throw AppError.unprocessable('WO_PART_INVALID_QTY', 'planned_quantity phai >= 0', {
+        plannedQuantity,
+      });
     }
     const wo = await this.prisma.work_orders.findUnique({ where: { id: workOrderId } });
     if (!wo) throw AppError.notFound('Khong tim thay work order', { workOrderId });

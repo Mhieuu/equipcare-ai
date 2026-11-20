@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Put,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionGuard } from '../../common/guards/permission.guard.js';
@@ -55,10 +47,7 @@ export class ConfigController {
   @Post()
   @Permissions('system-config:update')
   @ApiOperation({ summary: 'Tạo setting mới (admin)' })
-  create(
-    @Body() dto: CreateSystemSettingDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  create(@Body() dto: CreateSystemSettingDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.config.create(dto, actor.sub);
   }
 }

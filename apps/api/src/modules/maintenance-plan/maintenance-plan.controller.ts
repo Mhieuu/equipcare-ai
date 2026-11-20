@@ -57,10 +57,7 @@ export class MaintenancePlanController {
   @Post()
   @Permissions(Permission.MAINTENANCE_PLAN_MANAGE)
   @HttpCode(201)
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateMaintenancePlanDto,
-  ) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateMaintenancePlanDto) {
     return this.service.create(user.sub, dto);
   }
 
@@ -88,10 +85,7 @@ export class MaintenancePlanController {
   @Post(':id/resume')
   @Permissions(Permission.MAINTENANCE_PLAN_MANAGE)
   @HttpCode(200)
-  resume(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
+  resume(@CurrentUser() user: AuthenticatedUser, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.resume(user.sub, id);
   }
 

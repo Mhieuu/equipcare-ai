@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
-export type ReportType =
-  | 'incidents'
-  | 'work-orders'
-  | 'cost-summary'
-  | 'asset-critical';
+export type ReportType = 'incidents' | 'work-orders' | 'cost-summary' | 'asset-critical';
 
 const SUPPORTED: ReportType[] = ['incidents', 'work-orders', 'cost-summary', 'asset-critical'];
 
@@ -118,7 +114,9 @@ export class ReportService {
         id: true,
         code: true,
         asset_id: true,
-        cost_entries: { select: { category: true, direction: true, quantity: true, unit_price: true } },
+        cost_entries: {
+          select: { category: true, direction: true, quantity: true, unit_price: true },
+        },
       },
       take: 5000,
     });
@@ -170,9 +168,7 @@ export class ReportService {
       where: { created_at: { gte: since } },
       select: { work_order_id: true, quantity: true, unit_price: true },
     });
-    const woIds = costByWo
-      .map((c) => c.work_order_id)
-      .filter((x): x is string => Boolean(x));
+    const woIds = costByWo.map((c) => c.work_order_id).filter((x): x is string => Boolean(x));
     const wos = await this.prisma.work_orders.findMany({
       where: { id: { in: woIds } },
       select: { id: true, asset_id: true },

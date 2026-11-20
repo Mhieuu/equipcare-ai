@@ -17,14 +17,31 @@ interface ApprovalDetail {
   reason: string;
   actionPlan: string;
   otherEstimatedCost: string | null;
-  workOrder: { id: string; code: string; description: string; asset: { code: string; name: string } | null };
+  workOrder: {
+    id: string;
+    code: string;
+    description: string;
+    asset: { code: string; name: string } | null;
+  };
   proposer: { id: string; fullName: string } | null;
-  events: Array<{ id: string; eventType: string; actorName: string; note: string | null; createdAt: string }>;
+  events: Array<{
+    id: string;
+    eventType: string;
+    actorName: string;
+    note: string | null;
+    createdAt: string;
+  }>;
   currentRevision: {
     id: string;
     revisionNo: number;
     netCost: string | null;
-    parts: Array<{ partId: string; partCode: string; partName: string; quantity: number; unitPrice: string }>;
+    parts: Array<{
+      partId: string;
+      partCode: string;
+      partName: string;
+      quantity: number;
+      unitPrice: string;
+    }>;
   } | null;
 }
 
@@ -33,7 +50,9 @@ export default function ApprovalDetailPage() {
   const router = useRouter();
   const toast = useToast();
   const qc = useQueryClient();
-  const [decisionModal, setDecisionModal] = useState<'APPROVED' | 'REJECTED' | 'INFO_REQUESTED' | null>(null);
+  const [decisionModal, setDecisionModal] = useState<
+    'APPROVED' | 'REJECTED' | 'INFO_REQUESTED' | null
+  >(null);
   const [note, setNote] = useState('');
 
   const { data: a, isLoading } = useQuery({
@@ -67,7 +86,8 @@ export default function ApprovalDetailPage() {
         <div>
           <h1 className="text-2xl font-bold">Phê duyệt #{a.id.slice(0, 8)}</h1>
           <p className="text-sm text-slate-500">
-            WO: <span className="font-mono">{a.workOrder?.code ?? '—'}</span> · Người đề xuất: {a.proposer?.fullName ?? '—'}
+            WO: <span className="font-mono">{a.workOrder?.code ?? '—'}</span> · Người đề xuất:{' '}
+            {a.proposer?.fullName ?? '—'}
           </p>
         </div>
         <ApprovalStatusBadge status={a.status} />
@@ -86,14 +106,18 @@ export default function ApprovalDetailPage() {
         {a.otherEstimatedCost && (
           <div>
             <dt className="text-xs text-slate-500">Chi phí khác ước tính</dt>
-            <dd className="text-sm font-medium">{Number(a.otherEstimatedCost).toLocaleString('vi-VN')} đ</dd>
+            <dd className="text-sm font-medium">
+              {Number(a.otherEstimatedCost).toLocaleString('vi-VN')} đ
+            </dd>
           </div>
         )}
       </div>
 
       {a.currentRevision && (
         <div className="card p-4">
-          <h2 className="font-semibold mb-3">Linh kiện đề xuất (Rev #{a.currentRevision.revisionNo})</h2>
+          <h2 className="font-semibold mb-3">
+            Linh kiện đề xuất (Rev #{a.currentRevision.revisionNo})
+          </h2>
           <table className="table">
             <thead>
               <tr>
@@ -127,13 +151,29 @@ export default function ApprovalDetailPage() {
       <div className="card p-4">
         <h2 className="font-semibold mb-3">Hành động</h2>
         <div className="flex gap-2">
-          <button className="btn-primary" onClick={() => setDecisionModal('APPROVED')} disabled={a.status !== ApprovalStatus.SUBMITTED && a.status !== ApprovalStatus.INFO_REQUESTED}>
+          <button
+            className="btn-primary"
+            onClick={() => setDecisionModal('APPROVED')}
+            disabled={
+              a.status !== ApprovalStatus.SUBMITTED && a.status !== ApprovalStatus.INFO_REQUESTED
+            }
+          >
             <Check className="h-4 w-4" /> Duyệt
           </button>
-          <button className="btn-danger" onClick={() => setDecisionModal('REJECTED')} disabled={a.status !== ApprovalStatus.SUBMITTED && a.status !== ApprovalStatus.INFO_REQUESTED}>
+          <button
+            className="btn-danger"
+            onClick={() => setDecisionModal('REJECTED')}
+            disabled={
+              a.status !== ApprovalStatus.SUBMITTED && a.status !== ApprovalStatus.INFO_REQUESTED
+            }
+          >
             <X className="h-4 w-4" /> Từ chối
           </button>
-          <button className="btn-secondary" onClick={() => setDecisionModal('INFO_REQUESTED')} disabled={a.status !== ApprovalStatus.SUBMITTED}>
+          <button
+            className="btn-secondary"
+            onClick={() => setDecisionModal('INFO_REQUESTED')}
+            disabled={a.status !== ApprovalStatus.SUBMITTED}
+          >
             <MessageSquare className="h-4 w-4" /> Yêu cầu bổ sung
           </button>
         </div>
@@ -147,7 +187,9 @@ export default function ApprovalDetailPage() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="badge-gray text-xs">{e.eventType}</span>
                 <span className="text-sm font-medium">{e.actorName}</span>
-                <span className="text-xs text-slate-500">{formatDate(e.createdAt, 'dd/MM HH:mm')}</span>
+                <span className="text-xs text-slate-500">
+                  {formatDate(e.createdAt, 'dd/MM HH:mm')}
+                </span>
               </div>
               {e.note && <p className="text-sm">{e.note}</p>}
             </li>
@@ -158,10 +200,18 @@ export default function ApprovalDetailPage() {
       <Modal
         open={decisionModal !== null}
         onClose={() => setDecisionModal(null)}
-        title={decisionModal === 'APPROVED' ? 'Duyệt' : decisionModal === 'REJECTED' ? 'Từ chối' : 'Yêu cầu bổ sung'}
+        title={
+          decisionModal === 'APPROVED'
+            ? 'Duyệt'
+            : decisionModal === 'REJECTED'
+              ? 'Từ chối'
+              : 'Yêu cầu bổ sung'
+        }
         footer={
           <>
-            <button className="btn-secondary" onClick={() => setDecisionModal(null)}>Hủy</button>
+            <button className="btn-secondary" onClick={() => setDecisionModal(null)}>
+              Hủy
+            </button>
             <button
               className={decisionModal === 'REJECTED' ? 'btn-danger' : 'btn-primary'}
               onClick={() => decide.mutate({ action: decisionModal!, note })}
@@ -173,7 +223,12 @@ export default function ApprovalDetailPage() {
         }
       >
         <label className="label">Ghi chú *</label>
-        <textarea className="input" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+        <textarea
+          className="input"
+          rows={3}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
       </Modal>
     </div>
   );

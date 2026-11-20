@@ -130,7 +130,13 @@ export class ApprovalService {
       include: {
         proposer: { select: { id: true, login_name: true, full_name: true } },
         work_order: {
-          select: { id: true, code: true, status: true, description: true, asset: { select: { id: true, code: true, name: true } } },
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            description: true,
+            asset: { select: { id: true, code: true, name: true } },
+          },
         },
         revisions: {
           orderBy: { revision_no: 'desc' },
@@ -172,10 +178,10 @@ export class ApprovalService {
 
     // 2) Moi WO chi co 1 approval active (khong CANCELLED)
     if (wo.approvals.length > 0) {
-      throw AppError.conflict(
-        'Work Order da co approval dang mo',
-        { workOrderId: dto.workOrderId, existingApproval: wo.approvals[0].id },
-      );
+      throw AppError.conflict('Work Order da co approval dang mo', {
+        workOrderId: dto.workOrderId,
+        existingApproval: wo.approvals[0].id,
+      });
     }
 
     if (wo.status === WorkOrderStatus.COMPLETED || wo.status === WorkOrderStatus.CANCELLED) {
@@ -237,10 +243,10 @@ export class ApprovalService {
     const a = await this.prisma.approvals.findUnique({ where: { id } });
     if (!a) throw AppError.notFound('Khong tim thay approval', { id });
     if (a.proposer_id !== actorId) {
-      throw AppError.forbidden(
-        'Chi proposer moi co the sua draft',
-        { actorId, proposerId: a.proposer_id },
-      );
+      throw AppError.forbidden('Chi proposer moi co the sua draft', {
+        actorId,
+        proposerId: a.proposer_id,
+      });
     }
     if (
       a.status !== ApprovalStatus.DRAFT &&
@@ -307,21 +313,19 @@ export class ApprovalService {
     };
     const requiredPerm = actionPerm[String(dto.action)];
     if (requiredPerm && !actorPermissions.includes(requiredPerm)) {
-      throw AppError.forbidden(
-        `Action ${dto.action} can ${requiredPerm}`,
-        { action: dto.action, required: requiredPerm, code: 'APR_PERMISSION_DENIED' },
-      );
+      throw AppError.forbidden(`Action ${dto.action} can ${requiredPerm}`, {
+        action: dto.action,
+        required: requiredPerm,
+        code: 'APR_PERMISSION_DENIED',
+      });
     }
 
     // Optimistic lock (R-04)
-    if (
-      dto.rowVersion !== undefined &&
-      Number(dto.rowVersion) !== a.row_version
-    ) {
-      throw AppError.conflict(
-        'Approval da duoc cap nhat boi nguoi khac',
-        { currentVersion: a.row_version, providedVersion: Number(dto.rowVersion) },
-      );
+    if (dto.rowVersion !== undefined && Number(dto.rowVersion) !== a.row_version) {
+      throw AppError.conflict('Approval da duoc cap nhat boi nguoi khac', {
+        currentVersion: a.row_version,
+        providedVersion: Number(dto.rowVersion),
+      });
     }
 
     const current = a.status as ApprovalStatus;
@@ -329,10 +333,7 @@ export class ApprovalService {
     assertApprovalTransition(current, target);
 
     // Self-approval guard (FR-APR-09) o layer service (DB trigger cung check)
-    if (
-      target === ApprovalStatus.APPROVED &&
-      a.proposer_id === actorId
-    ) {
+    if (target === ApprovalStatus.APPROVED && a.proposer_id === actorId) {
       throw AppError.unprocessable(
         'APR_SELF_APPROVAL_FORBIDDEN',
         'Khong the tu duyet approval cua chinh minh (FR-APR-09)',
@@ -344,13 +345,13 @@ export class ApprovalService {
     //   - proposer: submit, cancel, createNewRevision
     //   - approver (khac proposer): approve, reject, request-info
     const isProposer = a.proposer_id === actorId;
-    if (isProposer && (dto.action === ApprovalEventType.APPROVED ||
-                       dto.action === ApprovalEventType.REJECTED ||
-                       dto.action === ApprovalEventType.INFO_REQUESTED)) {
-      throw AppError.forbidden(
-        'Proposer khong the tu quyet dinh approval cua minh',
-        { actorId },
-      );
+    if (
+      isProposer &&
+      (dto.action === ApprovalEventType.APPROVED ||
+        dto.action === ApprovalEventType.REJECTED ||
+        dto.action === ApprovalEventType.INFO_REQUESTED)
+    ) {
+      throw AppError.forbidden('Proposer khong the tu quyet dinh approval cua minh', { actorId });
     }
 
     // Approval revoke (optional): chi admin moi REVOKED
@@ -377,10 +378,7 @@ export class ApprovalService {
 
       // Revision side-effects theo action
       const revPatch: Prisma.approval_revisionsUpdateInput = {};
-      if (
-        target === ApprovalStatus.SUBMITTED &&
-        current === ApprovalStatus.DRAFT
-      ) {
+      if (target === ApprovalStatus.SUBMITTED && current === ApprovalStatus.DRAFT) {
         revPatch.submitted_at = new Date();
       }
       if (Object.keys(revPatch).length > 0) {
@@ -402,10 +400,7 @@ export class ApprovalService {
       });
 
       // WO status coupling
-      if (
-        target === ApprovalStatus.SUBMITTED &&
-        current === ApprovalStatus.DRAFT
-      ) {
+      if (target === ApprovalStatus.SUBMITTED && current === ApprovalStatus.DRAFT) {
         await this.enterWaitingApproval(actorId, tx, a.work_order_id);
       } else if (
         target === ApprovalStatus.APPROVED ||
@@ -455,10 +450,10 @@ export class ApprovalService {
     const a = await this.prisma.approvals.findUnique({ where: { id } });
     if (!a) throw AppError.notFound('Khong tim thay approval', { id });
     if (a.proposer_id !== actorId) {
-      throw AppError.forbidden(
-        'Chi proposer moi co the mo revision moi',
-        { actorId, proposerId: a.proposer_id },
-      );
+      throw AppError.forbidden('Chi proposer moi co the mo revision moi', {
+        actorId,
+        proposerId: a.proposer_id,
+      });
     }
     if (
       a.status !== ApprovalStatus.APPROVED &&
@@ -556,15 +551,17 @@ export class ApprovalService {
         where: { work_order_id: workOrderId },
         include: { part: { select: { name: true, requires_approval: true } } },
       });
-      requested = planned.map((p: {
-        part_id: string;
-        planned_quantity: { toString(): string } | number;
-        part: { name: string; requires_approval: boolean };
-      }) => ({
-        partId: p.part_id,
-        quantity: Number(p.planned_quantity),
-        requiresApproval: p.part.requires_approval,
-      }));
+      requested = planned.map(
+        (p: {
+          part_id: string;
+          planned_quantity: { toString(): string } | number;
+          part: { name: string; requires_approval: boolean };
+        }) => ({
+          partId: p.part_id,
+          quantity: Number(p.planned_quantity),
+          requiresApproval: p.part.requires_approval,
+        }),
+      );
     }
 
     if (requested.length === 0) return;
@@ -573,18 +570,22 @@ export class ApprovalService {
     const partIds = [...new Set(requested.map((p) => p.partId))];
     const partRows = await tx.parts.findMany({
       where: { id: { in: partIds } },
-      select: { id: true, name: true, reference_price: true, requires_approval: true, is_active: true },
+      select: {
+        id: true,
+        name: true,
+        reference_price: true,
+        requires_approval: true,
+        is_active: true,
+      },
     });
     type PartRow = (typeof partRows)[number];
     const partMap = new Map<string, PartRow>(partRows.map((p) => [p.id, p]));
 
     const missing = partIds.filter((id) => !partMap.has(id));
     if (missing.length > 0) {
-      throw AppError.unprocessable(
-        'APR_PART_NOT_FOUND',
-        'Linh kien khong ton tai',
-        { partIds: missing },
-      );
+      throw AppError.unprocessable('APR_PART_NOT_FOUND', 'Linh kien khong ton tai', {
+        partIds: missing,
+      });
     }
     const inactive = partIds.filter((id) => !partMap.get(id)!.is_active);
     if (inactive.length > 0) {
@@ -642,12 +643,19 @@ export class ApprovalService {
         await this.persistRevisionParts(
           tx,
           newRevisionId,
-          prev.map((p: { part_id: string; quantity: { toString(): string }; unit_price: { toString(): string }; requires_approval_snapshot: boolean }) => ({
-            partId: p.part_id,
-            quantity: Number(p.quantity),
-            unitPrice: Number(p.unit_price),
-            requiresApproval: p.requires_approval_snapshot,
-          })),
+          prev.map(
+            (p: {
+              part_id: string;
+              quantity: { toString(): string };
+              unit_price: { toString(): string };
+              requires_approval_snapshot: boolean;
+            }) => ({
+              partId: p.part_id,
+              quantity: Number(p.quantity),
+              unitPrice: Number(p.unit_price),
+              requiresApproval: p.requires_approval_snapshot,
+            }),
+          ),
           null,
         );
         return;
@@ -726,10 +734,7 @@ export class ApprovalService {
       where: { id: workOrderId },
       select: { status: true },
     });
-    if (
-      wo &&
-      wo.status === WorkOrderStatus.WAITING_APPROVAL
-    ) {
+    if (wo && wo.status === WorkOrderStatus.WAITING_APPROVAL) {
       await tx.work_orders.update({
         where: { id: workOrderId },
         data: {
@@ -789,7 +794,10 @@ export class ApprovalService {
             id: latest.id,
             revisionNo: latest.revision_no,
             netCost: latest.other_estimated_cost?.toString() ?? '0',
-            submittedAt: latest.submitted_at instanceof Date ? latest.submitted_at.toISOString() : latest.submitted_at ?? null,
+            submittedAt:
+              latest.submitted_at instanceof Date
+                ? latest.submitted_at.toISOString()
+                : (latest.submitted_at ?? null),
           }
         : null,
       latestRevisionNo: latest?.revision_no ?? 1,
@@ -830,7 +838,8 @@ export class ApprovalService {
       actionPlan: r.action_plan,
       otherEstimatedCost: r.other_estimated_cost?.toString() ?? '0',
       netCost: r.other_estimated_cost?.toString() ?? '0',
-      submittedAt: r.submitted_at instanceof Date ? r.submitted_at.toISOString() : r.submitted_at ?? null,
+      submittedAt:
+        r.submitted_at instanceof Date ? r.submitted_at.toISOString() : (r.submitted_at ?? null),
       createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
       parts: (r.parts ?? []).map((p: ApprovalRevisionPartRow) => ({
         partId: p.part_id,

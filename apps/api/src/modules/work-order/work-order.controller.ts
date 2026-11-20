@@ -67,10 +67,7 @@ export class WorkOrderController {
   @Post()
   @Permissions(Permission.WORK_ORDER_CREATE)
   @HttpCode(201)
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateWorkOrderDto,
-  ) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateWorkOrderDto) {
     return this.service.create(dto, user.sub);
   }
 

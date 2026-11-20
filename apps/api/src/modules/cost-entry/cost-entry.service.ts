@@ -60,10 +60,7 @@ export class CostEntryService {
           approvalRevisionId: dto.approvalRevisionId,
         });
       }
-      if (
-        revision.approval.status !== 'APPROVED' &&
-        revision.approval.status !== 'SUBMITTED'
-      ) {
+      if (revision.approval.status !== 'APPROVED' && revision.approval.status !== 'SUBMITTED') {
         throw AppError.unprocessable(
           'COST_REVISION_NOT_APPROVED',
           'Chi ghi cost vao revision SUBMITTED hoac APPROVED',

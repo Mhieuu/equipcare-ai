@@ -51,9 +51,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private toResponse(exception: unknown, req: Request): { status: number; body: ApiErrorBody } {
-    const traceId =
-      (req.headers['x-request-id'] as string | undefined) ??
-      this.randomTraceId();
+    const traceId = (req.headers['x-request-id'] as string | undefined) ?? this.randomTraceId();
 
     // 1) AppError — domain error (Doc02 §7 chuẩn).
     if (exception instanceof AppError) {
@@ -171,9 +169,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   private randomTraceId(): string {
     // Lightweight id (không cần UUID strict) — đủ để debug correlation.
-    return (
-      Date.now().toString(36) +
-      Math.random().toString(36).slice(2, 10)
-    );
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   }
 }

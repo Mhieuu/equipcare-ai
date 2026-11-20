@@ -2,11 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AppError, writeAudit } from '@equipcare/backend-core';
 import { PrismaService } from '../../prisma/prisma.service';
-import type {
-  CreatePartDto,
-  UpdatePartDto,
-  ListPartsQueryDto,
-} from './dto/part.dto';
+import type { CreatePartDto, UpdatePartDto, ListPartsQueryDto } from './dto/part.dto';
 
 /**
  * Part relations cho UI: don vi + vi tri (FE hien thi `part.department.name`,
@@ -94,9 +90,10 @@ export class PartService {
     });
 
     const mapped = items.map((p) => this.toDto(p));
-    const filtered = query.lowStock === 'true'
-      ? mapped.filter((p) => Number(p.onHand) < Number(p.minimumStock))
-      : mapped;
+    const filtered =
+      query.lowStock === 'true'
+        ? mapped.filter((p) => Number(p.onHand) < Number(p.minimumStock))
+        : mapped;
 
     return { items: filtered, total: filtered.length };
   }
@@ -115,10 +112,10 @@ export class PartService {
     if (!p) throw AppError.notFound('Khong tim thay linh kien', { id });
 
     if (dto.rowVersion !== undefined && Number(dto.rowVersion) !== p.row_version) {
-      throw AppError.conflict(
-        'Part da duoc cap nhat boi nguoi khac',
-        { currentVersion: p.row_version, providedVersion: Number(dto.rowVersion) },
-      );
+      throw AppError.conflict('Part da duoc cap nhat boi nguoi khac', {
+        currentVersion: p.row_version,
+        providedVersion: Number(dto.rowVersion),
+      });
     }
 
     const patch: Prisma.partsUpdateInput = { row_version: { increment: 1 } };

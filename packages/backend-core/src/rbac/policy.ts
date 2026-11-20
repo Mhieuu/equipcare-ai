@@ -8,8 +8,8 @@ import type { PermissionCode } from '@equipcare/shared';
  */
 export interface PolicyContext {
   userId: string;
-  roles: string[];                 // role codes: ADMIN / MANAGER / TECHNICIAN / REPORTER / VIEWER
-  permissions: PermissionCode[];   // resolved from DB (role_permissions)
+  roles: string[]; // role codes: ADMIN / MANAGER / TECHNICIAN / REPORTER / VIEWER
+  permissions: PermissionCode[]; // resolved from DB (role_permissions)
   scope?: {
     departmentIds?: string[];
     locationIds?: string[];
@@ -21,10 +21,7 @@ export function hasPermission(ctx: PolicyContext, required: PermissionCode): boo
   return ctx.permissions.includes(required);
 }
 
-export function hasAnyPermission(
-  ctx: PolicyContext,
-  required: PermissionCode[],
-): boolean {
+export function hasAnyPermission(ctx: PolicyContext, required: PermissionCode[]): boolean {
   return required.some((p) => ctx.permissions.includes(p));
 }
 
@@ -57,7 +54,9 @@ export function isInScope(
  * Caller: `expandLocationSubtree(prisma, ['<root-uuid>'])`.
  */
 export async function expandLocationSubtree(
-  prisma: { $queryRaw: (strings: TemplateStringsArray | string, ...values: unknown[]) => Promise<unknown> },
+  prisma: {
+    $queryRaw: (strings: TemplateStringsArray | string, ...values: unknown[]) => Promise<unknown>;
+  },
   rootIds: string[],
 ): Promise<Set<string>> {
   if (rootIds.length === 0) return new Set();
@@ -73,4 +72,3 @@ export async function expandLocationSubtree(
   `) as Array<{ id: string }>;
   return new Set(rows.map((r) => r.id));
 }
-

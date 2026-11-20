@@ -16,8 +16,7 @@ export const StockTransactionType = {
   TRANSFER_OUT: 'TRANSFER_OUT',
   TRANSFER_IN: 'TRANSFER_IN',
 } as const;
-export type StockTransactionType =
-  (typeof StockTransactionType)[keyof typeof StockTransactionType];
+export type StockTransactionType = (typeof StockTransactionType)[keyof typeof StockTransactionType];
 
 /**
  * Movement type co anh huong tang on_hand (cho aggregation).

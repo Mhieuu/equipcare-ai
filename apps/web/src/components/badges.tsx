@@ -17,11 +17,18 @@ const STATUS_CLASSES = {
 } as const;
 
 export function WorkOrderStatusBadge({ status }: { status: WorkOrderStatus }) {
-  return <span className={STATUS_CLASSES[status] ?? 'badge-gray'}>{WorkOrderStatusLabel[status]}</span>;
+  return (
+    <span className={STATUS_CLASSES[status] ?? 'badge-gray'}>{WorkOrderStatusLabel[status]}</span>
+  );
 }
 
 export function WorkOrderTypeBadge({ type }: { type: WorkOrderType }) {
-  const cls = type === WorkOrderType.REPAIR ? 'badge-red' : type === WorkOrderType.MAINTENANCE ? 'badge-blue' : 'badge-gray';
+  const cls =
+    type === WorkOrderType.REPAIR
+      ? 'badge-red'
+      : type === WorkOrderType.MAINTENANCE
+        ? 'badge-blue'
+        : 'badge-gray';
   return <span className={cls}>{WorkOrderTypeLabel[type]}</span>;
 }
 
@@ -36,7 +43,9 @@ const INC_STATUS_CLASSES: Record<IncidentStatus, string> = {
 
 export function IncidentStatusBadge({ status }: { status: IncidentStatus }) {
   return (
-    <span className={INC_STATUS_CLASSES[status] ?? 'badge-gray'}>{IncidentStatusLabel[status]}</span>
+    <span className={INC_STATUS_CLASSES[status] ?? 'badge-gray'}>
+      {IncidentStatusLabel[status]}
+    </span>
   );
 }
 
@@ -48,7 +57,11 @@ const PRIORITY_CLASSES: Record<IncidentPriority, string> = {
 };
 
 export function PriorityBadge({ priority }: { priority: IncidentPriority }) {
-  return <span className={PRIORITY_CLASSES[priority] ?? 'badge-gray'}>{IncidentPriorityLabel[priority]}</span>;
+  return (
+    <span className={PRIORITY_CLASSES[priority] ?? 'badge-gray'}>
+      {IncidentPriorityLabel[priority]}
+    </span>
+  );
 }
 
 const APR_STATUS_CLASSES: Record<ApprovalStatus, string> = {
@@ -61,7 +74,11 @@ const APR_STATUS_CLASSES: Record<ApprovalStatus, string> = {
 };
 
 export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
-  return <span className={APR_STATUS_CLASSES[status] ?? 'badge-gray'}>{ApprovalStatusLabel[status]}</span>;
+  return (
+    <span className={APR_STATUS_CLASSES[status] ?? 'badge-gray'}>
+      {ApprovalStatusLabel[status]}
+    </span>
+  );
 }
 
 const ACT_STATUS_CLASSES: Record<ActivityStatus, string> = {
@@ -73,5 +90,9 @@ const ACT_STATUS_CLASSES: Record<ActivityStatus, string> = {
 };
 
 export function AssetStatusBadge({ status }: { status: ActivityStatus }) {
-  return <span className={ACT_STATUS_CLASSES[status] ?? 'badge-gray'}>{ActivityStatusLabel[status]}</span>;
+  return (
+    <span className={ACT_STATUS_CLASSES[status] ?? 'badge-gray'}>
+      {ActivityStatusLabel[status]}
+    </span>
+  );
 }

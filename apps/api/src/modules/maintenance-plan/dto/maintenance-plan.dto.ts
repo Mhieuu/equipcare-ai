@@ -12,10 +12,7 @@ import {
   IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import {
-  MaintenanceIntervalUnit,
-  MaintenanceScheduleBasis,
-} from '@equipcare/backend-core';
+import { MaintenanceIntervalUnit, MaintenanceScheduleBasis } from '@equipcare/backend-core';
 
 export class CreateMaintenancePlanDto {
   @IsUUID()

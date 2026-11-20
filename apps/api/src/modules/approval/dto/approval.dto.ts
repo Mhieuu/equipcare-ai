@@ -135,14 +135,7 @@ export class ListApprovalsQueryDto extends PaginationQueryDto {
 
   @IsOptional()
   @IsString()
-  @IsIn([
-    'DRAFT',
-    'SUBMITTED',
-    'APPROVED',
-    'REJECTED',
-    'CANCELLED',
-    'INFO_REQUESTED',
-  ])
+  @IsIn(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'INFO_REQUESTED'])
   status?: ApprovalStatus;
 
   getTake(): number {

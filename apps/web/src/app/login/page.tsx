@@ -57,16 +57,28 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      const res = await apiPost<{ accessToken: string; refreshToken: string }>('/auth/login', data, {
+      const res = await apiPost<{
+        accessToken: string;
+        expiresIn: number;
+        mustChangePassword: boolean;
+      }>('/auth/login', data, {
         noAuth: true,
       });
-      setTokens(res.accessToken, res.refreshToken ?? '');
+      setTokens(res.accessToken, '');
       // Warm up the /dashboard route in parallel with fetching the user profile,
       // so navigation doesn't have to wait for the first compile.
       void router.prefetch('/dashboard');
       // Wait briefly for /iam/me/permissions so AppShell has `user` immediately
       // on arrival (4s hard cap so we never get stuck on the spinner).
       await fetchMeAndCache(res.accessToken, setUser as (u: unknown) => void);
+      if (res.mustChangePassword) {
+        toast.info(
+          'Cần đổi mật khẩu',
+          'Tài khoản của bạn cần đổi mật khẩu mặc định trước khi tiếp tục.',
+        );
+        router.replace('/change-password?forced=1');
+        return;
+      }
       router.replace('/dashboard');
     } catch (e) {
       const err = e as ApiError;
@@ -98,7 +110,9 @@ export default function LoginPage() {
                 placeholder="admin.bootstrap"
                 autoComplete="username"
               />
-              {errors.loginName && <p className="text-xs text-rose-600 mt-1">{errors.loginName.message}</p>}
+              {errors.loginName && (
+                <p className="text-xs text-rose-600 mt-1">{errors.loginName.message}</p>
+              )}
             </div>
             <div>
               <label className="label">Mật khẩu</label>
@@ -108,7 +122,9 @@ export default function LoginPage() {
                 className="input"
                 autoComplete="current-password"
               />
-              {errors.password && <p className="text-xs text-rose-600 mt-1">{errors.password.message}</p>}
+              {errors.password && (
+                <p className="text-xs text-rose-600 mt-1">{errors.password.message}</p>
+              )}
             </div>
             <button type="submit" className="btn-primary w-full justify-center" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -119,16 +135,16 @@ export default function LoginPage() {
             <p className="font-medium mb-1">Tài khoản demo:</p>
             <ul className="space-y-0.5">
               <li>
-                <code>admin.bootstrap</code> / <code>ChangeMe@2026</code>
+                <code>admin.bootstrap</code> / <code>ChangeMe@2026</code> (quản trị)
               </li>
               <li>
-                <code>demo.reporter</code> / <code>ChangeMe@2026</code>
+                <code>demo.manager1</code> / <code>Demo@2026</code> (quản lý)
               </li>
               <li>
-                <code>demo.manager</code> / <code>ChangeMe@2026</code>
+                <code>demo.reporter1</code> / <code>Demo@2026</code> (người báo sự cố)
               </li>
               <li>
-                <code>demo.technician</code> / <code>ChangeMe@2026</code>
+                <code>demo.tech1</code> / <code>Demo@2026</code> (kỹ thuật viên)
               </li>
             </ul>
           </div>

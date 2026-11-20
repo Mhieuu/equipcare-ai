@@ -61,10 +61,7 @@ export class AssetController {
   @Post()
   @Permissions('asset:create')
   @ApiOperation({ summary: 'Tạo thiết bị mới (FR-ASSET-01)' })
-  create(
-    @Body() dto: CreateAssetDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  create(@Body() dto: CreateAssetDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.assets.create(dto, actor.sub);
   }
 

@@ -70,9 +70,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const base = window.location.origin;
       for (const route of WARMUP_ROUTES) {
-        fetch(base + route, { credentials: 'include', cache: 'no-store' }).catch(
-          () => undefined,
-        );
+        fetch(base + route, { credentials: 'include', cache: 'no-store' }).catch(() => undefined);
       }
     }
   }, [accessToken, setUser]);

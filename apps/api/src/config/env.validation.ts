@@ -6,7 +6,7 @@ import * as Joi from 'joi';
  * Quy tắc (Doc02 §NFR-SEC + plan §13):
  * - Bắt buộc `DATABASE_URL` đúng dạng Postgres connection string.
  * - `JWT_ACCESS_SECRET` >= 32 bytes (Doc02 §NFR-SEC-01).
- * - `AI_PROVIDER` chỉ nhận 'mock' | 'openai' (Doc05 §10.1).
+ * - `AI_PROVIDER` chỉ nhận 'mock' | 'gemini' (Doc05 §10.1).
  * - `NODE_ENV` ∈ development | test | production.
  * - `API_PORT` mặc định 3001.
  *
@@ -14,9 +14,7 @@ import * as Joi from 'joi';
  * động sai cấu hình — đặc biệt là secret thiếu).
  */
 export const envValidationSchema = Joi.object({
-  NODE_ENV: Joi.string()
-    .valid('development', 'test', 'production')
-    .default('development'),
+  NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
   API_PORT: Joi.number().port().default(3001),
 
   // ---- Database ----
@@ -30,10 +28,14 @@ export const envValidationSchema = Joi.object({
   ACCESS_TOKEN_TTL: Joi.number().integer().positive().default(900), // 15 phút
 
   // ---- AI ----
-  AI_PROVIDER: Joi.string().valid('mock', 'openai').default('mock'),
+  AI_PROVIDER: Joi.string().valid('mock', 'gemini').default('mock'),
   AI_REQUEST_TIMEOUT_MS: Joi.number().integer().positive().default(45000),
-  OPENAI_API_KEY: Joi.string().allow('').optional(),
-  OPENAI_MODEL: Joi.string().default('gpt-4o-2024-08-06'),
+  GEMINI_API_KEY: Joi.string().when('AI_PROVIDER', {
+    is: 'gemini',
+    then: Joi.string().min(1).required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  GEMINI_MODEL: Joi.string().default('gemini-3.5-flash-lite'),
   AI_STORE_RESPONSES: Joi.boolean().default(false),
 
   // ---- Logging ----

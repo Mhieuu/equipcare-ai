@@ -1,8 +1,5 @@
 import { Prisma } from '@prisma/client';
-import {
-  CostCategory,
-  type CostCategory as Cat,
-} from '@equipcare/shared';
+import { CostCategory, type CostCategory as Cat } from '@equipcare/shared';
 import { AppError } from '../errors/app-error.js';
 
 /**
@@ -90,12 +87,14 @@ export function assertCostCategory(category: string): Cat {
 }
 
 /** Tinh net_cost tu list cost_entries (approval_revision_id co the null). */
-export function summarizeNetCost(entries: Array<{
-  category: string;
-  direction: string;
-  quantity: Prisma.Decimal | number;
-  unit_price: Prisma.Decimal | number;
-}>): NetCostBreakdown {
+export function summarizeNetCost(
+  entries: Array<{
+    category: string;
+    direction: string;
+    quantity: Prisma.Decimal | number;
+    unit_price: Prisma.Decimal | number;
+  }>,
+): NetCostBreakdown {
   let partDebit = new Prisma.Decimal(0);
   let laborDebit = new Prisma.Decimal(0);
   let otherDebit = new Prisma.Decimal(0);
@@ -112,9 +111,6 @@ export function summarizeNetCost(entries: Array<{
       else if (e.category === 'OTHER') otherDebit = otherDebit.plus(amt);
     }
   }
-  const total = partDebit
-    .plus(laborDebit)
-    .plus(otherDebit)
-    .minus(credit);
+  const total = partDebit.plus(laborDebit).plus(otherDebit).minus(credit);
   return { partDebit, laborDebit, otherDebit, credit, total };
 }

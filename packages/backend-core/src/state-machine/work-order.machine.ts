@@ -21,10 +21,7 @@ import { AppError } from '../errors/app-error.js';
  */
 const TRANSITIONS: Record<WOStatus, WOStatus[]> = {
   [WorkOrderStatus.NEW]: [WorkOrderStatus.ASSIGNED, WorkOrderStatus.CANCELLED],
-  [WorkOrderStatus.ASSIGNED]: [
-    WorkOrderStatus.IN_PROGRESS,
-    WorkOrderStatus.CANCELLED,
-  ],
+  [WorkOrderStatus.ASSIGNED]: [WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.CANCELLED],
   [WorkOrderStatus.IN_PROGRESS]: [
     WorkOrderStatus.WAITING_APPROVAL,
     WorkOrderStatus.COMPLETED,
@@ -56,11 +53,9 @@ export function assertWorkOrderTransition(from: WOStatus, to: WOStatus): void {
 /** Ly do cancel Work Order (Doc02 section FR-WO-09) - bat buoc. */
 export function assertWorkOrderCancelReason(reason: string | undefined): string {
   if (!reason || reason.trim().length === 0) {
-    throw AppError.unprocessable(
-      'WO_CANCEL_REQUIRES_REASON',
-      'Can nhap ly do khi huy Work Order',
-      { field: 'reason' },
-    );
+    throw AppError.unprocessable('WO_CANCEL_REQUIRES_REASON', 'Can nhap ly do khi huy Work Order', {
+      field: 'reason',
+    });
   }
   return reason.trim();
 }

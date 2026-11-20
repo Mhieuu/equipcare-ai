@@ -64,10 +64,16 @@ export default function WorkOrdersPage() {
         <h1 className="text-2xl font-bold">Phiếu công việc</h1>
         <div className="flex gap-2">
           <div className="flex bg-white rounded-md border border-slate-300">
-            <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-sm flex items-center gap-1 ${view === 'kanban' ? 'bg-brand-600 text-white' : 'text-slate-600'}`}>
+            <button
+              onClick={() => setView('kanban')}
+              className={`px-3 py-1.5 text-sm flex items-center gap-1 ${view === 'kanban' ? 'bg-brand-600 text-white' : 'text-slate-600'}`}
+            >
               <LayoutGrid className="h-4 w-4" /> Kanban
             </button>
-            <button onClick={() => setView('list')} className={`px-3 py-1.5 text-sm flex items-center gap-1 ${view === 'list' ? 'bg-brand-600 text-white' : 'text-slate-600'}`}>
+            <button
+              onClick={() => setView('list')}
+              className={`px-3 py-1.5 text-sm flex items-center gap-1 ${view === 'list' ? 'bg-brand-600 text-white' : 'text-slate-600'}`}
+            >
               <ListIcon className="h-4 w-4" /> Danh sách
             </button>
           </div>
@@ -100,7 +106,9 @@ export default function WorkOrdersPage() {
                         <span className="text-slate-500">{w.asset.code}</span>
                         {w.isOverdue && <span className="badge-red">Quá hạn</span>}
                       </div>
-                      {w.assignee && <div className="text-xs text-slate-600 mt-1">→ {w.assignee.fullName}</div>}
+                      {w.assignee && (
+                        <div className="text-xs text-slate-600 mt-1">→ {w.assignee.fullName}</div>
+                      )}
                     </Link>
                   </li>
                 ))}
@@ -111,7 +119,14 @@ export default function WorkOrdersPage() {
       ) : (
         <>
           <div className="card p-3">
-            <select className="input max-w-xs" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+            <select
+              className="input max-w-xs"
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+            >
               <option value="">Tất cả trạng thái</option>
               {Object.values(WorkOrderStatus).map((s) => (
                 <option key={s} value={s}>
@@ -126,12 +141,37 @@ export default function WorkOrdersPage() {
             onRefresh={() => refetch()}
             pagination={{ page, pageSize: 50, total: data?.total ?? 0, onPageChange: setPage }}
             columns={[
-              { key: 'code', header: 'Mã', render: (r) => <Link href={`/work-orders/${r.id}`} className="font-medium text-brand-700 hover:underline">{r.code}</Link>, width: '180px' },
+              {
+                key: 'code',
+                header: 'Mã',
+                render: (r) => (
+                  <Link
+                    href={`/work-orders/${r.id}`}
+                    className="font-medium text-brand-700 hover:underline"
+                  >
+                    {r.code}
+                  </Link>
+                ),
+                width: '180px',
+              },
               { key: 'kind', header: 'Loại', render: (r) => <WorkOrderTypeBadge type={r.kind} /> },
-              { key: 'status', header: 'Trạng thái', render: (r) => <WorkOrderStatusBadge status={r.status} /> },
-              { key: 'asset', header: 'Thiết bị', render: (r) => r.asset ? `${r.asset.code} - ${r.asset.name}` : '—' },
+              {
+                key: 'status',
+                header: 'Trạng thái',
+                render: (r) => <WorkOrderStatusBadge status={r.status} />,
+              },
+              {
+                key: 'asset',
+                header: 'Thiết bị',
+                render: (r) => (r.asset ? `${r.asset.code} - ${r.asset.name}` : '—'),
+              },
               { key: 'assignee', header: 'KTV', render: (r) => r.assignee?.fullName ?? '—' },
-              { key: 'due', header: 'Hạn', render: (r) => formatDate(r.dueAt, 'dd/MM HH:mm'), width: '120px' },
+              {
+                key: 'due',
+                header: 'Hạn',
+                render: (r) => formatDate(r.dueAt, 'dd/MM HH:mm'),
+                width: '120px',
+              },
             ]}
             rows={data?.items ?? []}
           />

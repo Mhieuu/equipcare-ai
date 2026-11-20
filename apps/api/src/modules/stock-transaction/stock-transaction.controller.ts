@@ -63,20 +63,14 @@ export class StockTransactionController {
   @Post('stock-transactions/receipt')
   @Permissions(Permission.INVENTORY_RECEIPT)
   @HttpCode(201)
-  receipt(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: RecordStockMovementDto,
-  ) {
+  receipt(@CurrentUser() user: AuthenticatedUser, @Body() dto: RecordStockMovementDto) {
     return this.service.receipt(user.sub, dto);
   }
 
   @Post('stock-transactions/adjust')
   @Permissions(Permission.INVENTORY_ADJUST)
   @HttpCode(201)
-  adjust(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: RecordStockMovementDto,
-  ) {
+  adjust(@CurrentUser() user: AuthenticatedUser, @Body() dto: RecordStockMovementDto) {
     return this.service.adjust(user.sub, dto);
   }
 

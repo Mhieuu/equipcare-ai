@@ -1,9 +1,6 @@
 import { IsOptional, IsString, MaxLength, IsIn, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import {
-  IncidentPriority,
-  IncidentStatus,
-} from '@equipcare/shared';
+import { IncidentPriority, IncidentStatus } from '@equipcare/shared';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto.js';
 
 /**

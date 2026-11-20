@@ -38,9 +38,24 @@ export default function ApprovalsPage() {
       <h1 className="text-2xl font-bold">Phê duyệt</h1>
 
       <div className="flex gap-2 flex-wrap">
-        <button className={`btn ${statusFilter === '' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setStatusFilter(''); setPage(1); }}>Tất cả</button>
+        <button
+          className={`btn ${statusFilter === '' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => {
+            setStatusFilter('');
+            setPage(1);
+          }}
+        >
+          Tất cả
+        </button>
         {Object.values(ApprovalStatus).map((s) => (
-          <button key={s} className={`btn ${statusFilter === s ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setStatusFilter(s); setPage(1); }}>
+          <button
+            key={s}
+            className={`btn ${statusFilter === s ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => {
+              setStatusFilter(s);
+              setPage(1);
+            }}
+          >
             {s}
           </button>
         ))}
@@ -52,12 +67,45 @@ export default function ApprovalsPage() {
         onRefresh={() => refetch()}
         pagination={{ page, pageSize: 20, total: data?.total ?? 0, onPageChange: setPage }}
         columns={[
-          { key: 'code', header: 'Phiếu WO', render: (r) => r.workOrder ? <Link href={`/work-orders/${r.workOrder.id}`} className="font-mono text-brand-700 hover:underline">{r.workOrder.code}</Link> : '—', width: '180px' },
+          {
+            key: 'code',
+            header: 'Phiếu WO',
+            render: (r) =>
+              r.workOrder ? (
+                <Link
+                  href={`/work-orders/${r.workOrder.id}`}
+                  className="font-mono text-brand-700 hover:underline"
+                >
+                  {r.workOrder.code}
+                </Link>
+              ) : (
+                '—'
+              ),
+            width: '180px',
+          },
           { key: 'proposer', header: 'Người đề xuất', render: (r) => r.proposer?.fullName ?? '—' },
-          { key: 'reason', header: 'Lý do', render: (r) => <div className="truncate max-w-md">{r.reason}</div> },
-          { key: 'status', header: 'Trạng thái', render: (r) => <ApprovalStatusBadge status={r.status} /> },
-          { key: 'rev', header: 'Rev', render: (r) => r.currentRevision?.revisionNo ?? '—', width: '60px' },
-          { key: 'created', header: 'Ngày tạo', render: (r) => formatDate(r.createdAt, 'dd/MM HH:mm'), width: '110px' },
+          {
+            key: 'reason',
+            header: 'Lý do',
+            render: (r) => <div className="truncate max-w-md">{r.reason}</div>,
+          },
+          {
+            key: 'status',
+            header: 'Trạng thái',
+            render: (r) => <ApprovalStatusBadge status={r.status} />,
+          },
+          {
+            key: 'rev',
+            header: 'Rev',
+            render: (r) => r.currentRevision?.revisionNo ?? '—',
+            width: '60px',
+          },
+          {
+            key: 'created',
+            header: 'Ngày tạo',
+            render: (r) => formatDate(r.createdAt, 'dd/MM HH:mm'),
+            width: '110px',
+          },
           {
             key: 'actions',
             header: '',

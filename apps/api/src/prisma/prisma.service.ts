@@ -1,10 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  OnApplicationShutdown,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { disconnectPrisma } from '@equipcare/backend-core';
@@ -24,10 +18,7 @@ import { disconnectPrisma } from '@equipcare/backend-core';
  * Không cache xuyên process.
  */
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnApplicationShutdown
-{
+export class PrismaService extends PrismaClient implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(PrismaService.name);
 
   constructor(@Inject(ConfigService) config: ConfigService) {
@@ -36,10 +27,7 @@ export class PrismaService
       throw new Error('DATABASE_URL chưa được cấu hình');
     }
     super({
-      log:
-        config.get<string>('NODE_ENV') === 'production'
-          ? ['error', 'warn']
-          : ['warn', 'error'],
+      log: config.get<string>('NODE_ENV') === 'production' ? ['error', 'warn'] : ['warn', 'error'],
       datasources: { db: { url } },
     });
   }

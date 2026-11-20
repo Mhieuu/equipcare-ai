@@ -12,12 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionGuard } from '../../common/guards/permission.guard.js';
 import { Permissions } from '../../common/decorators/permissions.decorator.js';
@@ -34,11 +29,7 @@ import {
   UserSummaryDto,
   ResetPasswordResponseDto,
 } from './dto/user-response.dto.js';
-import {
-  MePermissionsDto,
-  PermissionsListDto,
-  RoleInfoDto,
-} from './dto/iam-response.dto.js';
+import { MePermissionsDto, PermissionsListDto, RoleInfoDto } from './dto/iam-response.dto.js';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
 import { ListDepartmentsQueryDto } from './dto/list-departments-query.dto.js';
 import { ListLocationsQueryDto } from './dto/list-locations-query.dto.js';

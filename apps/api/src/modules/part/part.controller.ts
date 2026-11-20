@@ -18,11 +18,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
 import { PartService } from './part.service';
 import { StockTransactionService } from '../stock-transaction/stock-transaction.service';
-import {
-  CreatePartDto,
-  UpdatePartDto,
-  ListPartsQueryDto,
-} from './dto/part.dto';
+import { CreatePartDto, UpdatePartDto, ListPartsQueryDto } from './dto/part.dto';
 
 /**
  * Parts endpoints (Doc04 section 5.6).
@@ -57,10 +53,7 @@ export class PartController {
   @Post()
   @Permissions(Permission.INVENTORY_PART_CREATE)
   @HttpCode(201)
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreatePartDto,
-  ) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePartDto) {
     return this.service.create(user.sub, dto);
   }
 

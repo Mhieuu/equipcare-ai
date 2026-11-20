@@ -9,9 +9,21 @@ import { apiGet, apiPost } from '@/lib/api';
 import { useToast } from '@/components/toast';
 import { WorkOrderType, IncidentPriority, WorkOrderCreationMode } from '@equipcare/shared';
 
-interface AssetOption { id: string; code: string; name: string }
-interface IncidentOption { id: string; code: string; description: string | null }
-interface UserOption { id: string; fullName: string; loginName: string }
+interface AssetOption {
+  id: string;
+  code: string;
+  name: string;
+}
+interface IncidentOption {
+  id: string;
+  code: string;
+  description: string | null;
+}
+interface UserOption {
+  id: string;
+  fullName: string;
+  loginName: string;
+}
 
 interface FormData {
   assetId: string;
@@ -42,12 +54,15 @@ export default function NewWorkOrderPage() {
   });
   const { data: techsRes } = useQuery({
     queryKey: ['tech-users'],
-    queryFn: () => apiGet<{ items: UserOption[] }>('/iam/users', { roleCode: 'TECHNICIAN', limit: 50 }),
+    queryFn: () =>
+      apiGet<{ items: UserOption[] }>('/iam/users', { roleCode: 'TECHNICIAN', limit: 50 }),
   });
 
   const { register, handleSubmit, watch } = useForm<FormData>({
     defaultValues: {
-      creationMode: (search.get('incidentId') ? WorkOrderCreationMode.FROM_INCIDENT : WorkOrderCreationMode.MANUAL) as WorkOrderCreationMode,
+      creationMode: (search.get('incidentId')
+        ? WorkOrderCreationMode.FROM_INCIDENT
+        : WorkOrderCreationMode.MANUAL) as WorkOrderCreationMode,
       priorityCode: IncidentPriority.MEDIUM,
       kind: WorkOrderType.REPAIR,
     },
@@ -115,15 +130,27 @@ export default function NewWorkOrderPage() {
           <label className="label">Nguồn tạo</label>
           <div className="flex gap-2">
             <label className="flex items-center gap-1">
-              <input type="radio" value={WorkOrderCreationMode.MANUAL} {...register('creationMode')} />
+              <input
+                type="radio"
+                value={WorkOrderCreationMode.MANUAL}
+                {...register('creationMode')}
+              />
               <span className="text-sm">Thủ công</span>
             </label>
             <label className="flex items-center gap-1">
-              <input type="radio" value={WorkOrderCreationMode.FROM_INCIDENT} {...register('creationMode')} />
+              <input
+                type="radio"
+                value={WorkOrderCreationMode.FROM_INCIDENT}
+                {...register('creationMode')}
+              />
               <span className="text-sm">Từ sự cố</span>
             </label>
             <label className="flex items-center gap-1">
-              <input type="radio" value={WorkOrderCreationMode.FROM_MAINTENANCE} {...register('creationMode')} />
+              <input
+                type="radio"
+                value={WorkOrderCreationMode.FROM_MAINTENANCE}
+                {...register('creationMode')}
+              />
               <span className="text-sm">Từ bảo trì</span>
             </label>
           </div>
@@ -132,7 +159,10 @@ export default function NewWorkOrderPage() {
         {creationMode === WorkOrderCreationMode.FROM_INCIDENT && (
           <div>
             <label className="label">Sự cố liên quan *</label>
-            <select {...register('incidentId', { required: creationMode === 'FROM_INCIDENT' })} className="input">
+            <select
+              {...register('incidentId', { required: creationMode === 'FROM_INCIDENT' })}
+              className="input"
+            >
               <option value="">-- Chọn --</option>
               {incidentsRes?.items?.map((i) => (
                 <option key={i.id} value={i.id}>

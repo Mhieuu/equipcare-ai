@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/toast';
 import { AssetStatusBadge } from '@/components/badges';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { AiAssetPanel } from '@/components/ai-asset-panel';
 import { formatDate } from '@/lib/format';
 import { AssetManualState, AssetManualStateLabel } from '@equipcare/shared';
 
@@ -58,7 +59,10 @@ export default function AssetDetailPage() {
         to: confirmState,
         reason: confirmState === AssetManualState.RETIRED ? retireReason : undefined,
       });
-      toast.success('Đã chuyển trạng thái', `${asset.code} → ${AssetManualStateLabel[confirmState]}`);
+      toast.success(
+        'Đã chuyển trạng thái',
+        `${asset.code} → ${AssetManualStateLabel[confirmState]}`,
+      );
       setConfirmState(null);
       setRetireReason('');
       void qc.invalidateQueries({ queryKey: ['asset', asset.id] });
@@ -95,7 +99,12 @@ export default function AssetDetailPage() {
           <Row label="Ngày mua" value={formatDate(asset.purchasedOn, 'dd/MM/yyyy')} />
           <Row label="Ngày vận hành" value={formatDate(asset.commissionedOn, 'dd/MM/yyyy')} />
           <Row label="Bảo hành đến" value={formatDate(asset.warrantyUntil, 'dd/MM/yyyy')} />
-          <Row label="Manual state" value={AssetManualStateLabel[asset.manualState as AssetManualState] ?? asset.manualState} />
+          <Row
+            label="Manual state"
+            value={
+              AssetManualStateLabel[asset.manualState as AssetManualState] ?? asset.manualState
+            }
+          />
         </div>
 
         {/* QR */}
@@ -113,23 +122,35 @@ export default function AssetDetailPage() {
           <h2 className="font-semibold mb-3">Vòng đời (FR-ASSET-05)</h2>
           <div className="flex gap-2">
             {asset.manualState !== AssetManualState.NORMAL && (
-              <button onClick={() => setConfirmState(AssetManualState.NORMAL)} className="btn-secondary">
+              <button
+                onClick={() => setConfirmState(AssetManualState.NORMAL)}
+                className="btn-secondary"
+              >
                 <Power className="h-4 w-4" /> Vận hành
               </button>
             )}
             {asset.manualState !== AssetManualState.SUSPENDED && (
-              <button onClick={() => setConfirmState(AssetManualState.SUSPENDED)} className="btn-secondary">
+              <button
+                onClick={() => setConfirmState(AssetManualState.SUSPENDED)}
+                className="btn-secondary"
+              >
                 <PowerOff className="h-4 w-4" /> Tạm ngừng
               </button>
             )}
             {asset.manualState !== AssetManualState.RETIRED && (
-              <button onClick={() => setConfirmState(AssetManualState.RETIRED)} className="btn-danger">
+              <button
+                onClick={() => setConfirmState(AssetManualState.RETIRED)}
+                className="btn-danger"
+              >
                 <Archive className="h-4 w-4" /> Ngừng sử dụng
               </button>
             )}
           </div>
         </div>
       )}
+
+      {/* AI summary (FR-AI-02) */}
+      <AiAssetPanel assetId={asset.id} />
 
       {/* Active WOs */}
       {asset.activeWorkOrders && asset.activeWorkOrders.length > 0 && (

@@ -39,16 +39,18 @@ export class DashboardService {
       }),
       this.countOverdueWorkOrders(),
       this.prisma.approvals.count({ where: { status: 'SUBMITTED' } }),
-      this.prisma.parts.count({
-        where: { is_active: true, minimum_stock: { gt: 0 } },
-      }).then(async () => {
-        // Dem so part thuc su low_stock
-        const items = await this.prisma.parts.findMany({
+      this.prisma.parts
+        .count({
           where: { is_active: true, minimum_stock: { gt: 0 } },
-          select: { on_hand: true, minimum_stock: true },
-        });
-        return items.filter((p) => Number(p.on_hand) < Number(p.minimum_stock)).length;
-      }),
+        })
+        .then(async () => {
+          // Dem so part thuc su low_stock
+          const items = await this.prisma.parts.findMany({
+            where: { is_active: true, minimum_stock: { gt: 0 } },
+            select: { on_hand: true, minimum_stock: true },
+          });
+          return items.filter((p) => Number(p.on_hand) < Number(p.minimum_stock)).length;
+        }),
       this.prisma.notifications.count({ where: { read_at: null } }),
       this.prisma.assets.count(),
       // Dem theo activity_status tu view v_asset_state (M10 JOIN work_orders).
@@ -68,9 +70,7 @@ export class DashboardService {
       }),
     ]);
 
-    const statusMap = new Map(
-      assetStatusCounts.map((r) => [r.activity_status, Number(r.cnt)]),
-    );
+    const statusMap = new Map(assetStatusCounts.map((r) => [r.activity_status, Number(r.cnt)]));
 
     return {
       // Asset KPIs
@@ -110,7 +110,7 @@ export class DashboardService {
       if (typeof raw === 'number') sec = raw;
       else if (typeof raw === 'string') sec = Number(raw) || 0;
       else if (raw && typeof raw === 'object') {
-        sec = Number(raw.seconds ?? raw.value ?? raw.hours ? Number(raw.hours) * 3600 : 0) || 0;
+        sec = Number((raw.seconds ?? raw.value ?? raw.hours) ? Number(raw.hours) * 3600 : 0) || 0;
       }
       if (sec > 0) slaMap.set(priority, sec);
     }
@@ -229,10 +229,19 @@ export class DashboardService {
 
     const entries = await this.prisma.cost_entries.findMany({
       where: { created_at: { gte: since } },
-      select: { category: true, direction: true, quantity: true, unit_price: true, created_at: true },
+      select: {
+        category: true,
+        direction: true,
+        quantity: true,
+        unit_price: true,
+        created_at: true,
+      },
     });
 
-    const buckets = new Map<string, { partCost: number; laborCost: number; otherCost: number; totalCost: number }>();
+    const buckets = new Map<
+      string,
+      { partCost: number; laborCost: number; otherCost: number; totalCost: number }
+    >();
     for (let i = 0; i < months; i++) {
       const d = new Date(since);
       d.setMonth(d.getMonth() + i);
@@ -245,8 +254,7 @@ export class DashboardService {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const bucket = buckets.get(key);
       if (!bucket) continue;
-      const amount =
-        (e.direction === 'DEBIT' ? 1 : -1) * Number(e.quantity) * Number(e.unit_price);
+      const amount = (e.direction === 'DEBIT' ? 1 : -1) * Number(e.quantity) * Number(e.unit_price);
       if (e.category === 'PART') bucket.partCost += amount;
       else if (e.category === 'LABOR') bucket.laborCost += amount;
       else bucket.otherCost += amount;
@@ -282,7 +290,14 @@ export class DashboardService {
 
     const stuckApprovalsRaw = await this.prisma.approvals.findMany({
       where: { status: 'SUBMITTED' },
-      select: { id: true, code: true, work_order_id: true, proposer_id: true, updated_at: true, created_at: true },
+      select: {
+        id: true,
+        code: true,
+        work_order_id: true,
+        proposer_id: true,
+        updated_at: true,
+        created_at: true,
+      },
       orderBy: { updated_at: 'asc' },
       take: limit,
     });
@@ -302,7 +317,9 @@ export class DashboardService {
     const proposerMap = new Map(proposers.map((p) => [p.id, p.full_name]));
     const woMap = new Map(wos.map((w) => [w.id, w.code]));
     // Filter sau theo updated_at (thay cho submitted_at)
-    const stuckApprovals = stuckApprovalsRaw.filter((a) => a.updated_at.getTime() <= since.getTime());
+    const stuckApprovals = stuckApprovalsRaw.filter(
+      (a) => a.updated_at.getTime() <= since.getTime(),
+    );
 
     const lowStockParts = await this.prisma.parts.findMany({
       where: { is_active: true, minimum_stock: { gt: 0 } },
@@ -365,9 +382,7 @@ export class DashboardService {
       where: { created_at: { gte: since } },
       select: { work_order_id: true, quantity: true, unit_price: true },
     });
-    const woIds = costByAsset
-      .map((c) => c.work_order_id)
-      .filter((x): x is string => Boolean(x));
+    const woIds = costByAsset.map((c) => c.work_order_id).filter((x): x is string => Boolean(x));
     const woAsset = await this.prisma.work_orders.findMany({
       where: { id: { in: woIds } },
       select: { id: true, asset_id: true },
@@ -401,8 +416,7 @@ export class DashboardService {
       };
     });
     items.sort(
-      (x, y) =>
-        y.incidentCount - x.incidentCount || Number(y.totalCost) - Number(x.totalCost),
+      (x, y) => y.incidentCount - x.incidentCount || Number(y.totalCost) - Number(x.totalCost),
     );
 
     return { items, months, limit };
@@ -426,7 +440,9 @@ export class DashboardService {
     const notes = await this.prisma.work_order_notes.findMany({
       where: {
         work_order_id: workOrderId,
-        note_type: { in: ['PAUSE_START', 'PAUSE_END', 'WAITING_APPROVAL_START', 'WAITING_APPROVAL_END'] },
+        note_type: {
+          in: ['PAUSE_START', 'PAUSE_END', 'WAITING_APPROVAL_START', 'WAITING_APPROVAL_END'],
+        },
       },
       orderBy: { created_at: 'asc' },
     });
@@ -434,7 +450,8 @@ export class DashboardService {
     let pauseStart: number | null = null;
     let waStart: number | null = null;
     for (const n of notes) {
-      const t = n.created_at instanceof Date ? n.created_at.getTime() : new Date(n.created_at).getTime();
+      const t =
+        n.created_at instanceof Date ? n.created_at.getTime() : new Date(n.created_at).getTime();
       const noteType = (n as Prisma.work_order_notesGetPayload<{}>).note_type;
       if (noteType === 'PAUSE_START') pauseStart = t;
       else if (noteType === 'PAUSE_END' && pauseStart) {

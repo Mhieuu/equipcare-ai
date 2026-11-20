@@ -25,9 +25,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const intervalMs = Number(process.env.SCHEDULER_INTERVAL_MS ?? 60000);
     this.logger.log(`Scheduler tick started, every ${intervalMs}ms`);
     this.timer = setInterval(() => {
-      this.tick().catch((err) =>
-        this.logger.error('Scheduler tick failed', err),
-      );
+      this.tick().catch((err) => this.logger.error('Scheduler tick failed', err));
     }, intervalMs);
   }
 
@@ -49,8 +47,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       ) {
         this.logger.log(
           `Scheduler tick done — advanced=${result.advancedPlans}, ` +
-          `created_occ=${result.createdOccurrences}, ` +
-          `skipped=${result.skippedOccurrences}, created_wo=${result.createdWorkOrders}`,
+            `created_occ=${result.createdOccurrences}, ` +
+            `skipped=${result.skippedOccurrences}, created_wo=${result.createdWorkOrders}`,
         );
       }
     } catch (err) {

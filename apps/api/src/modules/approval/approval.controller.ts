@@ -58,10 +58,7 @@ export class ApprovalController {
   @Post()
   @Permissions(Permission.APPROVAL_CREATE)
   @HttpCode(201)
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateApprovalDto,
-  ) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateApprovalDto) {
     return this.service.createDraft(user.sub, dto);
   }
 
@@ -87,7 +84,12 @@ export class ApprovalController {
    * (fallback khi @Permissions cho phep nhieu action hon).
    */
   @Patch(':id')
-  @Permissions(Permission.APPROVAL_DECIDE, Permission.APPROVAL_SUBMIT, Permission.APPROVAL_CANCEL, Permission.APPROVAL_REQUEST_INFO)
+  @Permissions(
+    Permission.APPROVAL_DECIDE,
+    Permission.APPROVAL_SUBMIT,
+    Permission.APPROVAL_CANCEL,
+    Permission.APPROVAL_REQUEST_INFO,
+  )
   action(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,

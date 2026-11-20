@@ -8,7 +8,11 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 import { useToast } from '@/components/toast';
 
-interface AssetOption { id: string; code: string; name: string }
+interface AssetOption {
+  id: string;
+  code: string;
+  name: string;
+}
 interface FormData {
   assetId: string;
   description: string;
@@ -24,7 +28,11 @@ export default function NewIncidentPage() {
     queryFn: () => apiGet<{ items: AssetOption[] }>('/assets', { limit: 200 }),
   });
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>();
 
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
@@ -61,13 +69,27 @@ export default function NewIncidentPage() {
         </div>
         <div>
           <label className="label">Mô tả sự cố *</label>
-          <textarea {...register('description', { required: 'Bắt buộc' })} rows={4} className="input" placeholder="Mô tả chi tiết..." />
-          {errors.description && <p className="text-xs text-rose-600 mt-1">{errors.description.message}</p>}
+          <textarea
+            {...register('description', { required: 'Bắt buộc' })}
+            rows={4}
+            className="input"
+            placeholder="Mô tả chi tiết..."
+          />
+          {errors.description && (
+            <p className="text-xs text-rose-600 mt-1">{errors.description.message}</p>
+          )}
         </div>
         <div>
           <label className="label">Mô tả ảnh hưởng *</label>
-          <textarea {...register('impactDescription', { required: 'Bắt buộc' })} rows={3} className="input" placeholder="Ảnh hưởng đến sản xuất/hoạt động..." />
-          {errors.impactDescription && <p className="text-xs text-rose-600 mt-1">{errors.impactDescription.message}</p>}
+          <textarea
+            {...register('impactDescription', { required: 'Bắt buộc' })}
+            rows={3}
+            className="input"
+            placeholder="Ảnh hưởng đến sản xuất/hoạt động..."
+          />
+          {errors.impactDescription && (
+            <p className="text-xs text-rose-600 mt-1">{errors.impactDescription.message}</p>
+          )}
         </div>
         <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
           <button type="button" onClick={() => router.back()} className="btn-secondary">

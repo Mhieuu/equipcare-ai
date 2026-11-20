@@ -47,7 +47,10 @@ export default function UsersPage() {
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             placeholder="Tìm theo loginName, tên, email..."
             className="input pl-9"
           />
@@ -60,11 +63,38 @@ export default function UsersPage() {
         onRefresh={() => refetch()}
         pagination={{ page, pageSize: 20, total: data?.total ?? 0, onPageChange: setPage }}
         columns={[
-          { key: 'login', header: 'Login', render: (r) => <Link href={`/iam/users/${r.id}`} className="font-mono text-brand-700 hover:underline">{r.loginName}</Link>, width: '160px' },
+          {
+            key: 'login',
+            header: 'Login',
+            render: (r) => (
+              <Link
+                href={`/iam/users/${r.id}`}
+                className="font-mono text-brand-700 hover:underline"
+              >
+                {r.loginName}
+              </Link>
+            ),
+            width: '160px',
+          },
           { key: 'name', header: 'Họ tên', render: (r) => r.fullName },
           { key: 'email', header: 'Email', render: (r) => r.email ?? '—' },
-          { key: 'roles', header: 'Vai trò', render: (r) => r.roles && r.roles.length > 0 ? r.roles.map((ur) => ur.roleCode).join(', ') : '—' },
-          { key: 'status', header: 'TT', render: (r) => r.isActive ? <span className="badge-green">Active</span> : <span className="badge-gray">Disabled</span>, width: '90px' },
+          {
+            key: 'roles',
+            header: 'Vai trò',
+            render: (r) =>
+              r.roles && r.roles.length > 0 ? r.roles.map((ur) => ur.roleCode).join(', ') : '—',
+          },
+          {
+            key: 'status',
+            header: 'TT',
+            render: (r) =>
+              r.isActive ? (
+                <span className="badge-green">Active</span>
+              ) : (
+                <span className="badge-gray">Disabled</span>
+              ),
+            width: '90px',
+          },
         ]}
         rows={data?.items ?? []}
       />

@@ -41,7 +41,8 @@ export function AiTriagePanel({ incidentId, currentPriority, onApplyPriority }: 
 
   // Start analyze (POST → 202 { requestId })
   const startMutation = useMutation({
-    mutationFn: () => apiPost<{ requestId: string; status: string }>(`/ai/incidents/${incidentId}/analyze`),
+    mutationFn: () =>
+      apiPost<{ requestId: string; status: string }>(`/ai/incidents/${incidentId}/analyze`),
     onSuccess: (data) => {
       toast.success('Đã gửi yêu cầu AI', `Mã yêu cầu: ${data.requestId.slice(0, 8)}…`);
       setPollRequestId(data.requestId);
@@ -129,8 +130,12 @@ export function AiTriagePanel({ incidentId, currentPriority, onApplyPriority }: 
           {/* Status row */}
           <div className="flex items-center gap-2 text-sm">
             <StatusIcon status={req?.status} />
-            <span className="font-medium">{AiRequestStatusLabel[req?.status as never] ?? 'Đang tải...'}</span>
-            {isFetching && !isTerminal && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+            <span className="font-medium">
+              {AiRequestStatusLabel[req?.status as never] ?? 'Đang tải...'}
+            </span>
+            {isFetching && !isTerminal && (
+              <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+            )}
             <span className="text-xs text-slate-500 ml-auto">
               {req?.promptVersion && <>v{req.promptVersion}</>}
               {req?.modelName && req.modelName !== 'pending' && <> · {req.modelName}</>}
@@ -146,17 +151,15 @@ export function AiTriagePanel({ incidentId, currentPriority, onApplyPriority }: 
               <Row label="Mức ưu tiên gợi ý">
                 <div className="flex items-center gap-2">
                   <span className="badge-purple">{output.priority ?? '—'}</span>
-                  {output.priority &&
-                    output.priority !== currentPriority &&
-                    onApplyPriority && (
-                      <button
-                        type="button"
-                        className="text-xs text-brand-700 hover:underline"
-                        onClick={() => onApplyPriority(output.priority!)}
-                      >
-                        Áp dụng
-                      </button>
-                    )}
+                  {output.priority && output.priority !== currentPriority && onApplyPriority && (
+                    <button
+                      type="button"
+                      className="text-xs text-brand-700 hover:underline"
+                      onClick={() => onApplyPriority(output.priority!)}
+                    >
+                      Áp dụng
+                    </button>
+                  )}
                 </div>
                 {typeof output.confidence === 'number' && (
                   <span className="text-xs text-slate-500 ml-2">
@@ -245,9 +248,11 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function StatusIcon({ status }: { status?: AiRequestStatus }) {
-  if (status === AiRequestStatus.SUCCEEDED) return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+  if (status === AiRequestStatus.SUCCEEDED)
+    return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
   if (status === AiRequestStatus.FAILED) return <XCircle className="h-4 w-4 text-rose-600" />;
-  if (status === AiRequestStatus.TIMED_OUT) return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+  if (status === AiRequestStatus.TIMED_OUT)
+    return <AlertTriangle className="h-4 w-4 text-amber-600" />;
   if (status === AiRequestStatus.RUNNING || status === AiRequestStatus.QUEUED) {
     return <Loader2 className="h-4 w-4 animate-spin text-purple-600" />;
   }

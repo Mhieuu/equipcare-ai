@@ -14,7 +14,7 @@ import type { AiTaskType } from '@equipcare/shared';
  *
  * Triển khai:
  *   - `MockAiProvider` (mặc định cho demo) — không cần API key.
- *   - `OpenAiProvider` (optional, gated by `AI_PROVIDER=openai` + `AI_API_KEY`).
+ *   - `GeminiAiProvider` (gated by `AI_PROVIDER=gemini` + `GEMINI_API_KEY`).
  */
 export interface AiProviderInput {
   taskType: AiTaskType;

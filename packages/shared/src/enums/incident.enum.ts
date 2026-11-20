@@ -25,8 +25,7 @@ export const IncidentMessageType = {
   SYSTEM: 'SYSTEM',
   AI: 'AI',
 } as const;
-export type IncidentMessageType =
-  (typeof IncidentMessageType)[keyof typeof IncidentMessageType];
+export type IncidentMessageType = (typeof IncidentMessageType)[keyof typeof IncidentMessageType];
 
 /**
  * Mức độ ưu tiên Incident (Doc04).

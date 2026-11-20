@@ -19,7 +19,8 @@ import {
  * - department_id: optional, FK departments.id.
  * - initialPassword: ≥12 ký tự + complexity (cùng pattern change-password).
  */
-const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{12,128}$/;
+const PASSWORD_PATTERN =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{12,128}$/;
 const LOGIN_NAME_PATTERN = /^[a-zA-Z0-9._-]{3,100}$/;
 
 export class CreateUserDto {

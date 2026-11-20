@@ -81,7 +81,10 @@ export default function IncidentDetailPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{incident.code}</h1>
-          <Link href={`/assets/${incident.asset.id}`} className="text-sm text-brand-700 hover:underline">
+          <Link
+            href={`/assets/${incident.asset.id}`}
+            className="text-sm text-brand-700 hover:underline"
+          >
             {incident.asset.code} - {incident.asset.name}
           </Link>
         </div>
@@ -114,7 +117,11 @@ export default function IncidentDetailPage() {
         <div className="card p-4">
           <h2 className="font-semibold mb-3">Chuyển trạng thái</h2>
           <div className="flex gap-2 flex-wrap">
-            <select className="input max-w-xs" value={transitionTo} onChange={(e) => setTransitionTo(e.target.value as IncidentStatus)}>
+            <select
+              className="input max-w-xs"
+              value={transitionTo}
+              onChange={(e) => setTransitionTo(e.target.value as IncidentStatus)}
+            >
               <option value="">-- Chọn --</option>
               {Object.values(IncidentStatus)
                 .filter((s) => s !== incident.status)
@@ -125,12 +132,23 @@ export default function IncidentDetailPage() {
                 ))}
             </select>
             {transitionTo === IncidentStatus.CANCELLED && (
-              <input className="input max-w-md" placeholder="Lý do hủy (bắt buộc)" value={reason} onChange={(e) => setReason(e.target.value)} />
+              <input
+                className="input max-w-md"
+                placeholder="Lý do hủy (bắt buộc)"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
             )}
             <button
               className="btn-primary"
-              disabled={!transitionTo || transitionMutation.isPending || (transitionTo === IncidentStatus.CANCELLED && !reason)}
-              onClick={() => transitionTo && transitionMutation.mutate({ to: transitionTo, reason })}
+              disabled={
+                !transitionTo ||
+                transitionMutation.isPending ||
+                (transitionTo === IncidentStatus.CANCELLED && !reason)
+              }
+              onClick={() =>
+                transitionTo && transitionMutation.mutate({ to: transitionTo, reason })
+              }
             >
               {transitionMutation.isPending ? 'Đang xử lý...' : 'Chuyển'}
             </button>
@@ -163,8 +181,12 @@ export default function IncidentDetailPage() {
             <li key={m.id} className="border-l-2 border-slate-200 pl-3">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-medium">{m.authorName}</span>
-                <span className="badge-gray text-xs">{IncidentMessageTypeLabel[m.messageType as never] ?? m.messageType}</span>
-                <span className="text-xs text-slate-500">{formatDate(m.createdAt, 'dd/MM/yyyy HH:mm')}</span>
+                <span className="badge-gray text-xs">
+                  {IncidentMessageTypeLabel[m.messageType as never] ?? m.messageType}
+                </span>
+                <span className="text-xs text-slate-500">
+                  {formatDate(m.createdAt, 'dd/MM/yyyy HH:mm')}
+                </span>
               </div>
               <p className="text-sm whitespace-pre-line">{m.body}</p>
             </li>

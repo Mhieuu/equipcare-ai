@@ -25,14 +25,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  override handleRequest<TUser = unknown>(
-    err: unknown,
-    user: TUser | false,
-  ): TUser {
+  override handleRequest<TUser = unknown>(err: unknown, user: TUser | false): TUser {
     if (err || !user) {
-      throw AppError.unauthorized(
-        err instanceof Error ? err.message : 'Cần đăng nhập để truy cập',
-      );
+      throw AppError.unauthorized(err instanceof Error ? err.message : 'Cần đăng nhập để truy cập');
     }
     return user;
   }

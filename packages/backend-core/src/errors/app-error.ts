@@ -40,11 +40,7 @@ export class AppError extends Error {
     return new AppError('BAD_REQUEST', message, 400, details);
   }
 
-  static unprocessable(
-    code: string,
-    message: string,
-    details?: Record<string, unknown>,
-  ): AppError {
+  static unprocessable(code: string, message: string, details?: Record<string, unknown>): AppError {
     return new AppError(code, message, 422, details);
   }
 }

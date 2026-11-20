@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  UseGuards,
-  HttpCode,
-  ParseUUIDPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, HttpCode, ParseUUIDPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../../modules/auth/jwt-auth.guard.js';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { PermissionGuard } from '../../common/guards/permission.guard';
@@ -24,8 +16,8 @@ import { AiService } from './ai.service';
  * Permission:
  *   INCIDENT_TRIAGE (gọi analyze) + INCIDENT_READ (poll).
  *
- * Note: Mock provider default. AI_PROVIDER=openai cần thêm OpenAI client (chưa
- *       triển khai ở M4; chừa interface sẵn).
+ * Note: Mock provider default. AI_PROVIDER=gemini dùng Google Gemini REST API
+ *       (cần GEMINI_API_KEY).
  */
 @Controller('ai')
 @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -44,12 +36,19 @@ export class AiController {
     return this.service.submitIncidentTriage(user.sub, id);
   }
 
-  @Get('requests/:id')
-  @Permissions(Permission.INCIDENT_READ)
-  getRequest(
+  @Post('assets/:id/summary')
+  @Permissions(Permission.ASSET_READ)
+  @HttpCode(202)
+  analyzeAsset(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
+    return this.service.submitAssetSummary(user.sub, id);
+  }
+
+  @Get('requests/:id')
+  @Permissions(Permission.INCIDENT_READ, Permission.ASSET_READ)
+  getRequest(@CurrentUser() user: AuthenticatedUser, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.getRequest(id, user.sub);
   }
 }

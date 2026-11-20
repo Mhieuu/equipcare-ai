@@ -19,6 +19,7 @@ export * from './sla/sla.engine';
 export * from './storage/storage-adapter';
 export * from './ai/ai-provider';
 export * from './ai/mock-ai-provider';
+export * from './ai/gemini-ai-provider';
 export * from './ai/provider.factory';
 export * from './cost';
 export * from './stock';

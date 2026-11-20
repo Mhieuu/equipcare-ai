@@ -201,6 +201,12 @@ export class AddNoteDto {
   @MaxLength(2000)
   note!: string;
 
+  /** Alias cua `note` — frontend doc response voi field `body`. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  body?: string;
+
   /** Bat buoc neu noteType = PAUSE_START. */
   @IsOptional()
   @IsString()

@@ -36,9 +36,7 @@ export interface SchedulerTickResult {
   createdWorkOrders: number;
 }
 
-export async function runSchedulerTick(
-  prisma: PrismaClient,
-): Promise<SchedulerTickResult> {
+export async function runSchedulerTick(prisma: PrismaClient): Promise<SchedulerTickResult> {
   const now = new Date();
   let advanced = 0;
   let createdOcc = 0;
@@ -79,11 +77,7 @@ export async function runSchedulerTick(
     }
 
     if (due.getTime() <= now.getTime()) {
-      const next = advanceDueOn(
-        due,
-        plan.interval_unit as IntervalUnit,
-        plan.interval_value,
-      );
+      const next = advanceDueOn(due, plan.interval_unit as IntervalUnit, plan.interval_value);
       await prisma.maintenance_plans.update({
         where: { id: plan.id, row_version: plan.row_version },
         data: { next_due_on: next, row_version: { increment: 1 } },
@@ -118,11 +112,7 @@ export async function runSchedulerTick(
         },
       });
       skipped++;
-      const next = advanceDueOn(
-        due,
-        plan.interval_unit as IntervalUnit,
-        plan.interval_value,
-      );
+      const next = advanceDueOn(due, plan.interval_unit as IntervalUnit, plan.interval_value);
       await prisma.maintenance_plans.update({
         where: { id: plan.id, row_version: plan.row_version },
         data: { next_due_on: next, row_version: { increment: 1 } },

@@ -21,7 +21,11 @@ interface UserDetail {
   }>;
 }
 
-interface RoleOption { id: string; code: string; name: string }
+interface RoleOption {
+  id: string;
+  code: string;
+  name: string;
+}
 
 export default function UserDetailPage() {
   const params = useParams<{ id: string }>();
@@ -36,11 +40,12 @@ export default function UserDetailPage() {
   });
   const { data: rolesRes } = useQuery({
     queryKey: ['iam-roles'],
-    queryFn: () => apiGet<{ items: RoleOption[] }>('/iam/roles'),
+    queryFn: () => apiGet<RoleOption[] | { items: RoleOption[] }>('/iam/roles'),
   });
 
   const grant = useMutation({
-    mutationFn: (roleCode: string) => apiPost(`/iam/users/${params!.id as string}/roles`, { roleCode }),
+    mutationFn: (role: RoleOption) =>
+      apiPost(`/iam/users/${params!.id as string}/roles`, { roleId: role.id }),
     onSuccess: () => {
       toast.success('Đã cấp vai trò');
       qc.invalidateQueries({ queryKey: ['iam-user', params?.id as string] });
@@ -58,7 +63,8 @@ export default function UserDetailPage() {
   if (isLoading) return <div className="text-slate-500">Đang tải...</div>;
   if (!user) return <div className="text-rose-600">Không tìm thấy</div>;
 
-  const availableRoles = (rolesRes?.items ?? []).filter(
+  const roleOptions = Array.isArray(rolesRes) ? rolesRes : (rolesRes?.items ?? []);
+  const availableRoles = roleOptions.filter(
     (r) => !user.roles.some((ur) => ur.roleCode === r.code),
   );
 
@@ -70,7 +76,9 @@ export default function UserDetailPage() {
 
       <div>
         <h1 className="text-2xl font-bold">{user.fullName}</h1>
-        <p className="text-sm text-slate-500">Login: <span className="font-mono">{user.loginName}</span> · {user.email ?? '—'}</p>
+        <p className="text-sm text-slate-500">
+          Login: <span className="font-mono">{user.loginName}</span> · {user.email ?? '—'}
+        </p>
       </div>
 
       <div className="card p-4">
@@ -100,7 +108,11 @@ export default function UserDetailPage() {
                   <span className="font-medium">{r.name}</span>{' '}
                   <span className="text-xs text-slate-500 font-mono">({r.code})</span>
                 </span>
-                <button className="btn-primary text-xs" onClick={() => grant.mutate(r.code)} disabled={grant.isPending}>
+                <button
+                  className="btn-primary text-xs"
+                  onClick={() => grant.mutate(r)}
+                  disabled={grant.isPending}
+                >
                   <Plus className="h-3 w-3" /> Cấp
                 </button>
               </li>

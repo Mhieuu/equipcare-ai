@@ -37,7 +37,9 @@ export function DataTable<T>({
   pagination,
   onRefresh,
 }: DataTableProps<T>) {
-  const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize)) : 0;
+  const totalPages = pagination
+    ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize))
+    : 0;
   return (
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
@@ -60,7 +62,11 @@ export function DataTable<T>({
           <thead>
             <tr>
               {columns.map((c) => (
-                <th key={c.key} style={c.width ? { width: c.width } : undefined} className={c.className}>
+                <th
+                  key={c.key}
+                  style={c.width ? { width: c.width } : undefined}
+                  className={c.className}
+                >
                   {c.header}
                 </th>
               ))}

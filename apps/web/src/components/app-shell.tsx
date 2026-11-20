@@ -11,6 +11,7 @@ import {
   Calendar,
   Users,
   LogOut,
+  KeyRound,
   Boxes,
   FileText,
 } from 'lucide-react';
@@ -91,6 +92,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <p className="text-xs text-slate-400 truncate">{user.roles?.[0]?.name ?? '—'}</p>
             </div>
           </div>
+          <Link
+            href="/change-password"
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 rounded"
+          >
+            <KeyRound className="h-4 w-4" /> Đổi mật khẩu
+          </Link>
           <button
             onClick={() => {
               logout();

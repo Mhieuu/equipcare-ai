@@ -107,10 +107,10 @@ export class MaintenancePlanService {
     const p = await this.prisma.maintenance_plans.findUnique({ where: { id } });
     if (!p) throw AppError.notFound('Khong tim thay ke hoach', { id });
     if (dto.rowVersion !== undefined && Number(dto.rowVersion) !== p.row_version) {
-      throw AppError.conflict(
-        'Plan da duoc cap nhat boi nguoi khac',
-        { currentVersion: p.row_version, providedVersion: Number(dto.rowVersion) },
-      );
+      throw AppError.conflict('Plan da duoc cap nhat boi nguoi khac', {
+        currentVersion: p.row_version,
+        providedVersion: Number(dto.rowVersion),
+      });
     }
     const patch: Prisma.maintenance_plansUpdateInput = { row_version: { increment: 1 } };
     if (dto.name !== undefined) patch.name = dto.name;

@@ -82,11 +82,13 @@ export class AssetService {
 
     const [viewRows, items, total] = await Promise.all([
       ids.length
-        ? this.prisma.$queryRaw<Array<{
-            asset_id: string;
-            activity_status: string;
-            active_wo_kinds: string | null;
-          }>>`
+        ? this.prisma.$queryRaw<
+            Array<{
+              asset_id: string;
+              activity_status: string;
+              active_wo_kinds: string | null;
+            }>
+          >`
             SELECT asset_id, activity_status, active_wo_kinds
             FROM v_asset_state
             WHERE asset_id = ANY(${ids}::uuid[])
@@ -104,7 +106,9 @@ export class AssetService {
       this.prisma.assets.count({ where }),
     ]);
     type ViewRow = { asset_id: string; activity_status: string; active_wo_kinds: string | null };
-    const viewMap: Map<string, ViewRow> = new Map((viewRows as ViewRow[]).map((v) => [v.asset_id, v]));
+    const viewMap: Map<string, ViewRow> = new Map(
+      (viewRows as ViewRow[]).map((v) => [v.asset_id, v]),
+    );
     void viewRows;
 
     return {
@@ -142,9 +146,18 @@ export class AssetService {
       this.prisma.departments.findUnique({ where: { id: dto.departmentId } }),
       this.prisma.locations.findUnique({ where: { id: dto.locationId } }),
     ]);
-    if (!type) throw AppError.unprocessable('ORG_ASSET_TYPE_NOT_FOUND', 'assetTypeId không tồn tại', { field: 'assetTypeId' });
-    if (!dept) throw AppError.unprocessable('ORG_DEPT_NOT_FOUND', 'departmentId không tồn tại', { field: 'departmentId' });
-    if (!loc) throw AppError.unprocessable('ORG_LOCATION_NOT_FOUND', 'locationId không tồn tại', { field: 'locationId' });
+    if (!type)
+      throw AppError.unprocessable('ORG_ASSET_TYPE_NOT_FOUND', 'assetTypeId không tồn tại', {
+        field: 'assetTypeId',
+      });
+    if (!dept)
+      throw AppError.unprocessable('ORG_DEPT_NOT_FOUND', 'departmentId không tồn tại', {
+        field: 'departmentId',
+      });
+    if (!loc)
+      throw AppError.unprocessable('ORG_LOCATION_NOT_FOUND', 'locationId không tồn tại', {
+        field: 'locationId',
+      });
 
     const exists = await this.prisma.assets.findUnique({ where: { code: dto.code } });
     if (exists) throw AppError.conflict('code đã tồn tại', { field: 'code' });
@@ -187,15 +200,24 @@ export class AssetService {
     // FK check cho mỗi trường thay đổi.
     if (dto.assetTypeId) {
       const t = await this.prisma.asset_types.findUnique({ where: { id: dto.assetTypeId } });
-      if (!t) throw AppError.unprocessable('ORG_ASSET_TYPE_NOT_FOUND', 'assetTypeId không tồn tại', { field: 'assetTypeId' });
+      if (!t)
+        throw AppError.unprocessable('ORG_ASSET_TYPE_NOT_FOUND', 'assetTypeId không tồn tại', {
+          field: 'assetTypeId',
+        });
     }
     if (dto.departmentId) {
       const d = await this.prisma.departments.findUnique({ where: { id: dto.departmentId } });
-      if (!d) throw AppError.unprocessable('ORG_DEPT_NOT_FOUND', 'departmentId không tồn tại', { field: 'departmentId' });
+      if (!d)
+        throw AppError.unprocessable('ORG_DEPT_NOT_FOUND', 'departmentId không tồn tại', {
+          field: 'departmentId',
+        });
     }
     if (dto.locationId) {
       const l = await this.prisma.locations.findUnique({ where: { id: dto.locationId } });
-      if (!l) throw AppError.unprocessable('ORG_LOCATION_NOT_FOUND', 'locationId không tồn tại', { field: 'locationId' });
+      if (!l)
+        throw AppError.unprocessable('ORG_LOCATION_NOT_FOUND', 'locationId không tồn tại', {
+          field: 'locationId',
+        });
     }
 
     const data: Prisma.assetsUpdateInput = { row_version: { increment: 1 } };
@@ -205,9 +227,12 @@ export class AssetService {
     if (dto.locationId !== undefined) data.location = { connect: { id: dto.locationId } };
     if (dto.serialNumber !== undefined) data.serial_number = dto.serialNumber;
     if (dto.supplierName !== undefined) data.supplier_name = dto.supplierName;
-    if (dto.purchasedOn !== undefined) data.purchased_on = dto.purchasedOn ? new Date(dto.purchasedOn) : null;
-    if (dto.commissionedOn !== undefined) data.commissioned_on = dto.commissionedOn ? new Date(dto.commissionedOn) : null;
-    if (dto.warrantyUntil !== undefined) data.warranty_until = dto.warrantyUntil ? new Date(dto.warrantyUntil) : null;
+    if (dto.purchasedOn !== undefined)
+      data.purchased_on = dto.purchasedOn ? new Date(dto.purchasedOn) : null;
+    if (dto.commissionedOn !== undefined)
+      data.commissioned_on = dto.commissionedOn ? new Date(dto.commissionedOn) : null;
+    if (dto.warrantyUntil !== undefined)
+      data.warranty_until = dto.warrantyUntil ? new Date(dto.warrantyUntil) : null;
     if (dto.specifications !== undefined) {
       data.specifications = dto.specifications
         ? (dto.specifications as Prisma.InputJsonValue)
@@ -352,13 +377,19 @@ export class AssetService {
     return {
       ...this.toListDto(a),
       purchasedOn: a.purchased_on
-        ? (a.purchased_on instanceof Date ? a.purchased_on.toISOString().slice(0, 10) : a.purchased_on)
+        ? a.purchased_on instanceof Date
+          ? a.purchased_on.toISOString().slice(0, 10)
+          : a.purchased_on
         : null,
       commissionedOn: a.commissioned_on
-        ? (a.commissioned_on instanceof Date ? a.commissioned_on.toISOString().slice(0, 10) : a.commissioned_on)
+        ? a.commissioned_on instanceof Date
+          ? a.commissioned_on.toISOString().slice(0, 10)
+          : a.commissioned_on
         : null,
       warrantyUntil: a.warranty_until
-        ? (a.warranty_until instanceof Date ? a.warranty_until.toISOString().slice(0, 10) : a.warranty_until)
+        ? a.warranty_until instanceof Date
+          ? a.warranty_until.toISOString().slice(0, 10)
+          : a.warranty_until
         : null,
       specifications: a.specifications ?? {},
       stateReason: a.state_reason ?? null,
@@ -369,7 +400,7 @@ export class AssetService {
         code: w.code,
         status: w.status,
         kind: w.kind,
-        dueAt: w.due_at instanceof Date ? w.due_at.toISOString() : w.due_at ?? null,
+        dueAt: w.due_at instanceof Date ? w.due_at.toISOString() : (w.due_at ?? null),
       })),
     };
   }

@@ -8,10 +8,7 @@ import {
   AiProviderError,
   writeAudit,
 } from '@equipcare/backend-core';
-import {
-  AiRequestStatus,
-  AiTaskType,
-} from '@equipcare/shared';
+import { AiRequestStatus, AiTaskType } from '@equipcare/shared';
 import type { Prisma } from '@prisma/client';
 
 /**
@@ -43,7 +40,9 @@ export class AiService implements OnModuleInit {
 
   constructor(private readonly prisma: PrismaService) {
     this.provider = createAiProvider();
-    this.logger.log(`AI provider initialized: ${this.provider.name}@${this.provider.promptVersion}`);
+    this.logger.log(
+      `AI provider initialized: ${this.provider.name}@${this.provider.promptVersion}`,
+    );
   }
 
   async onModuleInit() {
@@ -134,6 +133,95 @@ export class AiService implements OnModuleInit {
     });
 
     // Kick worker in-process (không await).
+    void this.processInBackground(created.id);
+
+    return { requestId: created.id, status: AiRequestStatus.QUEUED };
+  }
+
+  /**
+   * Submit ASSET_SUMMARY request (Doc02 §FR-AI-02).
+   * Snapshot: asset info + recent incidents (90d) + open WOs + total cost.
+   */
+  async submitAssetSummary(actorId: string, assetId: string) {
+    const asset = await this.prisma.assets.findUnique({
+      where: { id: assetId },
+      include: {
+        asset_type: { select: { code: true, name: true } },
+        department: { select: { code: true, name: true } },
+        location: { select: { code: true, name: true } },
+      },
+    });
+    if (!asset) {
+      throw AppError.notFound('Không tìm thấy thiết bị', { assetId });
+    }
+
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 3600 * 1000);
+    const [recentIncidents, openWorkOrders, criticalIncidents, totalCostAgg] =
+      await Promise.all([
+        this.prisma.incidents.count({
+          where: { asset_id: assetId, created_at: { gte: ninetyDaysAgo } },
+        }),
+        this.prisma.work_orders.count({
+          where: {
+            asset_id: assetId,
+            status: { in: ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_APPROVAL'] },
+          },
+        }),
+        this.prisma.incidents.count({
+          where: {
+            asset_id: assetId,
+            created_at: { gte: ninetyDaysAgo },
+            priority_code: { in: ['HIGH', 'CRITICAL'] },
+          },
+        }),
+        this.prisma.cost_entries.aggregate({
+          _sum: { quantity: true },
+          where: { work_order: { asset_id: assetId } },
+        }),
+      ]);
+
+    const inputSnapshot: Prisma.InputJsonValue = {
+      assetCode: asset.code,
+      assetName: asset.name,
+      assetTypeCode: asset.asset_type?.code ?? null,
+      assetTypeName: asset.asset_type?.name ?? null,
+      departmentCode: asset.department?.code ?? null,
+      locationCode: asset.location?.code ?? null,
+      manualState: asset.manual_state,
+      recentIncidents,
+      criticalIncidents,
+      openWorkOrders,
+      totalCostQuantity: totalCostAgg._sum.quantity?.toString() ?? '0',
+    };
+
+    const created = await this.prisma.ai_requests.create({
+      data: {
+        requested_by: actorId,
+        asset_id: assetId,
+        incident_id: null,
+        task_type: AiTaskType.ASSET_SUMMARY,
+        provider: this.provider.name,
+        model_name: 'pending',
+        prompt_version: this.provider.promptVersion,
+        input_snapshot: inputSnapshot,
+        status: AiRequestStatus.QUEUED,
+      },
+    });
+
+    await writeAudit({
+      actorId,
+      actorType: 'USER',
+      action: 'ai.request.create',
+      objectType: 'ai_requests',
+      objectKey: created.id,
+      correlationKey: created.id,
+      newValue: {
+        taskType: AiTaskType.ASSET_SUMMARY,
+        assetId,
+        provider: this.provider.name,
+      },
+    });
+
     void this.processInBackground(created.id);
 
     return { requestId: created.id, status: AiRequestStatus.QUEUED };
@@ -241,9 +329,8 @@ export class AiService implements OnModuleInit {
     }
 
     // Final failure path
-    const finalStatus = lastError?.code === 'AI_TIMEOUT'
-      ? AiRequestStatus.TIMED_OUT
-      : AiRequestStatus.FAILED;
+    const finalStatus =
+      lastError?.code === 'AI_TIMEOUT' ? AiRequestStatus.TIMED_OUT : AiRequestStatus.FAILED;
 
     await this.prisma.ai_requests.update({
       where: { id: requestId },

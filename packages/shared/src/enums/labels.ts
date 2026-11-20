@@ -6,10 +6,7 @@
  * - Mapping lưu tập trung ở đây để cả web và api dùng chung.
  * - Backend response trả `activity_status` (enum) + `activity_status_label` (tiếng Việt).
  */
-import {
-  ActivityStatus,
-  AssetManualState,
-} from './asset.enum';
+import { ActivityStatus, AssetManualState } from './asset.enum';
 import {
   WorkOrderStatus,
   WorkOrderType,
@@ -17,12 +14,7 @@ import {
   WorkOrderNoteType,
   PauseReason,
 } from './work-order.enum';
-import {
-  ApprovalStatus,
-  ApprovalEventType,
-  CostCategory,
-  CostDirection,
-} from './approval.enum';
+import { ApprovalStatus, ApprovalEventType, CostCategory, CostDirection } from './approval.enum';
 import { StockTransactionType } from './inventory.enum';
 import {
   IncidentStatus,

@@ -12,8 +12,7 @@ export class AuthTokenDto {
   expiresIn!: number;
 
   @ApiProperty({
-    description:
-      'User phải đổi mật khẩu trước khi dùng các tính năng khác (Doc02 §FR-AUTH-04)',
+    description: 'User phải đổi mật khẩu trước khi dùng các tính năng khác (Doc02 §FR-AUTH-04)',
   })
   mustChangePassword!: boolean;
 }

@@ -29,9 +29,30 @@ export default function PartsPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'low'>('all');
   const [receiptModal, setReceiptModal] = useState(false);
+  const [createModal, setCreateModal] = useState(false);
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
   const [receiptQty, setReceiptQty] = useState('');
   const [receiptNote, setReceiptNote] = useState('');
+  const [form, setForm] = useState({
+    code: '',
+    name: '',
+    unit: 'cái',
+    departmentId: '',
+    locationId: '',
+    minimumStock: '0',
+    referencePrice: '',
+    supplierName: '',
+  });
+  const [creating, setCreating] = useState(false);
+
+  const { data: depts } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => apiGet<Array<{ id: string; code: string; name: string }>>('/iam/departments'),
+  });
+  const { data: locs } = useQuery({
+    queryKey: ['locations'],
+    queryFn: () => apiGet<Array<{ id: string; code: string; name: string }>>('/iam/locations'),
+  });
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['parts', filter],
@@ -42,7 +63,8 @@ export default function PartsPage() {
       }),
   });
 
-  const lowStockCount = data?.items.filter((p) => Number(p.onHand) <= Number(p.minimumStock)).length ?? 0;
+  const lowStockCount =
+    data?.items.filter((p) => Number(p.onHand) <= Number(p.minimumStock)).length ?? 0;
 
   const submitReceipt = async () => {
     if (!selectedPart || !receiptQty) return;
@@ -63,15 +85,53 @@ export default function PartsPage() {
     }
   };
 
+  const submitCreate = async () => {
+    if (!form.code.trim() || !form.name.trim() || !form.unit.trim()) {
+      toast.error('Thiếu thông tin', 'Mã, tên và đơn vị là bắt buộc.');
+      return;
+    }
+    if (!form.departmentId || !form.locationId) {
+      toast.error('Thiếu thông tin', 'Vui lòng chọn phòng ban và vị trí.');
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await apiPost<{ id: string; code: string }>('/parts', {
+        code: form.code.trim().toUpperCase(),
+        name: form.name.trim(),
+        unit: form.unit.trim(),
+        departmentId: form.departmentId,
+        locationId: form.locationId,
+        minimumStock: Number(form.minimumStock) || 0,
+        referencePrice: form.referencePrice ? Number(form.referencePrice) : undefined,
+        supplierName: form.supplierName.trim() || undefined,
+      });
+      toast.success('Đã tạo linh kiện', res.code);
+      setCreateModal(false);
+      setForm({
+        code: '',
+        name: '',
+        unit: 'cái',
+        departmentId: '',
+        locationId: '',
+        minimumStock: '0',
+        referencePrice: '',
+        supplierName: '',
+      });
+      void qc.invalidateQueries({ queryKey: ['parts'] });
+    } catch (e) {
+      toast.error('Lỗi tạo linh kiện', (e as Error).message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Linh kiện / Kho</h1>
         {hasPermission('inventory:part:create') && (
-          <button
-            className="btn-primary"
-            onClick={() => toast.info('Tạo linh kiện', 'Dùng API POST /parts hoặc tạo trong admin')}
-          >
+          <button className="btn-primary" onClick={() => setCreateModal(true)}>
             <Plus className="h-4 w-4" /> Tạo linh kiện
           </button>
         )}
@@ -104,7 +164,12 @@ export default function PartsPage() {
           onPageChange: () => {},
         }}
         columns={[
-          { key: 'code', header: 'Mã', render: (r) => <span className="font-mono">{r.code}</span>, width: '150px' },
+          {
+            key: 'code',
+            header: 'Mã',
+            render: (r) => <span className="font-mono">{r.code}</span>,
+            width: '150px',
+          },
           { key: 'name', header: 'Tên', render: (r) => r.name },
           {
             key: 'onHand',
@@ -119,8 +184,19 @@ export default function PartsPage() {
             },
             width: '120px',
           },
-          { key: 'min', header: 'Tối thiểu', render: (r) => `${r.minimumStock} ${r.unit}`, width: '120px' },
-          { key: 'price', header: 'Giá', render: (r) => r.referencePrice ? `${Number(r.referencePrice).toLocaleString('vi-VN')} đ` : '—', width: '120px' },
+          {
+            key: 'min',
+            header: 'Tối thiểu',
+            render: (r) => `${r.minimumStock} ${r.unit}`,
+            width: '120px',
+          },
+          {
+            key: 'price',
+            header: 'Giá',
+            render: (r) =>
+              r.referencePrice ? `${Number(r.referencePrice).toLocaleString('vi-VN')} đ` : '—',
+            width: '120px',
+          },
           { key: 'dept', header: 'Phòng ban', render: (r) => r.department?.name ?? '—' },
           { key: 'loc', header: 'Vị trí', render: (r) => r.location?.name ?? '—' },
           {
@@ -145,12 +221,121 @@ export default function PartsPage() {
       />
 
       <Modal
+        open={createModal}
+        onClose={() => setCreateModal(false)}
+        title="Tạo linh kiện mới"
+        size="lg"
+        footer={
+          <>
+            <button className="btn-secondary" onClick={() => setCreateModal(false)}>
+              Hủy
+            </button>
+            <button className="btn-primary" onClick={submitCreate} disabled={creating}>
+              {creating ? 'Đang lưu...' : 'Tạo linh kiện'}
+            </button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="label">Mã linh kiện *</label>
+            <input
+              className="input"
+              value={form.code}
+              onChange={(e) => setForm({ ...form, code: e.target.value })}
+              placeholder="BRG-6204"
+            />
+          </div>
+          <div>
+            <label className="label">Tên *</label>
+            <input
+              className="input"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Vòng bi 6204"
+            />
+          </div>
+          <div>
+            <label className="label">Đơn vị *</label>
+            <input
+              className="input"
+              value={form.unit}
+              onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              placeholder="cái"
+            />
+          </div>
+          <div>
+            <label className="label">Nhà cung cấp</label>
+            <input
+              className="input"
+              value={form.supplierName}
+              onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Phòng ban *</label>
+            <select
+              className="input"
+              value={form.departmentId}
+              onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+            >
+              <option value="">-- Chọn --</option>
+              {(depts ?? []).map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Vị trí *</label>
+            <select
+              className="input"
+              value={form.locationId}
+              onChange={(e) => setForm({ ...form, locationId: e.target.value })}
+            >
+              <option value="">-- Chọn --</option>
+              {(locs ?? []).map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Tồn tối thiểu</label>
+            <input
+              type="number"
+              className="input"
+              value={form.minimumStock}
+              onChange={(e) => setForm({ ...form, minimumStock: e.target.value })}
+              min="0"
+              step="any"
+            />
+          </div>
+          <div>
+            <label className="label">Giá tham khảo (đ)</label>
+            <input
+              type="number"
+              className="input"
+              value={form.referencePrice}
+              onChange={(e) => setForm({ ...form, referencePrice: e.target.value })}
+              min="0"
+              step="any"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
         open={receiptModal}
         onClose={() => setReceiptModal(false)}
         title={selectedPart ? `Nhập kho: ${selectedPart.code}` : ''}
         footer={
           <>
-            <button className="btn-secondary" onClick={() => setReceiptModal(false)}>Hủy</button>
+            <button className="btn-secondary" onClick={() => setReceiptModal(false)}>
+              Hủy
+            </button>
             <button className="btn-primary" onClick={submitReceipt} disabled={!receiptQty}>
               Xác nhận nhập
             </button>
@@ -160,15 +345,30 @@ export default function PartsPage() {
         {selectedPart && (
           <div className="space-y-3">
             <p className="text-sm text-slate-600">
-              Hiện tại: <span className="font-medium">{selectedPart.onHand} {selectedPart.unit}</span>
+              Hiện tại:{' '}
+              <span className="font-medium">
+                {selectedPart.onHand} {selectedPart.unit}
+              </span>
             </p>
             <div>
               <label className="label">Số lượng nhập *</label>
-              <input type="number" className="input" value={receiptQty} onChange={(e) => setReceiptQty(e.target.value)} min="0.001" step="any" />
+              <input
+                type="number"
+                className="input"
+                value={receiptQty}
+                onChange={(e) => setReceiptQty(e.target.value)}
+                min="0.001"
+                step="any"
+              />
             </div>
             <div>
               <label className="label">Ghi chú</label>
-              <input className="input" value={receiptNote} onChange={(e) => setReceiptNote(e.target.value)} placeholder="Nhà cung cấp, số HĐ..." />
+              <input
+                className="input"
+                value={receiptNote}
+                onChange={(e) => setReceiptNote(e.target.value)}
+                placeholder="Nhà cung cấp, số HĐ..."
+              />
             </div>
           </div>
         )}

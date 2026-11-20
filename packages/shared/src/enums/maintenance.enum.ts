@@ -34,5 +34,4 @@ export const RecurrencePattern = {
   MONTHLY: 'MONTHLY',
   CUSTOM_CRON: 'CUSTOM_CRON',
 } as const;
-export type RecurrencePattern =
-  (typeof RecurrencePattern)[keyof typeof RecurrencePattern];
+export type RecurrencePattern = (typeof RecurrencePattern)[keyof typeof RecurrencePattern];

@@ -107,14 +107,20 @@ export async function apiFetch<T = unknown>(path: string, opts: ApiOptions = {})
     } catch {
       /* not json */
     }
-    throw new ApiError(res.status, body.code ?? 'UNKNOWN', body.message ?? res.statusText, body.details, body.traceId);
+    throw new ApiError(
+      res.status,
+      body.code ?? 'UNKNOWN',
+      body.message ?? res.statusText,
+      body.details,
+      body.traceId,
+    );
   }
 
   if (res.status === 204 || responseType === 'text') {
-    return (res.text() as unknown) as T;
+    return res.text() as unknown as T;
   }
   if (responseType === 'blob') {
-    return (res.blob() as unknown) as T;
+    return res.blob() as unknown as T;
   }
   return (await res.json()) as T;
 }
@@ -123,7 +129,15 @@ export async function apiFetch<T = unknown>(path: string, opts: ApiOptions = {})
 export const apiGet = <T>(path: string, query?: ApiOptions['query']) =>
   apiFetch<T>(path, { method: 'GET', query });
 export const apiPost = <T>(path: string, body?: unknown, opts: ApiOptions = {}) =>
-  apiFetch<T>(path, { method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined, ...opts });
+  apiFetch<T>(path, {
+    method: 'POST',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...opts,
+  });
 export const apiPatch = <T>(path: string, body?: unknown, opts: ApiOptions = {}) =>
-  apiFetch<T>(path, { method: 'PATCH', body: body !== undefined ? JSON.stringify(body) : undefined, ...opts });
+  apiFetch<T>(path, {
+    method: 'PATCH',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...opts,
+  });
 export const apiDelete = <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' });

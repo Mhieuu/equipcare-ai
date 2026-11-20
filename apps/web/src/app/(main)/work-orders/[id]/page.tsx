@@ -33,7 +33,13 @@ interface WODetail {
     remainingSeconds: number;
     pauseSeconds: number;
   } | null;
-  notes: Array<{ id: string; noteType: string; body: string; authorName: string; createdAt: string }>;
+  notes: Array<{
+    id: string;
+    noteType: string;
+    body: string;
+    authorName: string;
+    createdAt: string;
+  }>;
   incident: { id: string; code: string } | null;
 }
 
@@ -72,7 +78,8 @@ export default function WorkOrderDetailPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () => apiPost(`/work-orders/${params!.id as string}/cancel`, { reason: cancelReason }),
+    mutationFn: () =>
+      apiPost(`/work-orders/${params!.id as string}/cancel`, { reason: cancelReason }),
     onSuccess: () => {
       toast.success('Đã hủy phiếu');
       setConfirmCancel(false);
@@ -82,7 +89,8 @@ export default function WorkOrderDetailPage() {
   });
 
   const completeMutation = useMutation({
-    mutationFn: () => apiPost(`/work-orders/${params!.id as string}/complete`, { resultSummary: completeSummary }),
+    mutationFn: () =>
+      apiPost(`/work-orders/${params!.id as string}/complete`, { resultSummary: completeSummary }),
     onSuccess: () => {
       toast.success('Đã hoàn thành phiếu');
       setCompleteModal(false);
@@ -103,7 +111,7 @@ export default function WorkOrderDetailPage() {
   });
 
   const noteMutation = useMutation({
-    mutationFn: (vars: { noteType: WorkOrderNoteType; body: string }) =>
+    mutationFn: (vars: { noteType: WorkOrderNoteType; note: string; pauseReason?: string }) =>
       apiPost(`/work-orders/${params!.id as string}/notes`, vars),
     onSuccess: () => {
       toast.success('Đã thêm ghi chú');
@@ -143,7 +151,10 @@ export default function WorkOrderDetailPage() {
           {wo.incident && (
             <p className="text-sm">
               Sự cố:{' '}
-              <Link href={`/incidents/${wo.incident.id}`} className="text-brand-700 hover:underline">
+              <Link
+                href={`/incidents/${wo.incident.id}`}
+                className="text-brand-700 hover:underline"
+              >
                 {wo.incident.code}
               </Link>
             </p>
@@ -159,7 +170,10 @@ export default function WorkOrderDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card p-4 space-y-2">
           <h2 className="font-semibold mb-2">Thông tin</h2>
-          <Row label="Mô tả" value={<span className="whitespace-pre-line">{wo.description}</span>} />
+          <Row
+            label="Mô tả"
+            value={<span className="whitespace-pre-line">{wo.description}</span>}
+          />
           <Row label="Ưu tiên" value={wo.priorityCode} />
           <Row label="KTV" value={wo.assignee?.fullName ?? '—'} />
           <Row label="Hạn" value={formatDate(wo.dueAt, 'dd/MM HH:mm')} />
@@ -189,25 +203,37 @@ export default function WorkOrderDetailPage() {
               </button>
             )}
             {wo.status === WorkOrderStatus.ASSIGNED && hasPermission('work-order:transition') && (
-              <button className="btn-primary" onClick={() => transitionMutation.mutate({ to: WorkOrderStatus.IN_PROGRESS })}>
+              <button
+                className="btn-primary"
+                onClick={() => transitionMutation.mutate({ to: WorkOrderStatus.IN_PROGRESS })}
+              >
                 <Play className="h-4 w-4" /> Bắt đầu
               </button>
             )}
             {wo.status === WorkOrderStatus.IN_PROGRESS && (
               <>
-                <button className="btn-primary" onClick={() => setCompleteModal(true)} disabled={!hasPermission('work-order:complete')}>
+                <button
+                  className="btn-primary"
+                  onClick={() => setCompleteModal(true)}
+                  disabled={!hasPermission('work-order:complete')}
+                >
                   <CheckCircle2 className="h-4 w-4" /> Hoàn thành
                 </button>
-                <button className="btn-secondary" onClick={() => setPauseModal(true)} disabled={!hasPermission('work-order:transition')}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setPauseModal(true)}
+                  disabled={!hasPermission('work-order:transition')}
+                >
                   <Pause className="h-4 w-4" /> Tạm dừng
                 </button>
               </>
             )}
-            {(wo.status === WorkOrderStatus.NEW || wo.status === WorkOrderStatus.ASSIGNED) && hasPermission('work-order:cancel') && (
-              <button className="btn-danger" onClick={() => setConfirmCancel(true)}>
-                <XCircle className="h-4 w-4" /> Hủy phiếu
-              </button>
-            )}
+            {(wo.status === WorkOrderStatus.NEW || wo.status === WorkOrderStatus.ASSIGNED) &&
+              hasPermission('work-order:cancel') && (
+                <button className="btn-danger" onClick={() => setConfirmCancel(true)}>
+                  <XCircle className="h-4 w-4" /> Hủy phiếu
+                </button>
+              )}
           </div>
         </div>
       </div>
@@ -227,7 +253,9 @@ export default function WorkOrderDetailPage() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-medium">{n.authorName}</span>
                 <span className="badge-gray text-xs">{n.noteType}</span>
-                <span className="text-xs text-slate-500">{formatDate(n.createdAt, 'dd/MM HH:mm')}</span>
+                <span className="text-xs text-slate-500">
+                  {formatDate(n.createdAt, 'dd/MM HH:mm')}
+                </span>
               </div>
               <p className="text-sm whitespace-pre-line">{n.body}</p>
             </li>
@@ -255,55 +283,108 @@ export default function WorkOrderDetailPage() {
       {confirmCancel && (
         <div className="card p-3">
           <label className="label">Lý do hủy *</label>
-          <input className="input" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
+          <input
+            className="input"
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+          />
         </div>
       )}
 
-      <Modal open={completeModal} onClose={() => setCompleteModal(false)} title="Hoàn thành phiếu" size="md"
+      <Modal
+        open={completeModal}
+        onClose={() => setCompleteModal(false)}
+        title="Hoàn thành phiếu"
+        size="md"
         footer={
           <>
-            <button className="btn-secondary" onClick={() => setCompleteModal(false)}>Hủy</button>
-            <button className="btn-primary" onClick={() => completeMutation.mutate()} disabled={completeMutation.isPending}>
+            <button className="btn-secondary" onClick={() => setCompleteModal(false)}>
+              Hủy
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => completeMutation.mutate()}
+              disabled={completeMutation.isPending}
+            >
               <CheckCircle2 className="h-4 w-4" /> Xác nhận
             </button>
           </>
         }
       >
         <label className="label">Tóm tắt kết quả *</label>
-        <textarea className="input" rows={4} value={completeSummary} onChange={(e) => setCompleteSummary(e.target.value)} placeholder="Đã sửa xong..." />
+        <textarea
+          className="input"
+          rows={4}
+          value={completeSummary}
+          onChange={(e) => setCompleteSummary(e.target.value)}
+          placeholder="Đã sửa xong..."
+        />
       </Modal>
 
-      <Modal open={assignModal} onClose={() => setAssignModal(false)} title="Phân công kỹ thuật viên"
+      <Modal
+        open={assignModal}
+        onClose={() => setAssignModal(false)}
+        title="Phân công kỹ thuật viên"
         footer={
           <>
-            <button className="btn-secondary" onClick={() => setAssignModal(false)}>Hủy</button>
-            <button className="btn-primary" onClick={() => assignMutation.mutate()} disabled={!assigneeId}>
+            <button className="btn-secondary" onClick={() => setAssignModal(false)}>
+              Hủy
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => assignMutation.mutate()}
+              disabled={!assigneeId}
+            >
               <UserPlus className="h-4 w-4" /> Phân công
             </button>
           </>
         }
       >
         <label className="label">Chọn KTV *</label>
-        <select className="input" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+        <select
+          className="input"
+          value={assigneeId}
+          onChange={(e) => setAssigneeId(e.target.value)}
+        >
           <option value="">-- Chọn --</option>
           {techs.map((t) => (
-            <option key={t.id} value={t.id}>{t.fullName}</option>
+            <option key={t.id} value={t.id}>
+              {t.fullName}
+            </option>
           ))}
         </select>
       </Modal>
 
-      <Modal open={pauseModal} onClose={() => setPauseModal(false)} title="Tạm dừng"
+      <Modal
+        open={pauseModal}
+        onClose={() => setPauseModal(false)}
+        title="Tạm dừng"
         footer={
           <>
-            <button className="btn-secondary" onClick={() => setPauseModal(false)}>Hủy</button>
-            <button className="btn-primary" onClick={() => noteMutation.mutate({ noteType: WorkOrderNoteType.PAUSE_START, body: pauseReason })}>
+            <button className="btn-secondary" onClick={() => setPauseModal(false)}>
+              Hủy
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() =>
+                noteMutation.mutate({
+                  noteType: WorkOrderNoteType.PAUSE_START,
+                  note: pauseReason,
+                  pauseReason: pauseReason || undefined,
+                })
+              }
+            >
               <Pause className="h-4 w-4" /> Tạm dừng
             </button>
           </>
         }
       >
         <label className="label">Lý do tạm dừng *</label>
-        <select className="input" value={pauseReason} onChange={(e) => setPauseReason(e.target.value)}>
+        <select
+          className="input"
+          value={pauseReason}
+          onChange={(e) => setPauseReason(e.target.value)}
+        >
           <option value="">-- Chọn --</option>
           <option value="WAITING_PART">Chờ linh kiện</option>
           <option value="WAITING_RESOURCE">Chờ nguồn lực</option>

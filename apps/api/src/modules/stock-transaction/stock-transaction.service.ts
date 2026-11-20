@@ -41,22 +41,16 @@ export class StockTransactionService {
   // ---------------------------------------------------------------------------
 
   /** ISSUE cho WO - giam on_hand. Co the kem approval_revision_id neu part.requires_approval. */
-  async issueForWorkOrder(
-    actorId: string,
-    workOrderId: string,
-    dto: IssuePartDto,
-  ) {
+  async issueForWorkOrder(actorId: string, workOrderId: string, dto: IssuePartDto) {
     return this.runTransaction(async (tx) => {
       const wo = await tx.work_orders.findUnique({ where: { id: workOrderId } });
       if (!wo) {
         throw AppError.notFound('Khong tim thay work order', { workOrderId });
       }
       if (wo.status === 'COMPLETED' || wo.status === 'CANCELLED') {
-        throw AppError.unprocessable(
-          'WO_TERMINAL_NO_ISSUE',
-          'WO da terminal, khong the issue',
-          { status: wo.status },
-        );
+        throw AppError.unprocessable('WO_TERMINAL_NO_ISSUE', 'WO da terminal, khong the issue', {
+          status: wo.status,
+        });
       }
 
       const part = await this.lockPart(tx, dto.partId);
@@ -112,11 +106,7 @@ export class StockTransactionService {
   }
 
   /** RETURN cho WO - tang on_hand. Phai co original_stock_tx_id (ISSUE goc). */
-  async returnForWorkOrder(
-    actorId: string,
-    workOrderId: string,
-    dto: ReturnPartDto,
-  ) {
+  async returnForWorkOrder(actorId: string, workOrderId: string, dto: ReturnPartDto) {
     return this.runTransaction(async (tx) => {
       const orig = await tx.stock_transactions.findUnique({
         where: { id: dto.originalStockTxId },
@@ -337,11 +327,10 @@ export class StockTransactionService {
       }
       const outHand = new Prisma.Decimal(row.on_hand);
       if (outHand.isNegative()) {
-        throw AppError.unprocessable(
-          'STOCK_INSUFFICIENT',
-          'Khong du ton kho (on_hand < 0)',
-          { partId, delta: delta.toString() },
-        );
+        throw AppError.unprocessable('STOCK_INSUFFICIENT', 'Khong du ton kho (on_hand < 0)', {
+          partId,
+          delta: delta.toString(),
+        });
       }
       return {
         on_hand: outHand,
@@ -350,12 +339,15 @@ export class StockTransactionService {
     } catch (e) {
       const err = e as { message?: string; code?: string };
       const msg = err?.message ?? '';
-      if (msg.includes('parts_on_hand_non_negative') || err?.code === 'P2002' || msg.includes('23514')) {
-        throw AppError.unprocessable(
-          'STOCK_INSUFFICIENT',
-          'Khong du ton kho',
-          { partId, delta: delta.toString() },
-        );
+      if (
+        msg.includes('parts_on_hand_non_negative') ||
+        err?.code === 'P2002' ||
+        msg.includes('23514')
+      ) {
+        throw AppError.unprocessable('STOCK_INSUFFICIENT', 'Khong du ton kho', {
+          partId,
+          delta: delta.toString(),
+        });
       }
       throw e;
     }
@@ -424,7 +416,8 @@ export class StockTransactionService {
       );
     }
     const budget = revisionParts.reduce(
-      (acc: Prisma.Decimal, r: { quantity: Prisma.Decimal | number }) => acc.plus(new Prisma.Decimal(r.quantity)),
+      (acc: Prisma.Decimal, r: { quantity: Prisma.Decimal | number }) =>
+        acc.plus(new Prisma.Decimal(r.quantity)),
       new Prisma.Decimal(0),
     );
     if (net.greaterThan(budget)) {

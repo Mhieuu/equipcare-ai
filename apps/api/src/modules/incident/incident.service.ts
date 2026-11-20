@@ -1,6 +1,4 @@
-import {
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -244,12 +242,12 @@ export class IncidentService {
   }
 
   /** ISO string hoac null (neu Date) — dung chuan hoa timestamp trong DTO. */
-private iso(v: Date | string | null | undefined): string | null {
-  if (v === null || v === undefined) return null;
-  return v instanceof Date ? v.toISOString() : v;
-}
+  private iso(v: Date | string | null | undefined): string | null {
+    if (v === null || v === undefined) return null;
+    return v instanceof Date ? v.toISOString() : v;
+  }
 
-/** User relation -> { id, loginName, fullName } (hoac null). */
+  /** User relation -> { id, loginName, fullName } (hoac null). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private toUserBrief(u: any) {
     if (!u) return null;
@@ -329,29 +327,19 @@ private iso(v: Date | string | null | undefined): string | null {
     return this.findById(updated.id);
   }
 
-  async addMessage(
-    actorId: string,
-    id: string,
-    body: string,
-    messageType: IncidentMessageType,
-  ) {
+  async addMessage(actorId: string, id: string, body: string, messageType: IncidentMessageType) {
     const incident = await this.prisma.incidents.findUnique({ where: { id } });
     if (!incident) {
       throw AppError.notFound('Không tìm thấy sự cố', { id });
     }
     if (!body || body.trim().length === 0) {
-      throw AppError.unprocessable(
-        'INCIDENT_MESSAGE_EMPTY',
-        'Nội dung tin nhắn không được rỗng',
-        { field: 'body' },
-      );
+      throw AppError.unprocessable('INCIDENT_MESSAGE_EMPTY', 'Nội dung tin nhắn không được rỗng', {
+        field: 'body',
+      });
     }
 
     // Không cho message vào incident đã đóng/hủy
-    const terminal: IncidentStatus[] = [
-      IncidentStatus.CLOSED,
-      IncidentStatus.CANCELLED,
-    ];
+    const terminal: IncidentStatus[] = [IncidentStatus.CLOSED, IncidentStatus.CANCELLED];
     if (terminal.includes(incident.status as IncidentStatus)) {
       throw AppError.unprocessable(
         'INCIDENT_TERMINAL',

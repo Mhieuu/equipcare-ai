@@ -1,8 +1,4 @@
-import type {
-  AiProvider,
-  AiProviderInput,
-  AiProviderResult,
-} from './ai-provider.js';
+import type { AiProvider, AiProviderInput, AiProviderResult } from './ai-provider.js';
 import { AbortError } from './ai-provider.js';
 
 /**
@@ -92,11 +88,22 @@ export class MockAiProvider implements AiProvider {
 
   private handleAssetSummary(context: Record<string, unknown>): AiProviderResult {
     const assetCode = String(context.assetCode ?? 'unknown');
+    const recent = Number(context.recentIncidents ?? 0);
+    const critical = Number(context.criticalIncidents ?? 0);
+    const open = Number(context.openWorkOrders ?? 0);
+    const riskLevel = critical > 0 || open >= 3 ? 'HIGH' : recent > 2 ? 'MEDIUM' : 'LOW';
     return {
       output: {
-        summary: `Mock summary for ${assetCode}: asset hoạt động bình thường.`,
-        recentIncidents: Number(context.recentIncidents ?? 0),
-        openWorkOrders: Number(context.openWorkOrders ?? 0),
+        summary: `Mock summary for ${assetCode}: ${recent} sự cố/90 ngày (${critical} nghiêm trọng), ${open} phiếu đang mở.`,
+        riskLevel,
+        confidence: 0.42,
+        reasoning: 'Phân loại dựa trên heuristic đếm sự cố/phiếu mở; không phải LLM thật.',
+        recommendedActions:
+          open > 0
+            ? ['Rà soát các phiếu đang mở', 'Ưu tiên xử lý sự cố nghiêm trọng']
+            : ['Duy trì lịch bảo trì định kỳ'],
+        recentIncidents: recent,
+        openWorkOrders: open,
       },
       modelName: 'mock-v1',
       tokensUsed: 0,

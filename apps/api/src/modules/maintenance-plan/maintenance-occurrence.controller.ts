@@ -1,22 +1,10 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionGuard } from '../../common/guards/permission.guard.js';
 import { Permissions } from '../../common/decorators/permissions.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import {
-  AppError,
-  runSchedulerTick,
-  writeAudit,
-} from '@equipcare/backend-core';
+import { AppError, runSchedulerTick, writeAudit } from '@equipcare/backend-core';
 import { Permission } from '@equipcare/shared';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
 

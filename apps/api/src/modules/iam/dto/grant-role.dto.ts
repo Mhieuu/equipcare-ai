@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsUUID, IsOptional, IsString } from 'class-validator';
 
 /**
  * DTO cho POST /iam/users/:id/roles — grant role cho user.
@@ -9,7 +9,13 @@ import { IsUUID } from 'class-validator';
  * - Scope riêng (department/location/asset/incident) sẽ làm ở bước sau.
  */
 export class GrantRoleDto {
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'FK roles.id' })
+  @IsOptional()
   @IsUUID()
-  roleId!: string;
+  roleId?: string;
+
+  @ApiPropertyOptional({ description: 'Mã vai trò (role.code), thay thế cho roleId' })
+  @IsOptional()
+  @IsString()
+  roleCode?: string;
 }

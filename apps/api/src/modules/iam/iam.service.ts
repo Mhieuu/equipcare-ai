@@ -52,6 +52,11 @@ export class IamService {
     if (query.departmentId) {
       where.department_id = query.departmentId;
     }
+    if (query.roleCode) {
+      where.user_roles = {
+        some: { role: { code: query.roleCode }, is_active: true, revoked_at: null },
+      };
+    }
     if (query.search) {
       where.OR = [
         { login_name: { contains: query.search, mode: 'insensitive' } },
@@ -137,11 +142,9 @@ export class IamService {
       return this.toSummary(user);
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
-        throw AppError.unprocessable(
-          'IAM_DEPARTMENT_NOT_FOUND',
-          'departmentId không tồn tại',
-          { field: 'departmentId' },
-        );
+        throw AppError.unprocessable('IAM_DEPARTMENT_NOT_FOUND', 'departmentId không tồn tại', {
+          field: 'departmentId',
+        });
       }
       throw err;
     }
@@ -152,15 +155,11 @@ export class IamService {
     if (dto.fullName !== undefined) data.full_name = dto.fullName;
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.departmentId !== undefined) {
-      data.department = dto.departmentId === null
-        ? { disconnect: true }
-        : { connect: { id: dto.departmentId } };
+      data.department =
+        dto.departmentId === null ? { disconnect: true } : { connect: { id: dto.departmentId } };
     }
     if (Object.keys(data).length === 0) {
-      throw AppError.unprocessable(
-        'IAM_NO_FIELDS_TO_UPDATE',
-        'Không có trường nào để cập nhật',
-      );
+      throw AppError.unprocessable('IAM_NO_FIELDS_TO_UPDATE', 'Không có trường nào để cập nhật');
     }
 
     try {
@@ -173,11 +172,9 @@ export class IamService {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         if (err.code === 'P2025') throw AppError.notFound('Không tìm thấy người dùng');
         if (err.code === 'P2003') {
-          throw AppError.unprocessable(
-            'IAM_DEPARTMENT_NOT_FOUND',
-            'departmentId không tồn tại',
-            { field: 'departmentId' },
-          );
+          throw AppError.unprocessable('IAM_DEPARTMENT_NOT_FOUND', 'departmentId không tồn tại', {
+            field: 'departmentId',
+          });
         }
       }
       throw err;
@@ -245,17 +242,25 @@ export class IamService {
     dto: GrantRoleDto,
     actorId: string,
   ): Promise<{ userRoleId: string; roleCode: string }> {
+    // Resolve role: uu tien roleId, fallback roleCode.
+    const roleId = dto.roleId
+      ? dto.roleId
+      : dto.roleCode
+        ? (await this.prisma.roles.findUnique({ where: { code: dto.roleCode } }))?.id
+        : undefined;
+    if (!roleId) throw AppError.notFound('Không tìm thấy vai trò');
+
     // Verify user tồn tại + role tồn tại.
     const [user, role] = await Promise.all([
       this.prisma.users.findUnique({ where: { id: userId } }),
-      this.prisma.roles.findUnique({ where: { id: dto.roleId } }),
+      this.prisma.roles.findUnique({ where: { id: roleId } }),
     ]);
     if (!user) throw AppError.notFound('Không tìm thấy người dùng');
     if (!role) throw AppError.notFound('Không tìm thấy vai trò');
 
     // Idempotent: nếu đã có user_role active cho (user, role) thì trả về id đó.
     const existing = await this.prisma.user_roles.findUnique({
-      where: { user_id_role_id: { user_id: userId, role_id: dto.roleId } },
+      where: { user_id_role_id: { user_id: userId, role_id: roleId } },
     });
     if (existing) {
       if (existing.is_active && !existing.revoked_at) {
@@ -276,7 +281,7 @@ export class IamService {
     const created = await this.prisma.user_roles.create({
       data: {
         user_id: userId,
-        role_id: dto.roleId,
+        role_id: roleId,
         is_active: true,
         granted_by: actorId,
       },
@@ -321,9 +326,9 @@ export class IamService {
   // Permissions / Roles (read-only)
   // -------------------------------------------------------------------------
 
-  async listDepartments(opts: { isActive?: boolean }): Promise<
-    Array<{ id: string; code: string; name: string; isActive: boolean }>
-  > {
+  async listDepartments(opts: {
+    isActive?: boolean;
+  }): Promise<Array<{ id: string; code: string; name: string; isActive: boolean }>> {
     const where: Prisma.departmentsWhereInput = {};
     if (opts.isActive === true) where.is_active = true;
     else if (opts.isActive === false) where.is_active = false;
@@ -334,7 +339,9 @@ export class IamService {
     return rows.map((r) => ({ id: r.id, code: r.code, name: r.name, isActive: r.is_active }));
   }
 
-  async listLocations(opts: { isActive?: boolean }): Promise<
+  async listLocations(opts: {
+    isActive?: boolean;
+  }): Promise<
     Array<{ id: string; code: string; name: string; parentId: string | null; isActive: boolean }>
   > {
     const where: Prisma.locationsWhereInput = {};
@@ -353,7 +360,9 @@ export class IamService {
     }));
   }
 
-  async listAssetTypes(opts: { isActive?: boolean }): Promise<
+  async listAssetTypes(opts: {
+    isActive?: boolean;
+  }): Promise<
     Array<{ id: string; code: string; name: string; description: string | null; isActive: boolean }>
   > {
     const where: Prisma.asset_typesWhereInput = {};
@@ -486,38 +495,38 @@ export class IamService {
     };
   }
 
-  private toDetail(
-    user: {
+  private toDetail(user: {
+    id: string;
+    login_name: string;
+    full_name: string;
+    email: string | null;
+    department_id: string | null;
+    is_locked: boolean;
+    must_change_password: boolean;
+    auth_version: number;
+    created_at: Date;
+    updated_at: Date;
+    user_roles: Array<{
       id: string;
-      login_name: string;
-      full_name: string;
-      email: string | null;
-      department_id: string | null;
-      is_locked: boolean;
-      must_change_password: boolean;
-      auth_version: number;
+      is_active: boolean;
+      granted_by: string | null;
       created_at: Date;
-      updated_at: Date;
-      user_roles: Array<{
-        id: string;
-        is_active: boolean;
-        granted_by: string | null;
-        created_at: Date;
-        role: { code: string; name: string };
-      }>;
-    },
-  ): UserDetailDto {
+      role: { code: string; name: string };
+    }>;
+  }): UserDetailDto {
     const summary = this.toSummary(user);
     return {
       ...summary,
-      roles: user.user_roles.map((ur) => ({
-        userRoleId: ur.id,
-        roleCode: ur.role.code,
-        roleName: ur.role.name,
-        isActive: ur.is_active,
-        grantedBy: ur.granted_by,
-        grantedAt: ur.created_at.toISOString(),
-      })),
+      roles: user.user_roles
+        .filter((ur) => ur.is_active)
+        .map((ur) => ({
+          userRoleId: ur.id,
+          roleCode: ur.role.code,
+          roleName: ur.role.name,
+          isActive: ur.is_active,
+          grantedBy: ur.granted_by,
+          grantedAt: ur.created_at.toISOString(),
+        })),
     };
   }
 }

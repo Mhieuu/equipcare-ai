@@ -1,7 +1,4 @@
-import {
-  ApprovalStatus,
-  type ApprovalStatus as Status,
-} from '@equipcare/shared';
+import { ApprovalStatus, type ApprovalStatus as Status } from '@equipcare/shared';
 import { AppError } from '../errors/app-error.js';
 
 /**
@@ -31,10 +28,7 @@ import { AppError } from '../errors/app-error.js';
  */
 
 const TRANSITIONS: Record<Status, Status[]> = {
-  [ApprovalStatus.DRAFT]: [
-    ApprovalStatus.SUBMITTED,
-    ApprovalStatus.CANCELLED,
-  ],
+  [ApprovalStatus.DRAFT]: [ApprovalStatus.SUBMITTED, ApprovalStatus.CANCELLED],
   [ApprovalStatus.SUBMITTED]: [
     ApprovalStatus.APPROVED,
     ApprovalStatus.REJECTED,
@@ -69,17 +63,9 @@ export function assertApprovalTransition(from: Status, to: Status): void {
 }
 
 /** Action labels (su dung trong controller de map body.action sang target state). */
-export type ApprovalAction =
-  | 'submit'
-  | 'approve'
-  | 'reject'
-  | 'request-info'
-  | 'cancel';
+export type ApprovalAction = 'submit' | 'approve' | 'reject' | 'request-info' | 'cancel';
 
-export function resolveTargetState(
-  current: Status,
-  action: ApprovalAction,
-): Status {
+export function resolveTargetState(current: Status, action: ApprovalAction): Status {
   switch (action) {
     case 'submit':
       if (current === ApprovalStatus.DRAFT) return ApprovalStatus.SUBMITTED;

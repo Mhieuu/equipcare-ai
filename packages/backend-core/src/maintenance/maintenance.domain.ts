@@ -1,4 +1,12 @@
-import { addDays, addMonths, addQuarters, addWeeks, addYears, formatISO, startOfDay } from 'date-fns';
+import {
+  addDays,
+  addMonths,
+  addQuarters,
+  addWeeks,
+  addYears,
+  formatISO,
+  startOfDay,
+} from 'date-fns';
 
 /**
  * Maintenance recurrence (Doc04 section 5.10 + plan M8).
@@ -37,18 +45,18 @@ export const MaintenanceIntervalUnit: Record<MaintenanceIntervalUnit, Maintenanc
 };
 
 export type MaintenanceScheduleBasis = 'FIXED' | 'AFTER_COMPLETION';
-export const MaintenanceScheduleBasis: Record<MaintenanceScheduleBasis, MaintenanceScheduleBasis> = {
-  FIXED: 'FIXED',
-  AFTER_COMPLETION: 'AFTER_COMPLETION',
-};
+export const MaintenanceScheduleBasis: Record<MaintenanceScheduleBasis, MaintenanceScheduleBasis> =
+  {
+    FIXED: 'FIXED',
+    AFTER_COMPLETION: 'AFTER_COMPLETION',
+  };
 
 export type MaintenanceOccurrenceStatus =
-  | 'PLANNED'
-  | 'SKIPPED'
-  | 'OVERDUE'
-  | 'IN_PROGRESS'
-  | 'COMPLETED';
-export const MaintenanceOccurrenceStatus: Record<MaintenanceOccurrenceStatus, MaintenanceOccurrenceStatus> = {
+  'PLANNED' | 'SKIPPED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED';
+export const MaintenanceOccurrenceStatus: Record<
+  MaintenanceOccurrenceStatus,
+  MaintenanceOccurrenceStatus
+> = {
   PLANNED: 'PLANNED',
   SKIPPED: 'SKIPPED',
   OVERDUE: 'OVERDUE',
