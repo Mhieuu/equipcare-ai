@@ -15,6 +15,8 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   rows: T[];
   loading?: boolean;
+  /** Thong bao loi khi API that bai (khong phai "khong co du lieu"). */
+  error?: string | null;
   emptyText?: string;
   onRowClick?: (row: T) => void;
   rowKey: (row: T) => string;
@@ -31,6 +33,7 @@ export function DataTable<T>({
   columns,
   rows,
   loading,
+  error,
   emptyText = 'Không có dữ liệu',
   onRowClick,
   rowKey,
@@ -77,6 +80,12 @@ export function DataTable<T>({
               <tr>
                 <td colSpan={columns.length} className="text-center text-slate-500 py-8">
                   Đang tải...
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={columns.length} className="text-center text-rose-600 py-8">
+                  {error}
                 </td>
               </tr>
             ) : rows.length === 0 ? (

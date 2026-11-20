@@ -31,7 +31,7 @@ export default function WorkOrdersPage() {
   const [status, setStatus] = useState<string>('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['work-orders', status, page],
     queryFn: () =>
       apiGet<{ items: WO[]; total: number }>('/work-orders', {
@@ -174,6 +174,7 @@ export default function WorkOrdersPage() {
               },
             ]}
             rows={data?.items ?? []}
+            error={isError ? (error as Error)?.message ?? 'Không tải được danh sách phiếu công việc' : null}
           />
         </>
       )}

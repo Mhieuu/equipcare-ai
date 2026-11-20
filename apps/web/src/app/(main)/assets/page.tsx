@@ -26,7 +26,7 @@ export default function AssetsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['assets', search, page],
     queryFn: () =>
       apiGet<{ items: Asset[]; total: number }>('/assets', {
@@ -103,6 +103,7 @@ export default function AssetsPage() {
           { key: 'serial', header: 'Serial', render: (r) => r.serialNumber ?? '—' },
         ]}
         rows={data?.items ?? []}
+        error={isError ? (error as Error)?.message ?? 'Không tải được danh sách thiết bị' : null}
       />
     </div>
   );

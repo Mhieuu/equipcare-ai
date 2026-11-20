@@ -23,7 +23,7 @@ export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | ''>('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['approvals', statusFilter, page],
     queryFn: () =>
       apiGet<{ items: Approval[]; total: number }>('/approvals', {
@@ -118,6 +118,7 @@ export default function ApprovalsPage() {
           },
         ]}
         rows={data?.items ?? []}
+        error={isError ? (error as Error)?.message ?? 'Không tải được danh sách phê duyệt' : null}
       />
     </div>
   );

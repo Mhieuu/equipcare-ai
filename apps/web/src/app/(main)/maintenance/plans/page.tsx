@@ -22,7 +22,7 @@ interface Plan {
 export default function MaintenancePlansPage() {
   const [activeOnly, setActiveOnly] = useState(true);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['maintenance-plans', activeOnly],
     queryFn: () =>
       apiGet<{ items: Plan[]; total: number }>('/maintenance-plans', {
@@ -101,6 +101,7 @@ export default function MaintenancePlansPage() {
           },
         ]}
         rows={data?.items ?? []}
+        error={isError ? (error as Error)?.message ?? 'Không tải được danh sách kế hoạch bảo trì' : null}
       />
     </div>
   );

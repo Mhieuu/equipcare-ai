@@ -55,7 +55,7 @@ export default function PartsPage() {
     queryFn: () => apiGet<Array<{ id: string; code: string; name: string }>>('/iam/locations'),
   });
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['parts', filter, search],
     queryFn: () =>
       apiGet<{ items: Part[]; total: number }>('/parts', {
@@ -226,6 +226,7 @@ export default function PartsPage() {
           },
         ]}
         rows={data?.items ?? []}
+        error={isError ? (error as Error)?.message ?? 'Không tải được danh sách linh kiện' : null}
       />
 
       <Modal

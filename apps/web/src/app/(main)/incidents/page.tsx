@@ -27,7 +27,7 @@ export default function IncidentsPage() {
   const [status, setStatus] = useState<string>('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['incidents', status, page],
     queryFn: () =>
       apiGet<{ items: Incident[]; total: number }>('/incidents', {
@@ -118,6 +118,7 @@ export default function IncidentsPage() {
           },
         ]}
         rows={data?.items ?? []}
+        error={isError ? (error as Error)?.message ?? 'Không tải được danh sách sự cố' : null}
       />
     </div>
   );

@@ -28,7 +28,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['iam-users', search, page],
     queryFn: () =>
       apiGet<{ items: User[]; total: number }>('/iam/users', {
@@ -97,6 +97,7 @@ export default function UsersPage() {
           },
         ]}
         rows={data?.items ?? []}
+        error={isError ? (error as Error)?.message ?? 'Không tải được danh sách người dùng' : null}
       />
     </div>
   );
