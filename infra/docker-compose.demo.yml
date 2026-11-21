@@ -23,7 +23,9 @@ services:
     entrypoint: ["pnpm", "db:migrate:deploy"]
     environment:
       DATABASE_URL: postgresql://${DB_USER:-equipcare}:${DB_PASSWORD:-equipcare_pwd}@postgres:5432/${DB_NAME:-equipcare}
-    env_file: ../.env
+    env_file:
+      - path: ../.env
+        required: false
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,7 +39,9 @@ services:
     entrypoint: ["pnpm", "db:seed"]
     environment:
       DATABASE_URL: postgresql://${DB_USER:-equipcare}:${DB_PASSWORD:-equipcare_pwd}@postgres:5432/${DB_NAME:-equipcare}
-    env_file: ../.env
+    env_file:
+      - path: ../.env
+        required: false
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -52,7 +56,9 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-mock}
       API_PORT: 3001
       NODE_ENV: production
-    env_file: ../.env
+    env_file:
+      - path: ../.env
+        required: false
     ports:
       - "3001:3001"
     depends_on:
@@ -69,7 +75,9 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-    env_file: ../.env
+    env_file:
+      - path: ../.env
+        required: false
     ports:
       - "3000:3000"
     depends_on:
