@@ -46,6 +46,9 @@ export default function LoginPage() {
   const { setTokens, setUser } = useAuth();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  // Chi hien tai khoan demo o moi truong dev - khong lo tai khoan cong khai
+  // o production (biet mat khau).
+  const showDemoAccounts = process.env.NODE_ENV !== 'production';
   const {
     register,
     handleSubmit,
@@ -131,23 +134,25 @@ export default function LoginPage() {
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
-          <div className="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-500">
-            <p className="font-medium mb-1">Tài khoản demo:</p>
-            <ul className="space-y-0.5">
-              <li>
-                <code>admin.bootstrap</code> / <code>ChangeMe@2026</code> (quản trị)
-              </li>
-              <li>
-                <code>demo.manager1</code> / <code>Demo@2026</code> (quản lý)
-              </li>
-              <li>
-                <code>demo.reporter1</code> / <code>Demo@2026</code> (người báo sự cố)
-              </li>
-              <li>
-                <code>demo.tech1</code> / <code>Demo@2026</code> (kỹ thuật viên)
-              </li>
-            </ul>
-          </div>
+          {showDemoAccounts && (
+            <div className="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-500">
+              <p className="font-medium mb-1">Tài khoản demo:</p>
+              <ul className="space-y-0.5">
+                <li>
+                  <code>admin.bootstrap</code> / <code>ChangeMe@2026</code> (quản trị)
+                </li>
+                <li>
+                  <code>demo.manager1</code> / <code>Demo@2026</code> (quản lý)
+                </li>
+                <li>
+                  <code>demo.reporter1</code> / <code>Demo@2026</code> (người báo sự cố)
+                </li>
+                <li>
+                  <code>demo.tech1</code> / <code>Demo@2026</code> (kỹ thuật viên)
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </div>
