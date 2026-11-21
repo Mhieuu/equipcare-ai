@@ -47,3 +47,68 @@ jobs:
 
       - name: Validate demo compose
         run: docker compose -f infra/docker-compose.demo.yml config
+
+  test:
+    runs-on: ubuntu-latest
+    # E2E test can go timeout neu may chay chung nhieu job (build + test).
+    needs: preflight
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: equipcare
+          POSTGRES_PASSWORD: equipcare_pwd
+          POSTGRES_DB: equipcare
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U equipcare -d equipcare"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://equipcare:equipcare_pwd@localhost:5432/equipcare
+      JWT_ACCESS_SECRET: ci-access-secret-must-be-at-least-32-bytes-long
+      REFRESH_TOKEN_PEPPER: ci-refresh-pepper-must-be-at-least-32-bytes
+      ACCESS_TOKEN_TTL: '900'
+      NODE_ENV: test
+      # Test AI chay voi mock provider de CI khong phu thuoc Gemini API key.
+      AI_PROVIDER: mock
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.11.0'
+
+      - name: Setup pnpm 9
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @equipcare/api exec prisma generate
+
+      - name: Apply migrations
+        run: pnpm --filter @equipcare/api exec prisma migrate deploy
+
+      - name: Seed baseline data
+        run: pnpm --filter @equipcare/api db:seed
+
+      - name: Run E2E tests
+        run: pnpm --filter @equipcare/api test
