@@ -74,7 +74,8 @@ pnpm dev
 Truy cập:
 
 - Web: <http://localhost:3000>
-- API: <http://localhost:3001/api/docs> (Swagger)
+- API: <http://localhost:3001/docs> (Swagger)
+- Health check: <http://localhost:3001/healthz>
 - MinIO console: <http://localhost:9001> (`minioadmin` / `minioadmin`)
 
 ## Demo full stack (Docker Compose)
@@ -89,19 +90,24 @@ Khởi động api + web + worker + postgres + redis + minio, sẵn sàng cho b�
 
 | File | Mô tả |
 |---|---|
+| `docs/HANDOVER.md` | **Tài liệu bàn giao** — cài đặt, chạy, kiểm thử, đóng gói |
 | `docs/IMPLEMENTATION_PLAN.md` | Kế hoạch triển khai (rev. 5, baseline đối chiếu Doc02..07) |
+| `docs/TEST-CASES.md` | Bộ test case chi tiết theo baseline |
+| `docs/db_schema.md` | Mô tả schema + luồng dữ liệu |
 | `docs/baseline/` | Doc01..07 markdown đã trích, kèm header LOCKED v1.x |
 
-## Tài khoản demo (seed)
+## Tài khoản seed
 
-| Email | Role | Mật khẩu |
-|---|---|---|
-| admin@demo.local | ADMIN | `Demo@123` |
-| manager@demo.local | MANAGER | `Demo@123` |
-| technician@demo.local | TECHNICIAN | `Demo@123` |
-| requester@demo.local | REQUESTER | `Demo@123` |
+| Login | Họ tên | Vai trò | Mật khẩu |
+|---|---|---|---|
+| `admin.bootstrap` | Quản trị hệ thống (bootstrap) | ADMIN | `ChangeMe@2026` — **bắt buộc đổi lần đầu** |
+| `demo.manager1` | Nguyễn Văn Quản | MANAGER | `Demo@2026` |
+| `demo.reporter1` | Đỗ Văn Báo | USER | `Demo@2026` |
+| `demo.tech1` | Lê Văn Kỹ | TECHNICIAN | `Demo@2026` |
 
-> Đổi mật khẩu trước khi deploy public.
+> Tài khoản `demo.*` chỉ tạo khi chạy `pnpm --filter @equipcare/api db:demo-seed`.
+> Trang đăng nhập **chỉ hiện danh sách này ở môi trường dev** — production tự ẩn.
+> **Đổi mật khẩu `admin.bootstrap` và khóa tài khoản demo trước khi deploy thật.**
 
 ## Quy trình tự kiểm tra sau mỗi milestone
 
