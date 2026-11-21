@@ -104,6 +104,11 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @equipcare/api exec prisma generate
 
+      # Test E2E import '@equipcare/shared' va '@equipcare/backend-core' — can
+      # hai package nay da duoc build (co dist/) truoc khi chay test.
+      - name: Build shared + backend-core
+        run: pnpm --filter @equipcare/shared --filter @equipcare/backend-core build
+
       - name: Apply migrations
         run: pnpm --filter @equipcare/api exec prisma migrate deploy
 
