@@ -15,7 +15,7 @@
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.esm.json && tsc -p tsconfig.json && node -e \"require('fs').writeFileSync('./dist/cjs/package.json', '{ \\\"type\\\": \\\"commonjs\\\" }')\"",
+    "build": "pnpm --filter @equipcare/api exec prisma generate && tsc -p tsconfig.esm.json && tsc -p tsconfig.json && node -e \"require('fs').writeFileSync('./dist/cjs/package.json', '{ \\\"type\\\": \\\"commonjs\\\" }')\"",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.json",
     "test": "echo \"no tests yet\" && exit 0"

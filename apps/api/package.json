@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json",
+    "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
     "dev": "node --watch -r ts-node/register -r ./tools/dev-require-hook.cjs src/main.ts",
