@@ -71,7 +71,13 @@ apps/api/prisma/migrations/dev.db*
 
 # ---- Test ----
 junit.xml
-test-results/
+# Chỉ ignore artifact SINH RA khi chạy test. Các script test trong
+# test-results/ (00-full-test.ps1, 02-ai-test.ps1, 03-ws-test.js) là mã
+# nguồn được track trong git → không được ignore cả thư mục.
+test-results/*.log
+test-results/*.csv
+test-results/tokens.json
+test-results/node_modules/
 playwright-report/
 playwright/.cache/
 
