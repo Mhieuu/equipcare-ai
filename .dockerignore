@@ -1,0 +1,64 @@
+# =============================================================================
+# .dockerignore — loại trừ khỏi build context
+#
+# Build context của Dockerfile là toàn bộ thư mục repo (context: ..).
+# Không có file này, Docker sẽ gửi cả node_modules (hàng trăm MB) lên daemon
+# → build chậm và tốn băng thông.
+# =============================================================================
+
+# ---- Dependencies (cài lại trong image) ----
+node_modules
+**/node_modules
+.pnpm-store
+
+# ---- Build artifacts (build lại trong image) ----
+dist
+**/dist
+.next
+**/.next
+out
+coverage
+**/coverage
+*.tsbuildinfo
+
+# ---- Secrets (KHÔNG BAO GIỜ đưa secret vào image) ----
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.production.example
+
+# ---- VCS / CI ----
+.git
+.github
+.gitignore
+
+# ---- Docs & công cụ (không cần trong runtime image) ----
+docs
+screenshots
+test-results
+tools
+*.md
+!README.md
+
+# ---- Editor / OS ----
+.vscode
+.idea
+**/*.swp
+**/*.swo
+.DS_Store
+Thumbs.db
+
+# ---- Log runtime (không đưa vào image) ----
+*.log
+*.err
+**/*.log
+**/*.err
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# ---- Docker / compose ----
+infra
+docker-compose*.yml
+Dockerfile
+**/Dockerfile

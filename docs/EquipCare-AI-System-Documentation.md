@@ -1193,6 +1193,36 @@ pnpm demo:down      # dừng
 > File `.env` ở thư mục gốc là **tuỳ chọn** cho compose (đã cấu hình
 > `required: false`) — có thể truyền biến môi trường trực tiếp từ shell.
 
+`infra/docker-compose.prod.yml` là bản **production** (dùng trên VPS):
+- Postgres **không** publish port ra host — chỉ network nội bộ.
+- `restart: unless-stopped` cho api/web → tự khởi động lại sau reboot.
+- Healthcheck cho cả postgres, api, web.
+- Biến bắt buộc dùng cú pháp `:?` → deploy thiếu biến sẽ **fail sớm**
+  với thông báo rõ ràng, thay vì chạy được rồi mới hỏng.
+- Cổng publish chỉ trên `127.0.0.1` → reverse proxy là cổng vào duy nhất.
+
+```bash
+cp .env.production.example .env   # rồi điền giá trị thật
+pnpm prod:up        # build + chạy
+pnpm prod:status    # kiểm tra trạng thái
+pnpm prod:logs      # theo dõi log
+pnpm prod:down      # dừng (giữ dữ liệu)
+pnpm prod:backup    # dump database ra backup.sql
+```
+
+### 13.6. Cấu hình runtime của frontend
+
+Biến `NEXT_PUBLIC_API_URL` bị Next.js **inline vào JS bundle lúc build**, nên
+giá trị đó đóng băng theo image. Để sửa được mà không cần build lại, dự án
+có route handler `GET /api/runtime-config` đọc `process.env` lúc **runtime**;
+`api.ts` đọc endpoint này một lần khi app khởi động rồi cache lại.
+
+Hệ quả: đổi `NEXT_PUBLIC_API_URL` trong `.env` chỉ cần restart container là
+có hiệu lực — không cần `--build`.
+
+> **Quan trọng**: `NEXT_PUBLIC_API_URL` là URL mà **trình duyệt** gọi tới, phải
+> là URL public (`https://api.equipcare.vn`), không phải URL nội bộ.
+
 ### 13.6. Checklist trước khi deploy thật
 
 1. `NODE_ENV=production` trong `.env`.

@@ -31,8 +31,46 @@ interface ApiOptions extends RequestInit {
   responseType?: 'json' | 'blob' | 'text';
 }
 
+/**
+ * URL API — lấy từ runtime config nếu có, fallback về biến build-time.
+ *
+ * Vì sao cần runtime: `NEXT_PUBLIC_API_URL` bị inline vào JS bundle lúc
+ * `next build`, nên giá trị đó bị đóng băng theo image. Route handler
+ * `/api/runtime-config` đọc `process.env` lúc runtime → đổi URL API chỉ cần
+ * restart container, không cần build lại image.
+ *
+ * - `getApiBaseUrl()` — dạng sync, dùng khi cần giá trị ngay (fallback build-time).
+ * - `resolveApiBaseUrl()` — dạng async, đọc `/api/runtime-config` một lần rồi cache.
+ */
+let cachedApiBaseUrl: string | null = null;
+let runtimeConfigPromise: Promise<string | null> | null = null;
+
 function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+  return cachedApiBaseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+}
+
+/**
+ * Đọc `/api/runtime-config` (server-side, cùng origin) một lần rồi cache.
+ * Nếu request thất bại → fallback về biến build-time, không làm hỏng app.
+ */
+export async function resolveApiBaseUrl(): Promise<string> {
+  if (cachedApiBaseUrl) return cachedApiBaseUrl;
+  if (typeof window === 'undefined') return getApiBaseUrl();
+
+  if (!runtimeConfigPromise) {
+    runtimeConfigPromise = fetch('/api/runtime-config', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { apiUrl?: string } | null) => {
+        if (data?.apiUrl) {
+          cachedApiBaseUrl = data.apiUrl;
+          return data.apiUrl;
+        }
+        return null;
+      })
+      .catch(() => null);
+  }
+
+  return (await runtimeConfigPromise) ?? getApiBaseUrl();
 }
 
 export { getApiBaseUrl };
@@ -69,6 +107,8 @@ async function tryRefresh(): Promise<string | null> {
 
 export async function apiFetch<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {
   const { noAuth, query, responseType = 'json', headers, ...rest } = opts;
+  // Đảm bảo đã có URL API đúng (runtime config > build-time fallback) trước khi gọi.
+  await resolveApiBaseUrl();
   const url = buildUrl(path, query);
 
   const doFetch = async (token: string | null): Promise<Response> => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { Download } from 'lucide-react';
-import { getApiBaseUrl } from '@/lib/api';
+import { resolveApiBaseUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 interface Report {
@@ -32,7 +32,8 @@ export default function ReportsPage() {
   const accessToken = useAuth((s) => s.accessToken);
 
   const download = async (r: Report) => {
-    const res = await fetch(`${getApiBaseUrl()}${r.url}`, {
+    const base = await resolveApiBaseUrl();
+    const res = await fetch(`${base}${r.url}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!res.ok) return;

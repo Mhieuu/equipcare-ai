@@ -1,0 +1,165 @@
+# =============================================================================
+# EquipCare AI — Production stack
+#
+# Dùng cho VPS / server thật:
+#   docker compose -f infra/docker-compose.prod.yml up -d --build
+#
+# Nguyên tắc production:
+#  - Postgres KHÔNG expose ra internet (chỉ network nội bộ) — truy cập qua
+#    reverse proxy hoặc SSH tunnel.
+#  - API / web có `restart: unless-stopped` → tự khởi động lại khi server reboot
+#    hoặc container crash.
+#  - Healthcheck + `depends_on: service_healthy` → traffic chỉ vào app khi DB sẵn sàng.
+#  - Không có `env_file` bắt buộc: truyền biến môi trường trực tiếp từ `.env`
+#    ở thư mục gốc (compose tự đọc file này cho các biến ${...}).
+#
+# ⚠️  Trước khi deploy: đổi DB_PASSWORD, APP_URL, và sinh secret mới cho
+#     JWT_ACCESS_SECRET / REFRESH_TOKEN_PEPPER (xem .env.production.example).
+# =============================================================================
+
+name: equipcare-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-equipcare}
+      POSTGRES_USER: ${DB_USER:-equipcare}
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD la bat buoc}"
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    # KHÔNG publish port ra host — chỉ trong network nội bộ compose.
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-equipcare} -d ${DB_NAME:-equipcare}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - internal
+
+  # ---- Migration: chạy 1 lần rồi thoát, trước khi API khởi động ----
+  migrate:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: "no"
+    entrypoint: ["pnpm", "db:migrate:deploy"]
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-equipcare}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-equipcare}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ---- Seed: admin + vai trò + quyền (idempotent) ----
+  seed:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: "no"
+    entrypoint: ["pnpm", "db:seed"]
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-equipcare}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-equipcare}
+      NODE_ENV: production
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - internal
+
+  # ---- API (NestJS) ----
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      DATABASE_URL: postgresql://${DB_USER:-equipcare}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-equipcare}
+      # Secret — lấy từ .env, không hardcode
+      JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET la bat buoc}"
+      REFRESH_TOKEN_PEPPER: "${REFRESH_TOKEN_PEPPER:?REFRESH_TOKEN_PEPPER la bat buoc}"
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-900}
+      # CORS allowlist — origin thật của website
+      APP_URL: "${APP_URL:?APP_URL la bat buoc}"
+      # Reverse proxy: số lớp proxy đứng trước (để rate limit tính đúng IP client)
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      # AI
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-45000}
+      AI_STORE_RESPONSES: ${AI_STORE_RESPONSES:-true}
+      # Rate limit
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-120}
+      RATE_LIMIT_SHORT_MAX: ${RATE_LIMIT_SHORT_MAX:-20}
+      RATE_LIMIT_AI_MAX: ${RATE_LIMIT_AI_MAX:-6}
+      # Khác
+      SCHEDULER_INTERVAL_MS: ${SCHEDULER_INTERVAL_MS:-60000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # /docs KHÔNG bật ở production
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+    # Chỉ bind loopback — reverse proxy trên cùng host forward tới đây.
+    ports:
+      - "127.0.0.1:${API_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/healthz/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    networks:
+      - internal
+
+  # ---- Web (Next.js) ----
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # URL API mà TRÌNH DUYỆT sẽ gọi → phải là URL public, không phải nội bộ.
+      #
+      # Có 2 kênh, cùng trỏ về 1 giá trị:
+      #  - API_URL: đọc lúc RUNTIME bởi route handler /api/runtime-config
+      #    → đổi được bằng cách restart container, KHÔNG cần build lại image.
+      #  - NEXT_PUBLIC_API_URL: fallback cho client-side code đọc trực tiếp
+      #    biến này (bị inline lúc build).
+      API_URL: "${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL la bat buoc}"
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL la bat buoc}"
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  pg_data:
+
+networks:
+  internal:
+    driver: bridge

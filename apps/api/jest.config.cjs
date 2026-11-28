@@ -7,6 +7,10 @@ module.exports = {
   rootDir: '.',
   roots: ['<rootDir>/src', '<rootDir>/test'],
   setupFiles: ['<rootDir>/test/setup.ts'],
+  // Reset trạng thái admin về mặc định TRƯỚC khi chạy test.
+  // Xem test/global-setup.ts để hiểu vì sao cần (tránh 1 lần fail làm hỏng
+  // các lần chạy test sau do admin bị kẹt ở mật khẩu đã đổi).
+  globalSetup: '<rootDir>/test/global-setup.ts',
   testRegex: '.*\\.(e2e-spec|spec)\\.ts$',
   transform: {
     '^.+\\.ts$': [

@@ -48,6 +48,17 @@ jobs:
       - name: Validate demo compose
         run: docker compose -f infra/docker-compose.demo.yml config
 
+      # Prod compose co bien bat buoc (:?) nen phai truyen gia tri hop le de
+      # validate duoc — dung gia tri gia de, khong dung secret that.
+      - name: Validate prod compose
+        env:
+          DB_PASSWORD: ci-placeholder-password
+          JWT_ACCESS_SECRET: ci-placeholder-access-secret-at-least-32-bytes
+          REFRESH_TOKEN_PEPPER: ci-placeholder-pepper-at-least-32-bytes-long
+          APP_URL: https://equipcare.example.com
+          NEXT_PUBLIC_API_URL: https://api.equipcare.example.com
+        run: docker compose -f infra/docker-compose.prod.yml config
+
   test:
     runs-on: ubuntu-latest
     # E2E test can go timeout neu may chay chung nhieu job (build + test).

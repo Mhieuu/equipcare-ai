@@ -97,6 +97,50 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 
 ## 4. Triển khai production
 
+### 4.0. Deploy lên VPS bằng 1 lệnh (khuyến nghị)
+
+`infra/docker-compose.prod.yml` là stack production, khác demo ở các điểm:
+
+| Điểm | Demo | Prod |
+|---|---|---|
+| Postgres | publish port 5432 ra host | **không** publish — chỉ network nội bộ |
+| API / web | `restart` mặc định | `restart: unless-stopped` → tự sống lại sau reboot |
+| Healthcheck | có (postgres) | có cho **cả** postgres, api, web |
+| Biến bắt buộc | có default | dùng `:?` → **fail rõ ràng** nếu thiếu |
+| Cổng publish | mọi interface | `127.0.0.1` → chỉ reverse proxy truy cập được |
+
+```bash
+# 1) Clone + cấu hình
+git clone https://github.com/Mhieuu/equipcare-ai.git
+cd equipcare-ai
+cp .env.production.example .env
+nano .env          # điền secret thật, DB_PASSWORD, APP_URL, NEXT_PUBLIC_API_URL, GEMINI_API_KEY
+
+# 2) Build + chạy
+pnpm prod:up
+
+# 3) Kiểm tra
+pnpm prod:status
+curl http://127.0.0.1:3001/healthz/ready
+
+# 4) Log
+pnpm prod:logs
+
+# 5) Dừng (giữ dữ liệu)
+pnpm prod:down
+```
+
+> Lần chạy đầu tiên sẽ mất vài phút để build image (build trong container,
+> không cần cài Node trên host).
+
+**Sau khi đổi `.env`**: `docker compose -f infra/docker-compose.prod.yml up -d`
+để áp dụng (không cần build lại image trừ khi đổi source).
+
+> **Lưu ý `NEXT_PUBLIC_API_URL`**: đây là URL mà **trình duyệt** gọi tới, nên
+> phải là URL public (`https://api.equipcare.vn`), không phải `localhost:3001`.
+> Route handler `/api/runtime-config` đọc biến này lúc **runtime**, nên đổi
+> được mà không cần build lại image.
+
 ### 4.1. Docker Compose (full stack)
 
 ```powershell
@@ -223,6 +267,32 @@ Test E2E cần PostgreSQL đang chạy và có dữ liệu seed. Nếu DB không
 > **Về rate limit trong test**: bộ test E2E chạy hàng trăm request trên cùng IP nên
 > ngưỡng được nới lỏng tự động khi `NODE_ENV=test`. Suite `rate-limit.e2e-spec.ts`
 > đặt `RATE_LIMIT_TEST_STRICT=true` để kiểm tra hành vi 429 thật.
+>
+> **Về `NODE_ENV` trong test**: `test/setup.ts` và `test/global-setup.ts` **gán cứng**
+> `NODE_ENV='test'` (không dùng `??=`). Lý do: nếu máy/CI đã có sẵn
+> `NODE_ENV=production` trong biến môi trường hệ thống thì `??=` sẽ giữ nguyên
+> giá trị đó → test chạy với ngưỡng rate limit production → E2E dính 429 và fail
+> một cách rất khó hiểu. Gán cứng để test luôn ổn định bất kể môi trường máy.
+
+### Chuẩn bị dữ liệu cho test
+
+`test/global-setup.ts` chạy **trước mọi suite** và:
+
+1. Reset mật khẩu `admin.bootstrap` về mặc định (`ChangeMe@2026`) + xoá session cũ.
+2. Bảo đảm `NODE_ENV=test`.
+
+> **Vì sao cần bước 1?** Test `TC-AUTH-05` (change-password) đổi mật khẩu admin rồi
+> đổi lại ở bước cuối. Nếu test fail giữa chừng (timeout, mất mạng, assertion khác
+> fail trước), bước "đổi lại" không chạy → admin bị kẹt ở mật khẩu
+> `NewSecure@Pass2026!` → **mọi** test sau đó đăng nhập bằng `ChangeMe@2026` đều
+> nhận 401 → một lần fail lơ lẻ làm hỏng cả lần chạy test kế tiếp.
+>
+> Reset ở đầu mỗi lần chạy giúp test luôn bắt đầu từ trạng thái đã biết, độc lập
+> với kết quả của lần chạy trước.
+
+Ngoài ra `prisma/seed.ts` cũng reset mật khẩu admin về mặc định khi chạy lại
+(`upsert` có `update.password_hash`) — nhờ vậy luôn có đường khôi phục tài khoản
+admin sau khi deploy, không rơi vào trạng thái "không đăng nhập được".
 
 ### CI
 
@@ -333,6 +403,11 @@ docker save -o EquipCare-AI-images.tar equipcare-demo-api equipcare-demo-web
 | `Invalid prisma.$queryRaw() invocation` | Test chạy song song với dev server đang ghi DB | Dừng dev server rồi chạy test, hoặc dùng `docker compose -f infra/docker-compose.demo.yml up` |
 | Trang trắng, console báo lỗi module | Dev server chưa compile xong | Đợi vài giây, hard refresh (`Ctrl+Shift+R`) |
 | `Proposer không thể tự quyết định approval của mình` | Đúng business rule FR-APR-09 | Đăng nhập bằng tài khoản MANAGER khác để duyệt |
+| Login trả 401 dù đúng mật khẩu, E2E fail hàng loạt | Admin bị kẹt ở mật khẩu đã đổi (test fail giữa chừng) | Chạy lại `pnpm --filter @equipcare/api exec tsx prisma/seed.ts` (đã reset password) — hoặc chạy test, `global-setup` tự reset |
+| E2E test fail với 429 Too Many Requests | `NODE_ENV` bị kẹt ở `production` (biến môi trường hệ thống) → dùng ngưỡng rate limit production | Đã sửa: `test/setup.ts` gán cứng `NODE_ENV='test'`. Nếu gặp lại, kiểm tra `echo $env:NODE_ENV` |
+| Docker build fail: `prisma: not found` / `tsx: not found` | `prisma` + `tsx` phải nằm trong `dependencies` (không phải `devDependencies`) vì `pnpm deploy --prod` loại bỏ devDeps | Kiểm tra `apps/api/package.json` |
+| Container API restart liên tục, log `Cannot find module '/app/dist/main.js'` | `pnpm deploy` không copy `dist/` (bị gitignore) | Dockerfile đã copy tay `COPY --from=builder /repo/apps/api/dist ./dist` |
+| `prisma migrate deploy` fail trong container | Image chưa có Prisma CLI | `pnpm --filter @equipcare/api exec prisma generate` trước khi `migrate deploy` |
 
 ---
 

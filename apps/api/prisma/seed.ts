@@ -204,7 +204,18 @@ async function main(): Promise<void> {
   await prisma.users.upsert({
     where: { login_name: SYSTEM_ADMIN_LOGIN },
     update: {
+      // Reset mật khẩu về giá trị mặc định + tăng auth_version để vô hiệu
+      // hoá mọi refresh token đang còn hiệu lự.
+      //
+      // Lý do: `upsert` chỉ set `must_change_password` sẽ KHÔNG khôi phục được
+      // mật khẩu nếu admin đã đổi (hoặc test change-password đã đổi và bị
+      // fail giữa chừng). Khi đó không còn đường nào để đăng nhập lại nếu
+      // không có seed chạy lại. Reset ở đây đảm bảo seed luôn khôi phục
+      // được tài khoản admin về trạng thái ban đầu.
+      password_hash: passwordHash,
+      is_locked: false,
       must_change_password: true,
+      auth_version: { increment: 1 },
     },
     create: {
       id: BOOTSTRAP_ADMIN_ID,
