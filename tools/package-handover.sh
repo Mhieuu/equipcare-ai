@@ -56,7 +56,8 @@ rm -f "$OUT_DIR/$ZIP_NAME"
 INCLUDES=(
   apps packages infra docs tools .github
   package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json
-  README.md .env.example .nvmrc .gitignore
+  README.md .env.example .env.production.example .nvmrc .gitignore
+  TEST-REPORTS.md
 )
 
 if command -v zip >/dev/null 2>&1; then
