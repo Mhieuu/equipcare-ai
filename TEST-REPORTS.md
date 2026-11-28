@@ -45,6 +45,37 @@ pnpm test                      # toàn bộ
 pnpm --filter @equipcare/api test -- --testPathPattern=auth
 ```
 
+## Docker / Production Stack Verification
+
+Kiểm chứng thực tế (không chỉ lý thuyết) — đo ngày 28/11/2026:
+
+| Hạng mục | Kết quả |
+|----------|---------|
+| `docker build` API image | ✅ Thành công (`apps/api/Dockerfile`) |
+| `docker build` Web image | ✅ Thành công (`apps/web/Dockerfile`) |
+| `docker compose -f infra/docker-compose.prod.yml up -d` | ✅ 5 service: postgres (healthy) → migrate (exit 0) → seed (exit 0) → api (healthy) → web (healthy) |
+| `GET /healthz/ready` | ✅ `{"status":"ok","db":true,...}` |
+| Web `GET /` | ✅ HTTP 200 |
+| Login (`POST /auth/login`) | ✅ HTTP 200, trả accessToken, `mustChangePassword=true` |
+| Swagger `/docs` ở production | ✅ HTTP 404 (đã ẩn đúng) |
+| Runtime config `GET /api/runtime-config` | ✅ Trả đúng URL API hiện hành |
+| **Đổi URL API không cần rebuild** | ✅ Đổi env → restart container → giá trị mới có hiệu lực ngay |
+| Thiếu biến bắt buộc khi deploy | ✅ Fail sớm với thông báo rõ ràng (`required variable DB_PASSWORD is missing`) |
+
+### Ổn định của bộ test E2E
+
+Bộ test được chạy **3 lần liên tiếp** để kiểm chứng tính lặp lại (idempotent):
+
+| Lần | Kết quả |
+|-----|---------|
+| 1 | 16 suite / 109 test — **PASS** |
+| 2 | 16 suite / 109 test — **PASS** |
+| 3 | 16 suite / 109 test — **PASS** |
+
+> Trước khi có `test/global-setup.ts` + gán cứng `NODE_ENV='test'`, một lần
+> fail lơ lẻ (ví dụ timeout) có thể làm hỏng **cả** lần chạy test kế tiếp:
+> admin bị kẹt ở mật khẩu đã đổi → mọi suite sau đó đều 401.
+
 ## Backend API Test Results (kiểm thử HTTP thủ công)
 
 | Batch | Description | PASS | FAIL | TOTAL |
