@@ -1,5 +1,6 @@
 # Common test helpers — load fixtures and login utilities
-. "$PSScriptRoot\fixtures.ps1"
+# Vị trí: tools/legacy-tests/ → fixtures nằm ở tools/fixtures.ps1
+. "$PSScriptRoot\..\fixtures.ps1"
 
 $base = 'http://localhost:3001'
 $pwdAdmin = 'ChangeMe' + [char]64 + '2026'

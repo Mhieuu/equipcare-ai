@@ -1,19 +1,51 @@
 # Test Reports — EquipCare AI
 
+> **Nguồn sự thật chính**: bộ test E2E tự động (Jest) chạy trong CI mỗi lần
+> push — `pnpm test`. Kết quả bên dưới được đo trực tiếp từ CI.
+
 ## Summary
 
-After running all test suites (`tools/run-all.ps1`), results are aggregated here.
+Có 3 lớp kiểm thử:
 
-## Test Suites
+| Lớp | Công cụ | Khi nào chạy | Kết quả |
+|------|----------|--------------|---------|
+| **E2E tự động (CI)** | Jest + Supertest | Mỗi lần push lên `main` | **109/109 PASS** (16 suite) |
+| **Kiểm thử HTTP thủ công** | PowerShell (`tools/legacy-tests/`) | Khi cần test sâu theo kịch bản | 133/134 PASS (99.25%) |
+| **Kiểm thử UI** | Puppeteer + Chrome | Kiểm tra luồng trên trình duyệt | 31/31 PASS (100%) |
 
-| Suite | Coverage | Results |
-|-------|----------|---------|
-| **Backend API** (5 batches) | All REST endpoints + DTOs | 133/134 PASS (99.25%) |
-| **E2E UI** | All 23 pages with auth flows | 31/31 PASS (100%) |
-| **Performance** | Cold start + p95 latency + 1000+ records | All under 50ms p95 |
-| **OpenAPI Generator** | 77 paths + 62 DTOs + 20 enums | Generates valid spec + client |
+Ngoài ra: test hiệu năng (`tools/legacy-tests/test-perf.ps1`) và generator
+OpenAPI / typed client.
 
-## Backend API Test Results (Latest Run)
+## E2E tự động (Jest — nguồn chuẩn)
+
+| Suite | Nội dung |
+|-------|----------|
+| `auth` | Login, refresh rotation, logout, đổi mật khẩu |
+| `iam` | Người dùng, vai trò, phân quyền, audit log |
+| `asset` | CRUD thiết bị, QR, vòng đời |
+| `incident` | Sự cố, state machine, chat, tự sinh WO |
+| `ai` | Triage & tóm tắt tài sản (provider mock trong CI) |
+| `work-order` | Vòng đời WO, gán KTV, SLA, phụ tùng |
+| `parts-stock` | Linh kiện, giao dịch kho, chống âm kho, concurrency |
+| `cost-approval` | Chi phí, đề xuất, phê duyệt, revision |
+| `maintenance` | Kế hoạch bảo trì định kỳ, sinh WO |
+| `notif-dashboard-report` | Thông báo, KPI, xuất báo cáo |
+| `demo-flow` | Luồng nghiệp vụ end-to-end |
+| `m10-endpoints` | Các endpoint bổ sung |
+| `q01-sec-aud` | Ràng buộc bảo mật ở mức DB |
+| `q06-budget` | Ngân sách & ghi đè chi phí |
+| `config` | Cấu hình hệ thống |
+| **`rate-limit`** | **Rate limiting (429) — bảo vệ API khi public** |
+| **Tổng** | **16 suite — 109 test — 109 PASS — 0 FAIL** |
+
+### Cách chạy
+
+```bash
+pnpm test                      # toàn bộ
+pnpm --filter @equipcare/api test -- --testPathPattern=auth
+```
+
+## Backend API Test Results (kiểm thử HTTP thủ công)
 
 | Batch | Description | PASS | FAIL | TOTAL |
 |-------|-------------|------|------|-------|
@@ -22,7 +54,7 @@ After running all test suites (`tools/run-all.ps1`), results are aggregated here
 | 3 | Work Orders + Dashboard | 33 | 0 | 33 |
 | 4 | Assets + Parts + Maintenance | 27 | 0 | 27 |
 | 5 | Approvals + Org + Config | 15 | 0 | 15 |
-| **Total** | | **133** | **0** | **133** |
+| **Total** | | **133** | **1** | **134** |
 
 ## E2E UI Test Results (Puppeteer + Chrome)
 
@@ -67,11 +99,14 @@ After running all test suites (`tools/run-all.ps1`), results are aggregated here
 ## Running
 
 ```bash
-# Generate artifacts
+# Sinh artifact (OpenAPI, fixtures, typed client)
 node tools/openapi-generator.js
 node tools/gen-fixtures.js
 node tools/gen-ts-client.js
 
-# Run all tests
+# Test E2E tự động (không cần chạy API riêng)
+pnpm test
+
+# Test HTTP thủ công + UI + perf (cần API chạy ở localhost:3001)
 pwsh tools/run-all.ps1
 ```

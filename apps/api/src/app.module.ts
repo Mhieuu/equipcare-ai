@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
@@ -21,7 +22,8 @@ import { SchedulerModule } from './modules/scheduler/scheduler.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { ReportModule } from './modules/report/report.module.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
-
+import { throttlerOptions } from './common/guards/throttler.config.js';
+import { ApiThrottlerGuard } from './common/guards/api-throttler.guard.js';
 /**
  * AppModule — M1.B + Auth.
  *
@@ -32,6 +34,8 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
  * - HealthModule: /healthz, /healthz/live, /healthz/ready (ping DB).
  * - AuthModule: login / refresh / logout / change-password.
  * - APP_GUARD JwtAuthGuard: global, mọi route đều cần Bearer token trừ @Public().
+ * - ThrottlerModule + APP_GUARD ThrottlerGuard: chặn abuse/brute-force khi
+ *   đưa API lên internet (xem common/guards/throttler.config.ts).
  */
 @Module({
   imports: [
@@ -44,6 +48,7 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
         allowUnknown: true,
       },
     }),
+    ThrottlerModule.forRoot(throttlerOptions()),
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -70,6 +75,10 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ApiThrottlerGuard,
     },
   ],
 })

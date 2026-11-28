@@ -93,8 +93,8 @@ Phiên bản: 1.0 — Ngày phát hành: 13/09/2026
            │                  │                  │
            ▼                  ▼                  ▼
 ┌──────────────────┐  ┌──────────────┐  ┌─────────────────┐
-│   PostgreSQL 17  │  │  AI Provider │  │                 │
-│  (Prisma ORM)    │  │  (Mock/OpenAI)│  │                 │
+│  PostgreSQL 16   │  │  AI Provider │  │                 │
+│  (Prisma ORM)    │  │ (Mock/Gemini)│  │                 │
 └──────────────────┘  └──────────────┘  └─────────────────┘
 
 <!-- Redis, MinIO, Worker đã bị xóa -->
@@ -917,8 +917,8 @@ OVERDUE ──WO created──► IN_PROGRESS ...
 ```
 ┌──────────────────┐     ┌──────────────────┐     ┌──────────────┐
 │  Client gửi      │     │  POST /ai/triage │     │  AI Provider │
-│  incident        │────►│  (HTTP 202)      │────►│  (Mock/OpenAI│
-└──────────────────┘     └──────────┬───────┘     │   / Claude)  │
+│  incident        │────►│  (HTTP 202)      │────►│  (Mock/Gemini)│
+└──────────────────┘     └──────────┬───────┘     │              │
                                     │             └──────┬───────┘
                                     │                    │
                                     ▼                    ▼
@@ -941,9 +941,13 @@ interface AiProvider {
 ```
 
 - **MockAiProvider** (mặc định local): trả kết quả ngẫu nhiên có kiểm soát
-- **OpenAiProvider** (production): gọi GPT-4 với prompt template version
+- **GeminiProvider** (production): gọi Google Gemini qua `@google/genai`, model
+  `gemini-3.5-flash-lite` (đổi được qua env `GEMINI_MODEL`), kèm prompt
+  template version
 
-Factory chọn provider theo env `AI_PROVIDER`.
+Factory chọn provider theo env `AI_PROVIDER` (`mock` | `gemini`). Provider
+`gemini` yêu cầu `GEMINI_API_KEY` hợp lệ — thiếu thì app **exit ngay** khi
+boot (Joi validation), không âm thầm fallback sang mock.
 
 ### 10.3. Output Validation
 
@@ -1037,9 +1041,22 @@ Filter: `?from=YYYY-MM-DD&to=YYYY-MM-DD&departmentId=...`
 ### 12.5. Headers & Network
 
 - **Helmet**: set security headers (CSP, HSTS, X-Frame-Options)
-- **CORS**: whitelist origins
+- **CORS**: whitelist origins (env `APP_URL`, nhiều origin cách nhau bằng dấu phẩy)
 - **Cookie SameSite=Lax** + **Secure** ở production
-- **Rate limiting** (planned via @nestjs/throttler)
+- **Rate limiting** (`@nestjs/throttler` v5, global guard `ApiThrottlerGuard`):
+
+  | Named throttler | Phạm vi | Mặc định | Biến môi trường |
+  |-----------------|---------|----------|-----------------|
+  | `default` | mọi route của API | 120 req/phút/IP | `RATE_LIMIT_MAX` |
+  | `short` | login, refresh, đổi mật khẩu | 20 req/phút/IP | `RATE_LIMIT_SHORT_MAX` |
+  | `ai` | `/ai/incidents/:id/analyze`, `/ai/assets/:id/summary` | 6 req/phút/IP | `RATE_LIMIT_AI_MAX` |
+
+  - Cửa sổ thời gian: `RATE_LIMIT_WINDOW_MS` (mặc định 60.000 ms).
+  - Vượt ngưỡng → **HTTP 429** theo chuẩn `ApiErrorBody` (`code`, `message`, `traceId`).
+  - Ngưỡng `ai` siết chặt vì mỗi lượt gọi Gemini đều tốn tiền — đây là lớp bảo vệ chi phí.
+  - Tắt toàn bộ: `RATE_LIMIT_ENABLED=false` (chỉ dùng khi benchmark).
+- **Swagger ẩn ở production**: `/docs` chỉ bật khi `NODE_ENV !== production`,
+  hoặc bật tạm thời bằng `SWAGGER_ENABLED=true`.
 
 ### 12.6. Audit
 
@@ -1069,82 +1086,125 @@ Filter: `?from=YYYY-MM-DD&to=YYYY-MM-DD&departmentId=...`
 
 ### 13.1. Yêu cầu môi trường
 
-- Node.js >= 20
-- pnpm >= 9
-- PostgreSQL >= 15
-- Redis >= 6 (cho queue)
-- Docker + Docker Compose (khuyến nghị)
+| Thành phần | Yêu cầu | Ghi chú |
+|------------|----------|---------|
+| Node.js | `>=22.0.0 <23.0.0` | Bị pin cứng trong `package.json` (`engines`) và Dockerfile (`node:22.11.0-alpine`) |
+| pnpm | `>=9.12.0` | Dùng `corepack`; đã pin `pnpm@9.12.0` |
+| PostgreSQL | 16 | `postgres:16-alpine` — có `CHECK (on_hand >= 0)` và trigger chống tự phê duyệt |
+| Docker + Compose | v2 | Bắt buộc cho hạ tầng Postgres và cho bản deploy full-stack |
 
-### 13.2. Cài đặt
+> **Không cần Redis / MinIO / worker.** Scheduler được host trực tiếp trong
+> API (`apps/api/src/modules/scheduler`), và tài liệu lưu trữ file đính kèm
+> trên Postgres. Các service này đã bị gỡ khỏi kiến trúc.
+
+### 13.2. Cài đặt (môi trường dev)
 
 ```bash
 # 1. Clone
 git clone https://github.com/Mhieuu/equipcare-ai.git
 cd equipcare-ai
 
-# 2. Install deps
+# 2. Cài dependencies (postinstall tự chạy `prisma generate`)
 pnpm install
 
-# 3. Khởi động infra
-docker-compose up -d postgres
+# 3. Bật hạ tầng Postgres
+pnpm infra:up          # docker compose -f infra/docker-compose.infra.yml up -d
 
-<!-- Redis và MinIO đã bị xóa khỏi hệ thống -->
+# 4. Tạo file env — CHỈ có MỘT file .env ở thư mục gốc
+cp .env.example .env
+# rồi sửa .env: đặt DATABASE_URL, JWT_ACCESS_SECRET, REFRESH_TOKEN_PEPPER
 
-# 4. Copy env
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env.local
-
-# 5. Migrate
+# 5. Migrate + seed dữ liệu nền
 pnpm --filter @equipcare/api db:migrate:deploy
+pnpm --filter @equipcare/api db:seed        # admin + 4 vai trò + 47 quyền
 
-# 6. Seed bootstrap (admin + roles + permissions)
-pnpm --filter @equipcare/api db:seed
-
-# 7. (Optional) Seed demo data phong phú
+# 6. (Tuỳ chọn) Nạp dữ liệu demo đầy đủ
 pnpm --filter @equipcare/api db:demo-seed
 
-# 8. Chạy dev
-pnpm dev   # chạy api + web
+# 7. Chạy dev (api :3001 + web :3000)
+pnpm dev
 ```
 
 ### 13.3. Build production
 
 ```bash
-pnpm build       # build tất cả
-pnpm start       # chạy production
+pnpm build              # build tất cả (shared, backend-core, api, web)
+
+# Chạy thủ công
+pnpm --filter @equipcare/api start   # node dist/main.js  (port 3001)
+pnpm --filter @equipcare/web start   # next start        (port 3000)
 ```
+
+Hoặc dùng Docker (xem 13.5).
 
 ### 13.4. Biến môi trường quan trọng
 
+File mẫu: `.env.example` (dev) và `.env.production.example` (production).
+
 ```bash
-# Database
+# ---- Runtime ----
+NODE_ENV=production                  # bắt buộc khi deploy
+APP_URL=https://equipcare.vn         # allowlist CORS (nhiều origin cách nhau bằng dấu phẩy)
+API_PORT=3001
+
+# ---- Database ----
 DATABASE_URL=postgresql://user:pass@host:5432/equipcare
 
-# JWT
+# ---- Auth (BẮT BUỘC ≥ 32 bytes, app exit 1 nếu sai) ----
 JWT_ACCESS_SECRET=...
-JWT_REFRESH_SECRET=...
+REFRESH_TOKEN_PEPPER=...
+ACCESS_TOKEN_TTL=900
 
-# Frontend
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_WS_URL=http://localhost:3001/ws
+# ---- AI ----
+AI_PROVIDER=mock|gemini              # "gemini" dùng model thật
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-3.5-flash-lite
+AI_REQUEST_TIMEOUT_MS=45000
+AI_STORE_RESPONSES=false             # true = lưu response AI để audit
 
-# AI
-AI_PROVIDER=mock|openai
-OPENAI_API_KEY=...
-AI_TIMEOUT_MS=45000
+# ---- Rate limit ----
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX=120                   # toàn API / phút / IP
+RATE_LIMIT_SHORT_MAX=20              # login, refresh, đổi mật khẩu
+RATE_LIMIT_AI_MAX=6                  # endpoint AI (mỗi lượt gọi đều tốn tiền)
 
-# Worker
+# ---- Khác ----
 SCHEDULER_INTERVAL_MS=60000
+LOG_LEVEL=info
+SWAGGER_ENABLED=false                # /docs KHÔNG bật ở production
 ```
 
 ### 13.5. Docker
 
-File `docker-compose.yml` định nghĩa:
-- `postgres`: PostgreSQL 17
+`infra/docker-compose.demo.yml` định nghĩa full-stack:
+- `postgres`: PostgreSQL 16-alpine (healthcheck + volume `pg_data`)
+- `migrate`: chạy `prisma migrate deploy` một lần rồi thoát
+- `seed`: chạy `pnpm db:seed` một lần rồi thoát
+- `api`: NestJS, port 3001
+- `web`: Next.js, port 3000
 
-<!-- Redis và MinIO đã bị xóa khỏi docker-compose -->
+```bash
+pnpm demo:up        # bật toàn bộ
+pnpm demo:logs      # theo dõi log
+pnpm demo:down      # dừng
+```
 
-Có thể chạy full stack: `docker-compose -f docker-compose.full.yml up`
+> File `.env` ở thư mục gốc là **tuỳ chọn** cho compose (đã cấu hình
+> `required: false`) — có thể truyền biến môi trường trực tiếp từ shell.
+
+### 13.6. Checklist trước khi deploy thật
+
+1. `NODE_ENV=production` trong `.env`.
+2. Sinh secret mới: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` — 2 lần, cho `JWT_ACCESS_SECRET` và `REFRESH_TOKEN_PEPPER`.
+3. `DATABASE_URL` trỏ đúng DB production, mật khẩu mạnh.
+4. `APP_URL` đúng origin thật (CORS chặn sai là web không gọi được API).
+5. `AI_PROVIDER=gemini` + `GEMINI_API_KEY` hợp lệ — nếu để `mock` thì AI trả dữ liệu giả.
+6. Đổi mật khẩu tài khoản `admin.bootstrap` (đã bị khóa sẵn trong seed).
+7. Bật HTTPS qua reverse proxy (Caddy/Nginx) — refresh cookie chỉ được gửi khi `secure: true`.
+8. Đặt `RATE_LIMIT_*` phù hợp với lưu lượng thực tế.
+9. `SWAGGER_ENABLED` để `false` — không lộ schema API ra internet.
+10. Sao lưu Postgres tự động (backup + restore định kỳ).
 
 ---
 
@@ -1196,15 +1256,14 @@ Có thể chạy full stack: `docker-compose -f docker-compose.full.yml up`
 ### 15.2. Tech Stack Versions
 
 ```
-Node: 20.x
-pnpm: 9.x
-PostgreSQL: 17
+Node: 22.11.x
+pnpm: 9.12
+PostgreSQL: 16
 NestJS: 10.4
 Prisma: 5.20
 Next.js: 14.2
 React: 18.3
 TypeScript: 5.5
-Redis: 7
 ```
 
 ### 15.3. Đường dẫn API chính

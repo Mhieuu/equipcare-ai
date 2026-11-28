@@ -4,6 +4,7 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { Permission } from '@equipcare/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Throttle } from '@nestjs/throttler';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
 import { AiService } from './ai.service';
 
@@ -27,6 +28,8 @@ export class AiController {
   @Post('incidents/:id/analyze')
   @Permissions(Permission.INCIDENT_TRIAGE)
   @HttpCode(202)
+  // Mỗi lượt gọi Gemini đều tốn tiền — dùng ngưỡng `ai` (env RATE_LIMIT_AI_MAX).
+  @Throttle({ ai: {} })
   analyzeIncident(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -39,6 +42,8 @@ export class AiController {
   @Post('assets/:id/summary')
   @Permissions(Permission.ASSET_READ)
   @HttpCode(202)
+  // Tóm tắt tài sản cũng gọi Gemini — cùng ngưỡng với triage.
+  @Throttle({ ai: {} })
   analyzeAsset(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,

@@ -10,6 +10,15 @@ import { AppModule } from './app.module.js';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // ---- Trust proxy ----
+  // Khi chạy sau reverse proxy (nginx/Caddy), Express cần biết để lấy IP thật
+  // của client từ header X-Forwarded-For. Nếu KHÔNG bật, mọi request sẽ mang
+  // IP của proxy → rate limit tính chung một ngưỡng cho tất cả người dùng.
+  // Giá trị = số lớp proxy đứng trước app (1 = reverse proxy trực tiếp).
+  if (process.env.TRUST_PROXY !== 'false') {
+    app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 1));
+  }
+
   // ---- Security headers (Doc02 §NFR-SEC) ----
   app.use(helmet());
 
@@ -40,16 +49,20 @@ async function bootstrap(): Promise<void> {
   );
 
   // ---- Swagger / OpenAPI ----
-  const swagger = new DocumentBuilder()
-    .setTitle('EquipCare AI API')
-    .setDescription('Equipment maintenance & incident management')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .addApiKey({ type: 'apiKey', name: 'X-Request-Id', in: 'header' }, 'request-id')
-    .addCookieAuth('equipcare_rt')
-    .build();
-  const doc = SwaggerModule.createDocument(app, swagger);
-  SwaggerModule.setup('docs', app, doc);
+  // Ở production: KHÔNG bật /docs để tránh lộ toàn bộ schema API ra internet.
+  // Muốn bật tạm thời khi debug: đặt SWAGGER_ENABLED=true trong env rồi restart.
+  if (process.env.NODE_ENV !== 'production' || process.env.SWAGGER_ENABLED === 'true') {
+    const swagger = new DocumentBuilder()
+      .setTitle('EquipCare AI API')
+      .setDescription('Equipment maintenance & incident management')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .addApiKey({ type: 'apiKey', name: 'X-Request-Id', in: 'header' }, 'request-id')
+      .addCookieAuth('equipcare_rt')
+      .build();
+    const doc = SwaggerModule.createDocument(app, swagger);
+    SwaggerModule.setup('docs', app, doc);
+  }
 
   // ---- Graceful shutdown ----
   app.enableShutdownHooks();

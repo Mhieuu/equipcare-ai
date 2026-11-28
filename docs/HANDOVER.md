@@ -17,7 +17,7 @@
 | `apps/api` | NestJS 10, Prisma 5, PostgreSQL 16 | 3001 | REST API + Swagger + AI provider |
 | `packages/shared` | TypeScript | — | Types, enum, permission constants |
 | `packages/backend-core` | TypeScript | — | PrismaService + state machine + policy |
-| `infra/` | Docker Compose | — | Hạ tầng Postgres / Redis / MinIO |
+| `infra/` | Docker Compose | — | Hạ tầng Postgres |
 
 ### Luồng nghiệp vụ chính
 
@@ -39,23 +39,26 @@ Người dùng báo sự cố  →  Sự cố (NEW)
 |---|---|---|
 | Node.js | 22.x LTS | Theo `.nvmrc` (`nvm install && nvm use`) |
 | pnpm | ≥ 9.12 | `npm i -g pnpm@9` |
-| Docker Desktop | bất kỳ | Chạy Postgres 16 + Redis 7 + MinIO |
+| Docker Desktop | bất kỳ | Chạy Postgres 16 |
 | PostgreSQL | 16 | Có thể dùng container `infra/` |
 
 > Mọi phiên bản chính xác nằm trong `pnpm-lock.yaml`. Không bump major sau khi đóng băng baseline.
+>
+> **Không cần Redis / MinIO / worker** — scheduler nằm trong API, file đính kèm lưu
+> trên Postgres. Các service này đã bị gỡ khỏi kiến trúc.
 
 ---
 
 ## 3. Cài đặt & chạy (môi trường dev)
 
 ```powershell
-# 1) Cài dependencies
+# 1) Cài dependencies (postinstall tự chạy `prisma generate`)
 pnpm install
 
-# 2) Bật hạ tầng (Postgres / Redis / MinIO)
+# 2) Bật hạ tầng Postgres
 pnpm infra:up
 
-# 3) Tạo file env
+# 3) Tạo file env — CHỈ có MỘT file .env ở thư mục gốc
 cp .env.example .env          # PowerShell: Copy-Item .env.example .env
 
 # 4) Migrate + seed dữ liệu nền
@@ -65,19 +68,20 @@ pnpm --filter @equipcare/api db:seed
 # 5) (tuỳ chọn) Nạp dữ liệu demo đầy đủ
 pnpm --filter @equipcare/api db:demo-seed
 
-# 6) Chạy api + web + worker
+# 6) Chạy api + web
 pnpm dev
 ```
 
 Truy cập:
 
 - **Web**: <http://localhost:3000>
-- **API + Swagger**: <http://localhost:3001/docs>
+- **API**: <http://localhost:3001>
+- **Swagger** (chỉ ở dev): <http://localhost:3001/docs>
 - **Health check**: <http://localhost:3001/healthz>
 
 ### Bật chức năng AI (Gemini)
 
-Trong `apps/api/.env`:
+Trong `.env` ở thư mục gốc:
 
 ```env
 AI_PROVIDER=gemini
@@ -115,6 +119,9 @@ Pipeline tự động chạy `prisma migrate deploy` rồi `prisma seed` trướ
 | 4 | Chỉ định domain | `APP_URL=https://ten-mien-cua-ban` — quyết định CORS allowlist |
 | 5 | Ẩn gợi ý đăng nhập | Tự động — trang login chỉ hiện tài khoản demo khi `NODE_ENV != production` |
 | 6 | Bật HTTPS | Đặt reverse proxy (nginx/Caddy) phía trước, chuyển cookie sang `Secure` |
+| 7 | Ẩn Swagger | `SWAGGER_ENABLED=false` — mặc định `/docs` đã tắt khi `NODE_ENV=production` |
+| 8 | Kiểm tra rate limit | `RATE_LIMIT_*` — mặc định đã bật (120/20/6 req/phút/IP) |
+| 9 | Sao lưu DB | Backup Postgres tự động, định kỳ, và test khôi phục |
 
 ### 4.3. Biến môi trường bắt buộc
 
@@ -128,13 +135,83 @@ Pipeline tự động chạy `prisma migrate deploy` rồi `prisma seed` trướ
 | `NEXT_PUBLIC_API_URL` | URL API phía web | `https://api.equipcare.vn` |
 | `AI_PROVIDER` | `gemini` hoặc `mock` | `gemini` |
 | `GEMINI_API_KEY` | Khóa Gemini (chỉ khi `AI_PROVIDER=gemini`) | — |
+| `NODE_ENV` | Bắt buộc `production` khi deploy | `production` |
+
+File mẫu đầy đủ cho production: **`.env.production.example`** (copy thành `.env` rồi điền giá trị thật).
+
+### 4.4. Reverse proxy + HTTPS
+
+API và web chạy nội bộ; **không** expose cổng 3000/3001 ra internet. Đặt
+reverse proxy phía trước để xử lý TLS:
+
+**Caddy** (đơn giản nhất — tự cấp chứng chỉ Let's Encrypt):
+
+```caddyfile
+equipcare.vn {
+    encode gzip
+
+    # Web (Next.js) — chạy production build
+    reverse_proxy localhost:3000
+
+    # API — chạy production build
+    handle /api/* {
+        reverse_proxy localhost:3001
+    }
+
+    handle /healthz* {
+        reverse_proxy localhost:3001
+    }
+}
+```
+
+**Nginx** (nhiều quyền kiểm soát hơn):
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name equipcare.vn;
+
+    ssl_certificate     /etc/letsencrypt/live/equipcare.vn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/equipcare.vn/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+> **Lưu ý quan trọng**: `trust proxy` phải được bật để API nhận đúng IP thật
+> của client — nếu không, rate limit sẽ tính trên IP của proxy và mọi người
+> dùng chung một ngưỡng. Trong NestJS:
+> ```ts
+> app.set('trust proxy', 1);
+> ```
+
+> **CORS**: `APP_URL` phải khớp chính xác origin mà trình duyệt gửi
+> (giao thức + domain + port), nếu không web sẽ không gọi được API.
+
+### 4.5. Sao lưu PostgreSQL
+
+```bash
+# Backup
+docker exec equipcare-postgres pg_dump -U equipcare equipcare > backup_$(date +%F).sql
+
+# Khôi phục
+docker exec -i equipcare-postgres psql -U equipcare equipcare < backup_2026-11-28.sql
+```
+
+Nên đặt cron job chạy hằng ngày và lưu ra nơi khác (không chỉ trên cùng máy).
 
 ---
 
 ## 5. Kiểm thử
 
 ```powershell
-# Toàn bộ test E2E của API (106 trường hợp / 15 suite)
+# Toàn bộ test E2E của API (109 trường hợp / 16 suite)
 pnpm --filter @equipcare/api test
 
 # Chạy lướt lẻ
@@ -143,12 +220,16 @@ pnpm --filter @equipcare/api exec jest --runInBand --config jest.config.cjs test
 
 Test E2E cần PostgreSQL đang chạy và có dữ liệu seed. Nếu DB không truy cập được, suite tự skip thay vì fail.
 
+> **Về rate limit trong test**: bộ test E2E chạy hàng trăm request trên cùng IP nên
+> ngưỡng được nới lỏng tự động khi `NODE_ENV=test`. Suite `rate-limit.e2e-spec.ts`
+> đặt `RATE_LIMIT_TEST_STRICT=true` để kiểm tra hành vi 429 thật.
+
 ### CI
 
 `.github/workflows/ci.yml` chạy 2 job trên mỗi push/PR lên `main`:
 
 1. **preflight** — lint → build → typecheck → validate docker-compose
-2. **test** — dựng Postgres 16 tạm, `migrate deploy` → `seed` → chạy 106 test E2E (dùng `AI_PROVIDER=mock` nên không cần Gemini key)
+2. **test** — dựng Postgres 16 tạm, `migrate deploy` → `seed` → chạy 109 test E2E (dùng `AI_PROVIDER=mock` nên không cần Gemini key)
 
 ### Tài liệu test
 
@@ -248,7 +329,7 @@ docker save -o EquipCare-AI-images.tar equipcare-demo-api equipcare-demo-web
 |---|---|---|
 | `EPERM: operation not permitted, open '.next/trace'` | Dev server đang giữ file, chạy `next build` đồng thời | Tắt dev server, xóa `apps/web/.next`, build lại |
 | `relation "users" does not exist` | Chưa migrate | `pnpm --filter @equipcare/api db:migrate:deploy` |
-| `AI_PROVIDER=gemini yêu cầu GEMINI_API_KEY` | Thiếu API key | Thêm `GEMINI_API_KEY` vào `apps/api/.env` |
+| `AI_PROVIDER=gemini yêu cầu GEMINI_API_KEY` | Thiếu API key | Thêm `GEMINI_API_KEY` vào `.env` |
 | `Invalid prisma.$queryRaw() invocation` | Test chạy song song với dev server đang ghi DB | Dừng dev server rồi chạy test, hoặc dùng `docker compose -f infra/docker-compose.demo.yml up` |
 | Trang trắng, console báo lỗi module | Dev server chưa compile xong | Đợi vài giây, hard refresh (`Ctrl+Shift+R`) |
 | `Proposer không thể tự quyết định approval của mình` | Đúng business rule FR-APR-09 | Đăng nhập bằng tài khoản MANAGER khác để duyệt |

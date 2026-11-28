@@ -7,6 +7,7 @@ import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { AuthTokenDto } from './dto/auth-token.dto.js';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { AppError } from '@equipcare/backend-core';
 import type { AuthenticatedUser } from '../../common/types/auth-user.type.js';
@@ -34,6 +35,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  // Chặn brute-force — dùng ngưỡng `short` đã cấu hình sẵn (env RATE_LIMIT_SHORT_MAX).
+  @Throttle({ short: {} })
   @ApiOperation({ summary: 'Đăng nhập — trả access token + set refresh cookie' })
   @ApiResponse({ status: 200, type: AuthTokenDto })
   @ApiResponse({ status: 401, description: 'Sai thông tin đăng nhập' })
@@ -51,6 +54,8 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  // Refresh cũng bị giới hạn để tránh bị dùng để dò token.
+  @Throttle({ short: {} })
   @ApiOperation({ summary: 'Làm mới access token (rotate refresh cookie)' })
   @ApiCookieAuth(REFRESH_COOKIE)
   async refresh(
@@ -82,6 +87,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ short: {} })
   @ApiOperation({ summary: 'Đổi mật khẩu (Doc02 §FR-AUTH-04) — revoke all sessions' })
   async changePassword(
     @CurrentUser() user: AuthenticatedUser,

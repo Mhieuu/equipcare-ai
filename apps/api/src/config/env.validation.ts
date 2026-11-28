@@ -43,6 +43,23 @@ export const envValidationSchema = Joi.object({
     .valid('error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly')
     .default('info'),
 
+  // ---- Swagger ----
+  // Mặc định /docs chỉ bật khi NODE_ENV !== production.
+  // Đặt true để bật tạm thời khi debug trên môi trường thật.
+  SWAGGER_ENABLED: Joi.boolean().default(false),
+
+  // ---- Reverse proxy ----
+  // Số lớp reverse proxy đứng trước API (1 = nginx/Caddy trực tiếp).
+  // Bật để rate limit tính theo IP thật của client.
+  TRUST_PROXY: Joi.number().integer().min(0).default(1),
+
+  // ---- Rate limit (bảo vệ API khi đưa lên internet) ----
+  RATE_LIMIT_ENABLED: Joi.boolean().default(true),
+  RATE_LIMIT_WINDOW_MS: Joi.number().integer().positive().default(60000),
+  RATE_LIMIT_MAX: Joi.number().integer().positive().default(120),
+  RATE_LIMIT_SHORT_MAX: Joi.number().integer().positive().default(20),
+  RATE_LIMIT_AI_MAX: Joi.number().integer().positive().default(6),
+
   // ---- Scheduler ----
   SCHEDULER_INTERVAL_MS: Joi.number().integer().positive().default(60000),
 });

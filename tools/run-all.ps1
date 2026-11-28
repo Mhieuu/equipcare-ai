@@ -1,9 +1,14 @@
 #!/usr/bin/env pwsh
 # Run all test suites + generators.
 # Usage:  pwsh tools/run-all.ps1
+#
+# Ghi chú: bộ test PowerShell (batch1..5, perf) nằm ở tools/legacy-tests/ và
+# là kiểm thử HTTP thủ công đòi API chạy sẵn ở localhost:3001. Bộ test E2E
+# tự động (chạy trong CI) nằm ở apps/api/test/ — dùng `pnpm test`.
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot | Split-Path -Parent
+$legacy = Join-Path $root 'tools\legacy-tests'
 
 Write-Host "==========================================="
 Write-Host "EQUIPCARE AI - FULL TEST SUITE"
@@ -19,11 +24,11 @@ Write-Host ""
 
 # Backend API tests
 Write-Host "[2/4] Backend API tests..."
-& powershell.exe -ExecutionPolicy Bypass -File "$root/test-batch1.ps1"
-& powershell.exe -ExecutionPolicy Bypass -File "$root/test-batch2-fixed.ps1"
-& powershell.exe -ExecutionPolicy Bypass -File "$root/test-batch3-fixed.ps1"
-& powershell.exe -ExecutionPolicy Bypass -File "$root/test-batch4-fixed.ps1"
-& powershell.exe -ExecutionPolicy Bypass -File "$root/test-batch5.ps1"
+& powershell.exe -ExecutionPolicy Bypass -File "$legacy\test-batch1.ps1"
+& powershell.exe -ExecutionPolicy Bypass -File "$legacy\test-batch2-fixed.ps1"
+& powershell.exe -ExecutionPolicy Bypass -File "$legacy\test-batch3-fixed.ps1"
+& powershell.exe -ExecutionPolicy Bypass -File "$legacy\test-batch4-fixed.ps1"
+& powershell.exe -ExecutionPolicy Bypass -File "$legacy\test-batch5.ps1"
 Write-Host ""
 
 # E2E UI tests
@@ -33,7 +38,7 @@ Write-Host ""
 
 # Performance
 Write-Host "[4/4] Performance tests..."
-& powershell.exe -ExecutionPolicy Bypass -File "$root/test-perf.ps1"
+& powershell.exe -ExecutionPolicy Bypass -File "$legacy\test-perf.ps1"
 Write-Host ""
 
 Write-Host "==========================================="
