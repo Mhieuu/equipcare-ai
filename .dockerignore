@@ -38,6 +38,9 @@ docs
 screenshots
 test-results
 tools
+# Runtime output của LocalFsAdapter (attachment upload)
+var
+**/var/
 *.md
 !README.md
 

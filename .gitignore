@@ -49,6 +49,10 @@ coverage/
 
 # ---- Local artifacts (not for repo) ----
 screenshots/
+# Runtime output của LocalFsAdapter (attachment upload) — xoá được, tự sinh lại.
+var/
+apps/*/var/
+**/var/storage/
 
 # ---- Editor ----
 .vscode/
